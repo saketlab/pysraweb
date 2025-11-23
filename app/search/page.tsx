@@ -31,7 +31,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (query) {
-      fetch("http://localhost:8000/")
+      fetch(`http://localhost:8000/?q=${encodeURIComponent(query)}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.error) {

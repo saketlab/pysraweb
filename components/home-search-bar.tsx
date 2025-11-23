@@ -33,7 +33,7 @@ export default function HomeSearchBar() {
       />
       <form onSubmit={handleSubmit} style={{ width: "60%" }}>
         <TextField.Root
-          placeholder="all scRNA-seq datasets from 2024 to 2023 which use 10x technology"
+          placeholder="Start typing..."
           size="3"
           onChange={(e) => setQuery(e.target.value)}
         >

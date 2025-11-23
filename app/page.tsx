@@ -8,6 +8,7 @@ export default function Home() {
   return (
     <Flex style={{ height: "100svh" }} direction="column">
       <Flex
+        p="3"
         justify="between"
         align="center"
         onClick={() => console.log("there")}
