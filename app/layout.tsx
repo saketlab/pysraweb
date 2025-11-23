@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Theme>{children}</Theme>
+        <Theme accentColor="indigo">{children}</Theme>
       </body>
     </html>
   );
