@@ -1,4 +1,4 @@
-import { Theme } from "@radix-ui/themes";
+import Wrapper from "@/components/wrapper";
 import "@radix-ui/themes/styles.css";
 import type { Metadata } from "next";
 
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Theme accentColor="indigo">{children}</Theme>
+        <Wrapper>{children}</Wrapper>
       </body>
     </html>
   );
