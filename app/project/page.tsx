@@ -1,15 +1,21 @@
 "use client";
 import SearchBar from "@/components/search-bar";
+import SimilarCard from "@/components/similar-card";
+import TableRow from "@/components/table-row";
 import {
   CaretSortIcon,
   DownloadIcon,
+  InfoCircledIcon,
   MixerHorizontalIcon,
 } from "@radix-ui/react-icons";
 import {
   Badge,
   Button,
   Flex,
+  Grid,
   IconButton,
+  Link,
+  Popover,
   Separator,
   Table,
   Text,
@@ -24,8 +30,8 @@ export default function ProjectPage() {
     <>
       <SearchBar searchQuery={""} />
       <Flex
-        style={{ marginLeft: "8.2rem", width: "81%" }}
-        p="3"
+        style={{ marginLeft: "8.2rem", width: "80%" }}
+        py="3"
         direction={"column"}
         gap={"2"}
       >
@@ -55,7 +61,16 @@ export default function ProjectPage() {
       </Flex>
 
       {/* The metadata table */}
-      <Table.Root style={{ marginLeft: "8.2rem", width: "80%" }}>
+      <Table.Root
+        variant="surface"
+        style={{
+          marginLeft: "8.2rem",
+          width: "80%",
+          overflow: "scroll",
+          marginTop: "1rem",
+          maxHeight: "30rem",
+        }}
+      >
         <Table.Header>
           <Table.Row>
             <Table.ColumnHeaderCell>
@@ -69,29 +84,59 @@ export default function ProjectPage() {
             <Table.ColumnHeaderCell>Library Name</Table.ColumnHeaderCell>
             <Table.ColumnHeaderCell>Library Strategy</Table.ColumnHeaderCell>
             <Table.ColumnHeaderCell>Library Source</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Library Selection</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Library Layout</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Sample Accession</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Sample Title</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Instrument</Table.ColumnHeaderCell>
+            <Table.ColumnHeaderCell>Instrument Model</Table.ColumnHeaderCell>
           </Table.Row>
         </Table.Header>
 
         <Table.Body>
-          <Table.Row>
-            <Table.RowHeaderCell>Danilo Sousa</Table.RowHeaderCell>
-            <Table.Cell>danilo@example.com</Table.Cell>
-            <Table.Cell>Developer</Table.Cell>
-          </Table.Row>
-
-          <Table.Row>
-            <Table.RowHeaderCell>Zahra Ambessa</Table.RowHeaderCell>
-            <Table.Cell>zahra@example.com</Table.Cell>
-            <Table.Cell>Admin</Table.Cell>
-          </Table.Row>
-
-          <Table.Row>
-            <Table.RowHeaderCell>Jasper Eriksson</Table.RowHeaderCell>
-            <Table.Cell>jasper@example.com</Table.Cell>
-            <Table.Cell>Developer</Table.Cell>
-          </Table.Row>
+          <TableRow />
+          <TableRow />
+          <TableRow />
+          <TableRow />
+          <TableRow />
+          <TableRow />
+          <TableRow />
+          <TableRow />
         </Table.Body>
       </Table.Root>
+      <Flex
+        style={{ marginLeft: "8.2rem", width: "80%", marginTop: "1rem" }}
+        py="3"
+        direction={"column"}
+        gap={"4"}
+      >
+        <Flex align={"center"} gap={"2"}>
+          <Text weight={"medium"} size={"6"}>
+            Similar projects
+          </Text>
+          <Popover.Root>
+            <Popover.Trigger>
+              <InfoCircledIcon />
+            </Popover.Trigger>
+            <Popover.Content width="360px">
+              <Text size={"2"}>
+                Project similarity is measured based on metadata and other
+                attributes. Read <Link href="#">our paper</Link> to learn more.
+              </Text>
+            </Popover.Content>
+          </Popover.Root>
+        </Flex>
+        <Grid columns={"4"} gap={"4"}>
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+          <SimilarCard />
+        </Grid>
+      </Flex>
     </>
   );
 }
