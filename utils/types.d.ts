@@ -14,6 +14,7 @@ export type Experiment = {
   run_1_accession: string;
   run_1_total_spots: string;
   run_1_total_bases: string;
+  study_title: string?;
 };
 
-export type SearchResults = Record<string, [Experiment]>;
+export type SearchResults = Record<string, Experiment[]>;

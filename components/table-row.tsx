@@ -1,11 +1,16 @@
 import { Table } from "@radix-ui/themes";
 
-export default function TableRow() {
+export default function TableRow({ rowValues }: { rowValues: string[] }) {
+  const [header = "", ...cells] = rowValues;
+
   return (
     <Table.Row>
-      <Table.RowHeaderCell>Danilo Sousa</Table.RowHeaderCell>
-      <Table.Cell>danilo@example.com</Table.Cell>
-      <Table.Cell>Developer</Table.Cell>
+      <Table.RowHeaderCell style={{ maxHeight: "1rem", overflow: "hidden" }}>
+        {header}
+      </Table.RowHeaderCell>
+      {cells.map((value, idx) => (
+        <Table.Cell key={idx}>{value}</Table.Cell>
+      ))}
     </Table.Row>
   );
 }

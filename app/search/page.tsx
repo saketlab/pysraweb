@@ -1,6 +1,7 @@
 "use client";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
+import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
@@ -11,9 +12,9 @@ const getSearchResults = async (
 ): Promise<SearchResults | null> => {
   if (!query) return null;
 
-  const BASE_URL = "http://10.195.102.16:8000";
-
-  const res = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
+  const res = await fetch(
+    `${SERVER_URL}/search?q=${encodeURIComponent(query)}`
+  );
   if (!res.ok) {
     throw new Error("Network Error");
   }
@@ -74,8 +75,7 @@ export default function SearchPage() {
             <ResultCard
               key={studyAcc}
               studyAcc={studyAcc}
-              numExperiments={results.length}
-              experimentTitle={results[0].experiment_title}
+              experiments={results}
             />
           ))
         ) : (
