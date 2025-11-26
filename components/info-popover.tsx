@@ -5,7 +5,7 @@ export default function InfoPopOver({ infoText }: { infoText: string }) {
   return (
     <Popover.Root>
       <Popover.Trigger>
-        <InfoCircledIcon style={{ paddingRight: "0.75rem" }} />
+        <InfoCircledIcon style={{ paddingRight: "0.5rem" }} />
       </Popover.Trigger>
       <Popover.Content width="360px">
         <Text size="2">
