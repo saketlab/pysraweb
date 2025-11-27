@@ -1,9 +1,11 @@
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { SegmentedControl } from "@radix-ui/themes";
+import { SegmentedControl, useThemeContext } from "@radix-ui/themes";
 
 export default function ThemeToggle() {
+  const theme = useThemeContext();
+
   return (
-    <SegmentedControl.Root defaultValue="light">
+    <SegmentedControl.Root defaultValue={theme?.appearance}>
       <SegmentedControl.Item value="light">
         <SunIcon style={{ marginTop: "5px" }} />
       </SegmentedControl.Item>

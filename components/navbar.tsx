@@ -1,6 +1,6 @@
 "use client";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
-import { Button, Flex, Link } from "@radix-ui/themes";
+import { Flex, Link } from "@radix-ui/themes";
+import GitHubButton from "./github-button";
 import ThemeToggle from "./theme-toggle";
 
 export default function Navabar() {
@@ -13,11 +13,7 @@ export default function Navabar() {
       <Flex gap={"4"} align={"center"}>
         <ThemeToggle />
         <Link href="https://saketlab.in/">Saket Lab</Link>
-        <Button variant="outline" asChild>
-          <a href="https://github.com/saketc/pysradb">
-            <GitHubLogoIcon /> Star on GitHub
-          </a>
-        </Button>
+        <GitHubButton />
       </Flex>
     </Flex>
   );

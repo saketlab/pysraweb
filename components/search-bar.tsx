@@ -1,8 +1,9 @@
-import { GitHubLogoIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
-import { Button, Flex, Link as RadixLink, TextField } from "@radix-ui/themes";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { Flex, Link as RadixLink, TextField } from "@radix-ui/themes";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import GitHubButton from "./github-button";
 import ThemeToggle from "./theme-toggle";
 
 export default function SearchBar({
@@ -51,9 +52,7 @@ export default function SearchBar({
       <RadixLink href="https://saket-choudhary.me/pysradb/index.html">
         Docs
       </RadixLink>
-      <Button variant="outline">
-        <GitHubLogoIcon /> Star on GitHub
-      </Button>
+      <GitHubButton />
     </Flex>
   );
 }
