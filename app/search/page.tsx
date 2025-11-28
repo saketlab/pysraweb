@@ -3,8 +3,9 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
-import { Flex, Spinner, Text } from "@radix-ui/themes";
+import { Flex, Skeleton, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 
 const getSearchResults = async (
@@ -29,7 +30,6 @@ export default function SearchPage() {
     data: searchResults,
     isLoading,
     isError,
-    error,
   } = useQuery({
     queryKey: ["search", query],
     queryFn: ({ queryKey }) => getSearchResults(queryKey[1] as string | null),
@@ -44,9 +44,10 @@ export default function SearchPage() {
       {/* Search results and filters */}
       <Flex
         gap="4"
-        p="3"
-        style={{ marginLeft: "8.2rem", width: "65%" }}
         direction="column"
+        pt={"3"}
+        ml={{ md: "8rem" }}
+        mr={{ md: "16rem" }}
       >
         {!query ? (
           <Flex align="center" justify="center">
@@ -54,20 +55,37 @@ export default function SearchPage() {
           </Flex>
         ) : isLoading ? (
           <Flex
-            gap="2"
-            align="center"
-            style={{ width: "65%" }}
-            justify="center"
+            gap="3"
+            align="start"
+            // style={{ width: "65%" }}
+            justify="start"
+            direction={"column"}
           >
-            <Spinner size="3" />
-            <Text>Search in progress</Text>
+            <Skeleton width={"100%"} height={"6rem"} />
+            <Skeleton width={"100%"} height={"6rem"} />
+            <Skeleton width={"100%"} height={"6rem"} />
+            <Skeleton width={"100%"} height={"6rem"} />
+            <Skeleton width={"100%"} height={"6rem"} />
           </Flex>
         ) : isError ? (
-          <Flex gap="2" align="center" justify="center">
-            <Text>
-              {error instanceof Error
-                ? error.message
-                : "An error occurred while searching"}
+          <Flex
+            gap="2"
+            align="center"
+            justify="center"
+            height={"20rem"}
+            direction={"column"}
+          >
+            <Image
+              src="./controls.svg"
+              alt="empty box"
+              width={"100"}
+              height={"100"}
+            />
+            <Text color="gray" size={"6"} weight={"bold"}>
+              Failed to connect
+            </Text>
+            <Text color="gray" size={"2"}>
+              Check your network connection
             </Text>
           </Flex>
         ) : searchResults ? (
@@ -79,8 +97,25 @@ export default function SearchPage() {
             />
           ))
         ) : (
-          <Flex align="center" justify="center">
-            <Text>No results found.</Text>
+          <Flex
+            align="center"
+            justify="center"
+            direction={"column"}
+            height={"20rem"}
+          >
+            {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
+            <Image
+              src="./empty-box.svg"
+              alt="empty box"
+              width={"100"}
+              height={"100"}
+            />
+            <Text color="gray" size={"6"} weight={"bold"}>
+              No results found
+            </Text>
+            <Text color="gray" size={"2"}>
+              Try refining you search text
+            </Text>
           </Flex>
         )}
       </Flex>
