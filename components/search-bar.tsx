@@ -12,6 +12,7 @@ export default function SearchBar({
   searchQuery: string | null;
 }) {
   const [query, setQuery] = useState(searchQuery);
+
   return (
     <Flex
       justify={{ initial: "center", sm: "between" }}
@@ -23,7 +24,6 @@ export default function SearchBar({
         position: "sticky",
         top: 0,
         zIndex: 50,
-        background: "white",
         boxShadow: "0 1px 0 rgba(0,0,0,0.06)",
       }}
     >

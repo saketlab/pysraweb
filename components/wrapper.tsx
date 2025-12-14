@@ -1,6 +1,7 @@
 "use client";
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { ReactNode } from "react";
 
 export default function Wrapper({
@@ -11,9 +12,9 @@ export default function Wrapper({
   const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <Theme accentColor="indigo" appearance="light">
-        {children}
-      </Theme>
+      <ThemeProvider attribute={"class"}>
+        <Theme accentColor="indigo">{children}</Theme>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
