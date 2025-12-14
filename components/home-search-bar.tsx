@@ -1,7 +1,7 @@
 "use client";
 import {
-  DoubleArrowDownIcon,
-  DoubleArrowUpIcon,
+  EyeClosedIcon,
+  EyeOpenIcon,
   MagicWandIcon,
   MagnifyingGlassIcon,
   MixerHorizontalIcon,
@@ -76,18 +76,29 @@ export default function HomeSearchBar() {
           )}
           {searchMethod == searchType.FilterSearch && (
             <Card variant="surface">
-              <form>
+              <form
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                }}
+              >
                 <Grid columns={"2"} gap={"2"}>
                   <label>Scientific name</label>
                   <TextField.Root placeholder="homo sapiens" />
+
                   <label>Strain</label>
                   <TextField.Root placeholder="homo sapiens" />
+
                   <label>Phenotype</label>
                   <TextField.Root placeholder="homo sapiens" />
+
                   <label>Tissue/organ</label>
                   <TextField.Root placeholder="blood" />
+
                   <label>Cell type</label>
                   <TextField.Root placeholder="CD8+" />
+
                   <label>Disease</label>
                   <TextField.Root placeholder="Diabetes" />
 
@@ -129,23 +140,28 @@ export default function HomeSearchBar() {
             </Card>
           )}
           {searchMethod == searchType.FilterSearch && (
-            <Button
-              onClick={() => setHideFilters(!hideFilters)}
-              style={{ width: "max-content", margin: "auto" }}
-              variant="soft"
-            >
-              {hideFilters ? (
-                <>
-                  {" "}
-                  <DoubleArrowDownIcon /> Show more filters
-                </>
-              ) : (
-                <>
-                  {" "}
-                  <DoubleArrowUpIcon /> Hide filters
-                </>
-              )}
-            </Button>
+            <Flex justify={"center"} gap={"4"}>
+              <Button
+                onClick={() => setHideFilters(!hideFilters)}
+                style={{ width: "max-content" }}
+                variant="soft"
+              >
+                {hideFilters ? (
+                  <>
+                    {" "}
+                    <EyeOpenIcon /> Show more filters
+                  </>
+                ) : (
+                  <>
+                    {" "}
+                    <EyeClosedIcon /> Hide filters
+                  </>
+                )}
+              </Button>
+              <Button>
+                <MagnifyingGlassIcon /> Search
+              </Button>
+            </Flex>
           )}
           <Button
             onClick={() =>
