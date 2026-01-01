@@ -32,20 +32,23 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
 
   return (
     <Card>
-      <Flex gap={"4"} align={"center"}>
+      <Flex gap={"4"} align={"start"}>
         <Image src={"/page.svg"} height={40} width={40} alt="page icon" />
         <Flex direction={"column"}>
           <Link
             href={`https://doi.org/${doi}`}
             target="_blank"
             rel="noopener noreferrer"
-            size={"4"}
+            size={{ initial: "2", md: "4" }}
             weight={"medium"}
           >
             {publication.title}
           </Link>
 
-          <Text style={{ fontStyle: "italic" }}>
+          <Text
+            style={{ fontStyle: "italic" }}
+            size={{ initial: "2", md: "3" }}
+          >
             {publication.authors.length > 4
               ? `${publication.authors
                   .slice(0, 4)
