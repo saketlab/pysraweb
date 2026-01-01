@@ -43,7 +43,7 @@ export default function HomeSearchBar() {
           unoptimized
         />
       </Box>
-      <Text weight={"medium"} color="gray">
+      <Text weight={"medium"} color="gray" size={{ initial: "1", md: "3" }}>
         Discover GEO & SRA datasets with natural language
       </Text>
       <Box width={{ initial: "85%", md: "60%" }}>
