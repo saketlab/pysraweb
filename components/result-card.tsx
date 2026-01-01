@@ -24,19 +24,17 @@ export default function ResultCard({
   return (
     <Card>
       <Flex direction={"column"} gap={"2"}>
-        <Flex justify={"between"} align={"start"} gap={"2"}>
-          <Text
-            size={"3"}
-            weight={"bold"}
-            style={{ cursor: "pointer", width: "100%" }}
-            onClick={handleClick}
-          >
-            {title}
-          </Text>
-          <Badge size={"2"}>{accesssion}</Badge>
-        </Flex>
+        <Text
+          size={{ initial: "2", md: "3" }}
+          weight={"bold"}
+          style={{ cursor: "pointer", width: "100%" }}
+          onClick={handleClick}
+        >
+          {title}
+        </Text>
         <Text truncate>{summary}</Text>
         <Flex gap={"2"} align={"center"}>
+          <Badge size={"2"}>{accesssion}</Badge>
           <Badge color="gray">
             Last updated on{" "}
             {updated_at

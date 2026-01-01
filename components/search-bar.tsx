@@ -32,19 +32,20 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
       }}
     >
       <Flex
-        gap={{ initial: "2", sm: "4" }}
+        gap={"4"}
         align={"center"}
         flexGrow={"1"}
         direction={{ initial: "column", md: "row" }}
+        pt={"2"}
       >
-        <Link href={"/"} style={{ width: "6.2rem" }}>
+        <Link href={"/"} style={{ width: "11rem" }}>
           <Image
             src="/pysradb_v3.png"
             alt="pysradb logo"
             width={116}
             height={50}
             style={{
-              width: "100%",
+              width: "80%",
               height: "auto",
               backgroundColor: "transparent",
             }}

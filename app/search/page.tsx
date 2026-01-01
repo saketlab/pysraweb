@@ -3,7 +3,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
-import { Flex, Skeleton, Text } from "@radix-ui/themes";
+import { Flex, RadioGroup, Separator, Skeleton, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -43,83 +43,119 @@ export default function SearchPage() {
 
       {/* Search results and filters */}
       <Flex
-        gap="4"
-        direction="column"
-        pt={"3"}
-        ml={{ md: "8rem" }}
-        mr={{ md: "16rem" }}
+        gap={"8"}
+        p={"4"}
+        justify={"start"}
+        // mr={{ md: "16rem" }}
       >
-        {!query ? (
-          <Flex align="center" justify="center">
-            <Text>Start by typing a search query above.</Text>
-          </Flex>
-        ) : isLoading ? (
-          <Flex
-            gap="3"
-            align="start"
-            // style={{ width: "65%" }}
-            justify="start"
-            direction={"column"}
-          >
-            <Skeleton width={"100%"} height={"6rem"} />
-            <Skeleton width={"100%"} height={"6rem"} />
-            <Skeleton width={"100%"} height={"6rem"} />
-            <Skeleton width={"100%"} height={"6rem"} />
-            <Skeleton width={"100%"} height={"6rem"} />
-          </Flex>
-        ) : isError ? (
-          <Flex
-            gap="2"
-            align="center"
-            justify="center"
-            height={"20rem"}
-            direction={"column"}
-          >
-            <Image
-              src="./controls.svg"
-              alt="empty box"
-              width={"100"}
-              height={"100"}
-            />
-            <Text color="gray" size={"6"} weight={"bold"}>
-              Failed to connect
-            </Text>
-            <Text color="gray" size={"2"}>
-              Check your network connection
-            </Text>
-          </Flex>
-        ) : searchResults ? (
-          searchResults.map((searchResult) => (
-            <ResultCard
-              key={searchResult.accession}
-              accesssion={searchResult.accession}
-              title={searchResult.title}
-              summary={searchResult.summary}
-              updated_at={searchResult.updated_at}
-            />
-          ))
-        ) : (
-          <Flex
-            align="center"
-            justify="center"
-            direction={"column"}
-            height={"20rem"}
-          >
-            {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
-            <Image
-              src="./empty-box.svg"
-              alt="empty box"
-              width={"100"}
-              height={"100"}
-            />
-            <Text color="gray" size={"6"} weight={"bold"}>
-              No results found
-            </Text>
-            <Text color="gray" size={"2"}>
-              Try refining you search text
-            </Text>
-          </Flex>
-        )}
+        {/* Filters */}
+        <Flex
+          direction={"column"}
+          gap={"4"}
+          display={{ initial: "none", md: "flex" }}
+        >
+          <RadioGroup.Root defaultValue="1" name="database">
+            <RadioGroup.Item value="3">From GEO</RadioGroup.Item>
+            <RadioGroup.Item value="2">From SRA</RadioGroup.Item>
+            <RadioGroup.Item value="1">From GEO & SRA</RadioGroup.Item>
+          </RadioGroup.Root>
+
+          <Separator orientation={"horizontal"} size={"4"} />
+
+          <RadioGroup.Root defaultValue="1" name="sort">
+            <RadioGroup.Item value="1">Sort by relevance</RadioGroup.Item>
+            <RadioGroup.Item value="2">Sort by date</RadioGroup.Item>
+          </RadioGroup.Root>
+
+          <Separator orientation={"horizontal"} size={"4"} />
+
+          <RadioGroup.Root defaultValue="1" name="time">
+            <RadioGroup.Item value="1">Any time</RadioGroup.Item>
+            <RadioGroup.Item value="2">Since last year</RadioGroup.Item>
+            <RadioGroup.Item value="2">Since last 5 years</RadioGroup.Item>
+            <RadioGroup.Item value="2">Since last 10 years</RadioGroup.Item>
+            <RadioGroup.Item value="2">Since last 20 years</RadioGroup.Item>
+          </RadioGroup.Root>
+        </Flex>
+
+        <Flex
+          gap="4"
+          direction="column"
+          maxWidth={{ initial: "100%", md: "70%" }}
+          // ml={{ md: "8rem" }}
+        >
+          {!query ? (
+            <Flex align="center" justify="center">
+              <Text>Start by typing a search query above.</Text>
+            </Flex>
+          ) : isLoading ? (
+            <Flex
+              gap="3"
+              align="start"
+              style={{ width: "65%" }}
+              justify="start"
+              direction={"column"}
+            >
+              <Skeleton width={"100%"} height={"6rem"} />
+              <Skeleton width={"100%"} height={"6rem"} />
+              <Skeleton width={"100%"} height={"6rem"} />
+              <Skeleton width={"100%"} height={"6rem"} />
+              <Skeleton width={"100%"} height={"6rem"} />
+            </Flex>
+          ) : isError ? (
+            <Flex
+              gap="2"
+              align="center"
+              justify="center"
+              height={"20rem"}
+              direction={"column"}
+            >
+              <Image
+                src="./controls.svg"
+                alt="empty box"
+                width={"100"}
+                height={"100"}
+              />
+              <Text color="gray" size={"6"} weight={"bold"}>
+                Failed to connect
+              </Text>
+              <Text color="gray" size={"2"}>
+                Check your network connection
+              </Text>
+            </Flex>
+          ) : searchResults ? (
+            searchResults.map((searchResult) => (
+              <ResultCard
+                key={searchResult.accession}
+                accesssion={searchResult.accession}
+                title={searchResult.title}
+                summary={searchResult.summary}
+                updated_at={searchResult.updated_at}
+              />
+            ))
+          ) : (
+            <Flex
+              align="center"
+              justify="center"
+              direction={"column"}
+              height={"20rem"}
+            >
+              {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
+              <Image
+                src="./empty-box.svg"
+                alt="empty box"
+                width={"100"}
+                height={"100"}
+              />
+              <Text color="gray" size={"6"} weight={"bold"}>
+                No results found
+              </Text>
+              <Text color="gray" size={"2"}>
+                Try refining you search text
+              </Text>
+            </Flex>
+          )}
+        </Flex>
       </Flex>
     </>
   );
