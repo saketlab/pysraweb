@@ -17,7 +17,8 @@ export default function ResultCard({
   const router = useRouter();
 
   const handleClick = () => {
-    router.push(`/project?srp=${accesssion}`);
+    if (accesssion.startsWith("S")) router.push(`/project?srp=${accesssion}`);
+    else router.push(`/project?gse=${accesssion}`);
   };
   // const numExperiments = experiments.length;
 

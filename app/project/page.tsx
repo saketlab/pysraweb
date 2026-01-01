@@ -1,77 +1,113 @@
 "use client";
-import InfoPopOver from "@/components/info-popover";
+import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
-import SimilarCard from "@/components/similar-card";
-import TableHeaders from "@/components/table-headers";
-import TableRow from "@/components/table-row";
 import { SERVER_URL } from "@/utils/constants";
-import exportExperimentsToCsv from "@/utils/exportCsv";
-import { Experiment } from "@/utils/types";
-import { DownloadIcon } from "@radix-ui/react-icons";
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  Grid,
-  Link,
-  Separator,
-  Spinner,
-  Table,
-  Text,
-} from "@radix-ui/themes";
+import { HomeIcon, InfoCircledIcon } from "@radix-ui/react-icons";
+import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 
-const fetchExperiments = async (studyAcc: string | null) => {
-  if (!studyAcc) {
+type Project = {
+  accession: string;
+  alias: string;
+  title: string;
+  abstract: string;
+  submission: string;
+  study_type: string;
+};
+
+type SimilarProject = {
+  accession: string;
+  title: string | null;
+  summary: string | null;
+  updated_at: Date | null;
+};
+
+const fetchProject = async (
+  accession: string | null
+): Promise<Project | null> => {
+  if (!accession) {
     return null;
   }
 
-  const res = await fetch(`${SERVER_URL}/experiments?srp=${studyAcc}`);
+  const res = await fetch(`${SERVER_URL}/project/${accession}`);
   if (!res.ok) {
     throw new Error("Network error");
   }
   const data = await res.json();
-  return data[studyAcc] as Experiment[];
+  return data as Project;
 };
+
+const fetchSimilarProjects = async (
+  title: string,
+  currentAccession: string
+): Promise<SimilarProject[]> => {
+  const res = await fetch(
+    `${SERVER_URL}/search-similar?q=${encodeURIComponent(
+      title
+    )}&limit=6&offset=0`
+  );
+  if (!res.ok) {
+    throw new Error("Network error");
+  }
+  const data = await res.json();
+  // Filter out the current project and return top 5
+  return (data as SimilarProject[])
+    .filter((p) => p.accession !== currentAccession)
+    .slice(0, 5);
+};
+
+const ABSTRACT_CHAR_LIMIT = 350;
 
 export default function ProjectPage() {
   const searchParams = useSearchParams();
-  const studyAcc = searchParams.get("srp");
+  const accession = searchParams.get("srp");
+  const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const {
-    data: experiments,
+    data: project,
     isLoading,
     isError,
-    error,
   } = useQuery({
-    queryKey: ["experiments", studyAcc],
-    queryFn: () => fetchExperiments(studyAcc),
-    enabled: !!studyAcc,
+    queryKey: ["project", accession],
+    queryFn: () => fetchProject(accession),
+    enabled: !!accession,
+  });
+
+  const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
+    queryKey: ["similarProjects", project?.title],
+    queryFn: () => fetchSimilarProjects(project!.title, project!.accession),
+    enabled: !!project?.title,
   });
   return (
     <>
-      <SearchBar searchQuery={""} />
-      {/* LLM-generated Summary */}
-      {/* No studyAcc in URL */}
-      {!studyAcc && (
+      <SearchBar initialQuery={""} />
+
+      {!accession && (
         <Flex
-          gap="2"
+          gap="4"
           align="center"
-          pt={"3"}
+          p={"4"}
           ml={{ md: "8rem" }}
           mr={{ md: "16rem" }}
           justify="center"
+          direction={"column"}
         >
-          <Text color="gray">
-            No project selected. Please go back and choose a project.
+          <Text size={"4"} weight={"bold"} color="gray" align={"center"}>
+            No project selected 🤷
           </Text>
+          <Button
+            variant="surface"
+            onClick={() => (window.location.href = "/")}
+          >
+            <HomeIcon /> Go back
+          </Button>
         </Flex>
       )}
 
       {/* Loading state */}
-      {studyAcc && isLoading && (
+      {accession && isLoading && (
         <Flex
           gap="2"
           align="center"
@@ -86,7 +122,7 @@ export default function ProjectPage() {
       )}
 
       {/* Error state */}
-      {studyAcc && isError && (
+      {accession && isError && (
         <Flex
           gap="2"
           align="center"
@@ -97,8 +133,8 @@ export default function ProjectPage() {
           <Image
             src="./controls.svg"
             alt="empty box"
-            width={"100"}
-            height={"100"}
+            width={100}
+            height={100}
           />
           <Text color="gray" size={"6"} weight={"bold"}>
             Failed to connect
@@ -110,178 +146,81 @@ export default function ProjectPage() {
       )}
 
       {/* Data state */}
-      {studyAcc &&
-        !isLoading &&
-        !isError &&
-        experiments &&
-        experiments.length > 0 && (
-          <>
-            <Flex
-              ml={{ md: "8rem" }}
-              mr={{ md: "8rem" }}
-              py="3"
-              px={{ initial: "3" }}
-              direction="column"
-              gap="2"
-            >
-              <Flex justify="between" style={{ width: "100%" }} align="center">
-                <Text size={{ initial: "5", md: "8" }} weight="bold">
-                  {experiments[0].study_title}
-                </Text>
-                <Flex gap="2" display={{ initial: "none", md: "flex" }}>
-                  {/* TODO: Maybe move these buttons beside the table? */}
-                  {/* <IconButton variant="outline">
-                    <MixerHorizontalIcon />
-                  </IconButton>
-                  <IconButton variant="outline">
-                    <CaretSortIcon />
-                  </IconButton> */}
-                  <Button
-                    onClick={() =>
-                      exportExperimentsToCsv(
-                        experiments,
-                        `${studyAcc ?? "project"}-experiments.csv`
-                      )
-                    }
-                  >
-                    <DownloadIcon /> Download
-                  </Button>
-                </Flex>
-              </Flex>
-              <Flex align="center" gap="2">
-                <Badge
-                  size={{ initial: "1", md: "3" }}
-                  style={{ alignSelf: "flex-start" }}
-                >
-                  {studyAcc}
-                </Badge>
-                <Separator orientation="vertical" />
-                <Text>
-                  {experiments && experiments.length === 1
-                    ? "1 Experiment"
-                    : `${experiments?.length ?? 0} Experiments`}
-                </Text>
-                <Box display={{ initial: "none", md: "block" }}>
-                  <Flex align={"center"} gap={"2"}>
-                    <Separator orientation="vertical" />
-                    <Text>Published on 20th October, 2020</Text>
-                  </Flex>
-                </Box>
-              </Flex>
-              <Box display={{ initial: "block", md: "none" }}>
-                <Text>Published on 20th October, 2020</Text>
-              </Box>
-
-              {/* <Flex>
-                <Text weight={"medium"} size={"4"}>
-                  Summary
-                </Text>
-              </Flex> */}
-              <Text color="gray">
-                <strong style={{ color: "black" }}>Summary</strong>{" "}
-                <InfoPopOver infoText="Summary generated by LLM based on available metadata" />
-                Lorem, ipsum dolor sit amet consectetur adipisicing elit.
-                Officiis modi, sapiente ut voluptatum aliquam quae. Suscipit
-                alias sapiente autem iste.
+      {accession && !isLoading && !isError && project && (
+        <>
+          <Flex
+            ml={{ md: "12rem" }}
+            mr={{ md: "8rem" }}
+            py="3"
+            px={{ initial: "3" }}
+            direction="column"
+            gap="4"
+          >
+            <Flex justify="between" style={{ width: "100%" }} align="center">
+              <Text size={{ initial: "4", md: "6" }} weight="bold">
+                {project.title}
               </Text>
             </Flex>
-            <Table.Root
-              variant="surface"
-              ml={{ md: "8rem" }}
-              mr={{ md: "8rem" }}
-              style={{
-                // width: "80%",
-                overflow: "scroll",
-                maxHeight: "30rem",
-              }}
-            >
-              <TableHeaders
-                tableHeaders={Object.keys(experiments[0]).filter(
-                  (k) => k !== "study_title"
-                )}
-              />
-              <Table.Body>
-                {experiments.map((exp, idx) => (
-                  <TableRow
-                    key={idx}
-                    rowValues={Object.entries(exp)
-                      .filter(([k]) => k !== "study_title")
-                      .map(([, v]) =>
-                        v === null || v === undefined ? "" : String(v)
-                      )}
+            <Flex align="start" gap="2">
+              <Badge size={{ initial: "1", md: "3" }} color="brown">
+                {accession}
+              </Badge>
+              <Badge size={{ initial: "1", md: "3" }} color="gray">
+                20 Experiments
+              </Badge>
+            </Flex>
+            <Flex align={"center"} gap={"2"}>
+              <InfoCircledIcon />
+              <Text>Last updated on 20 Mar 2025</Text>
+            </Flex>
+            <Text>
+              {isAbstractExpanded ||
+              project.abstract.length <= ABSTRACT_CHAR_LIMIT
+                ? project.abstract
+                : `${project.abstract.slice(0, ABSTRACT_CHAR_LIMIT)}...`}
+              {project.abstract.length > ABSTRACT_CHAR_LIMIT && (
+                <Button
+                  variant="ghost"
+                  size="3"
+                  ml="1"
+                  onClick={() => setIsAbstractExpanded(!isAbstractExpanded)}
+                >
+                  {isAbstractExpanded ? "less" : "more"}
+                </Button>
+              )}
+            </Text>
+            <Flex align="center" gap="2">
+              <Text weight="medium" size="6">
+                Similar projects
+              </Text>
+            </Flex>
+            {isSimilarLoading && (
+              <Flex gap="2" align="center">
+                <Spinner size="2" />
+                <Text size="2">Finding similar projects...</Text>
+              </Flex>
+            )}
+            {similarProjects && similarProjects.length > 0 && (
+              <Flex direction="column" gap="3">
+                {similarProjects.map((p) => (
+                  <ResultCard
+                    key={p.accession}
+                    accesssion={p.accession}
+                    title={p.title}
+                    summary={p.summary}
+                    updated_at={p.updated_at}
                   />
                 ))}
-              </Table.Body>
-            </Table.Root>
-
-            <Flex
-              pt={"3"}
-              px={{ initial: "3" }}
-              ml={{ md: "8rem" }}
-              mr={{ md: "8rem" }}
-              direction="column"
-              gap="4"
-            >
-              <Flex align="center" gap="2">
-                <Text weight="medium" size="6">
-                  Linked publications
-                </Text>
               </Flex>
-              <Grid columns={{ initial: "2", md: "4" }} gap="4">
-                <SimilarCard />
-                <SimilarCard />
-                <SimilarCard />
-              </Grid>
-            </Flex>
-
-            <Flex
-              px={{ initial: "3" }}
-              ml={{ md: "8rem" }}
-              mr={{ md: "8rem" }}
-              py="3"
-              direction="column"
-              gap="4"
-            >
-              <Flex align="center" gap="2">
-                <Text weight="medium" size="6">
-                  Similar projects
-                </Text>
-                <InfoPopOver infoText="Project similarity is measured based on metadata and other attributes" />
-              </Flex>
-              <Grid columns={{ initial: "2", md: "4" }} gap="4">
-                <SimilarCard />
-              </Grid>
-            </Flex>
-          </>
-        )}
-
-      {/* Empty state */}
-      {studyAcc &&
-        !isLoading &&
-        !isError &&
-        (!experiments || experiments.length === 0) && (
-          <Flex
-            align="center"
-            justify="center"
-            direction={"column"}
-            height={"20rem"}
-          >
-            {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
-            <Image
-              src="./empty-box.svg"
-              alt="empty box"
-              width={"100"}
-              height={"100"}
-            />
-            <Text color="gray" size={"6"} weight={"bold"}>
-              No metadata found
-            </Text>
-            <Text color="gray" size={"2"} style={{ textAlign: "center" }}>
-              If you think this shouldn&apos;t have <br /> happened mail us at{" "}
-              <Link href="mailto:labmail@mail.com">labmail@mail.com</Link>
-            </Text>
+            )}
+            {similarProjects && similarProjects.length === 0 && (
+              <Text size="2" color="gray">
+                No similar projects found
+              </Text>
+            )}
           </Flex>
-        )}
+        </>
+      )}
     </>
   );
 }
