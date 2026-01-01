@@ -1,4 +1,5 @@
 "use client";
+import ProjectSummary from "@/components/project-summary";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
@@ -7,7 +8,6 @@ import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { useState } from "react";
 
 type Project = {
   accession: string;
@@ -64,7 +64,7 @@ const ABSTRACT_CHAR_LIMIT = 350;
 export default function ProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
-  const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
+  // abstract expansion handled by ProjectSummary component
   const {
     data: project,
     isLoading,
@@ -173,22 +173,10 @@ export default function ProjectPage() {
               <InfoCircledIcon />
               <Text>Last updated on 20 Mar 2025</Text>
             </Flex>
-            <Text>
-              {isAbstractExpanded ||
-              project.abstract.length <= ABSTRACT_CHAR_LIMIT
-                ? project.abstract
-                : `${project.abstract.slice(0, ABSTRACT_CHAR_LIMIT)}...`}
-              {project.abstract.length > ABSTRACT_CHAR_LIMIT && (
-                <Button
-                  variant="ghost"
-                  size="3"
-                  ml="1"
-                  onClick={() => setIsAbstractExpanded(!isAbstractExpanded)}
-                >
-                  {isAbstractExpanded ? "less" : "more"}
-                </Button>
-              )}
-            </Text>
+            <ProjectSummary
+              text={project.abstract}
+              charLimit={ABSTRACT_CHAR_LIMIT}
+            />
             <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects

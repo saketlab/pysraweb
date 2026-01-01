@@ -1,4 +1,5 @@
 "use client";
+import ProjectSummary from "@/components/project-summary";
 import PublicationCard, { PubMedArticle } from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
@@ -7,7 +8,6 @@ import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { useState } from "react";
 
 type Project = {
   accession: string;
@@ -96,7 +96,7 @@ const SUMMARY_CHAR_LIMIT = 350;
 export default function GeoProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  // summary expansion handled by ProjectSummary component
   const {
     data: project,
     isLoading,
@@ -220,21 +220,10 @@ export default function GeoProjectPage() {
                   : "N/A"}
               </Text>
             </Flex>
-            <Text>
-              {isSummaryExpanded || project.summary.length <= SUMMARY_CHAR_LIMIT
-                ? project.summary
-                : `${project.summary.slice(0, SUMMARY_CHAR_LIMIT)}...`}
-              {project.summary.length > SUMMARY_CHAR_LIMIT && (
-                <Button
-                  variant="ghost"
-                  size="3"
-                  ml="1"
-                  onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                >
-                  {isSummaryExpanded ? "less" : "more"}
-                </Button>
-              )}
-            </Text>
+            <ProjectSummary
+              text={project.summary}
+              charLimit={SUMMARY_CHAR_LIMIT}
+            />
             <Text weight="medium" size="6">
               Overall design
             </Text>
