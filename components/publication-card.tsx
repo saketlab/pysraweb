@@ -1,4 +1,4 @@
-import { Card, Flex, Text } from "@radix-ui/themes";
+import { Card, Flex, Link, Text } from "@radix-ui/themes";
 import Image from "next/image";
 
 type PubMedAuthor = {
@@ -35,16 +35,16 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
       <Flex gap={"4"} align={"center"}>
         <Image src={"/page.svg"} height={40} width={40} alt="page icon" />
         <Flex direction={"column"}>
-          <a
+          <Link
             href={`https://doi.org/${doi}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ textDecoration: "none" }}
+            size={"4"}
+            weight={"medium"}
           >
-            <Text size={"4"} weight={"medium"} style={{ cursor: "pointer" }}>
-              {publication.title}
-            </Text>
-          </a>
+            {publication.title}
+          </Link>
+
           <Text style={{ fontStyle: "italic" }}>
             {publication.authors.length > 4
               ? `${publication.authors
