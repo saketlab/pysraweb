@@ -2,29 +2,47 @@
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
-import { SearchResults } from "@/utils/types";
+import { SearchResult } from "@/utils/types";
 import {
+  Button,
   Flex,
   RadioGroup,
   Select,
   Separator,
   Skeleton,
+  Spinner,
   Text,
 } from "@radix-ui/themes";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type Cursor = {
+  rank: number;
+  accession: string;
+} | null;
+
+type SearchResponse = {
+  results: SearchResult[];
+  next_cursor: Cursor;
+};
 
 const getSearchResults = async (
   query: string | null,
-  db: string | null
-): Promise<SearchResults | null> => {
+  db: string | null,
+  cursor: Cursor
+): Promise<SearchResponse | null> => {
   if (!query) return null;
 
   let url = `${SERVER_URL}/search?q=${encodeURIComponent(query)}`;
   if (db === "sra" || db === "geo") {
     url += `&db=${encodeURIComponent(db)}`;
+  }
+  if (cursor) {
+    url += `&cursor_rank=${cursor.rank}&cursor_acc=${encodeURIComponent(
+      cursor.accession
+    )}`;
   }
 
   const res = await fetch(url);
@@ -45,19 +63,50 @@ export default function SearchPage() {
     "any"
   );
 
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
   const {
-    data: searchResults,
+    data,
     isLoading,
     isError,
-  } = useQuery({
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["search", query, db],
-    queryFn: ({ queryKey }) =>
-      getSearchResults(
-        queryKey[1] as string | null,
-        queryKey[2] as string | null
-      ),
+    queryFn: ({ pageParam }) =>
+      getSearchResults(query, db, pageParam as Cursor),
+    initialPageParam: null as Cursor,
+    getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled: !!query,
   });
+
+  // Flatten all pages into a single array of results
+  const searchResults =
+    data?.pages.flatMap((page) => page?.results ?? []) ?? [];
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <>
@@ -238,31 +287,49 @@ export default function SearchPage() {
                 Check your network connection
               </Text>
             </Flex>
-          ) : searchResults ? (
-            (sortBy === "date"
-              ? [...searchResults].sort(
-                  (a, b) =>
-                    new Date(b.updated_at).getTime() -
-                    new Date(a.updated_at).getTime()
-                )
-              : searchResults
-            )
-              .filter((result) => {
-                if (timeFilter === "any") return true;
-                const years = parseInt(timeFilter);
-                const cutoffDate = new Date();
-                cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
-                return new Date(result.updated_at) >= cutoffDate;
-              })
-              .map((searchResult) => (
-                <ResultCard
-                  key={searchResult.accession}
-                  accesssion={searchResult.accession}
-                  title={searchResult.title}
-                  summary={searchResult.summary}
-                  updated_at={searchResult.updated_at}
-                />
-              ))
+          ) : searchResults.length > 0 ? (
+            <>
+              {(sortBy === "date"
+                ? [...searchResults].sort(
+                    (a, b) =>
+                      new Date(b.updated_at).getTime() -
+                      new Date(a.updated_at).getTime()
+                  )
+                : searchResults
+              )
+                .filter((result) => {
+                  if (timeFilter === "any") return true;
+                  const years = parseInt(timeFilter);
+                  const cutoffDate = new Date();
+                  cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+                  return new Date(result.updated_at) >= cutoffDate;
+                })
+                .map((searchResult) => (
+                  <ResultCard
+                    key={searchResult.accession}
+                    accesssion={searchResult.accession}
+                    title={searchResult.title}
+                    summary={searchResult.summary}
+                    updated_at={searchResult.updated_at}
+                  />
+                ))}
+
+              {/* Infinite scroll trigger */}
+              <div ref={loadMoreRef} style={{ minHeight: "1px" }}>
+                {isFetchingNextPage && (
+                  <Flex justify="center" py="4">
+                    <Spinner size="3" />
+                  </Flex>
+                )}
+                {hasNextPage && !isFetchingNextPage && (
+                  <Flex justify="center" py="4">
+                    <Button variant="soft" onClick={() => fetchNextPage()}>
+                      Load more
+                    </Button>
+                  </Flex>
+                )}
+              </div>
+            </>
           ) : (
             <Flex
               align="center"
