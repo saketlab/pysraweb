@@ -3,9 +3,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
-import { CaretSortIcon, ClockIcon } from "@radix-ui/react-icons";
 import {
-  Button,
   Flex,
   RadioGroup,
   Select,
@@ -16,6 +14,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 
 const getSearchResults = async (
   query: string | null,
@@ -41,6 +40,10 @@ export default function SearchPage() {
   const query = searchParams.get("q");
 
   const db = searchParams.get("db");
+  const [sortBy, setSortBy] = useState<"relevance" | "date">("relevance");
+  const [timeFilter, setTimeFilter] = useState<"any" | "1" | "5" | "10" | "20">(
+    "any"
+  );
 
   const {
     data: searchResults,
@@ -75,12 +78,40 @@ export default function SearchPage() {
           gap={"2"}
           display={{ initial: "flex", md: "none" }}
         >
-          <Button variant="surface" size={"1"}>
-            <CaretSortIcon /> Sort by
-          </Button>
-          <Button variant="surface" size={"1"}>
-            <ClockIcon /> Any time
-          </Button>
+          <Select.Root
+            defaultValue="relevance"
+            name="sort"
+            onValueChange={(value) => setSortBy(value as "relevance" | "date")}
+            size={"1"}
+          >
+            <Select.Trigger />
+            <Select.Content>
+              <Select.Group>
+                <Select.Item value="relevance">Sort by relevance</Select.Item>
+                <Select.Item value="date">Sort by date</Select.Item>
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+
+          <Select.Root
+            defaultValue="any"
+            name="time"
+            onValueChange={(value) =>
+              setTimeFilter(value as "any" | "1" | "5" | "10" | "20")
+            }
+            size={"1"}
+          >
+            <Select.Trigger />
+            <Select.Content>
+              <Select.Group>
+                <Select.Item value="any">Any time</Select.Item>
+                <Select.Item value="1">Last year</Select.Item>
+                <Select.Item value="5">Last 5 yrs</Select.Item>
+                <Select.Item value="10">Last 10 yrs</Select.Item>
+                <Select.Item value="20">Last 20 yrs</Select.Item>
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
 
           <Select.Root
             defaultValue={db ? db : "both"}
@@ -134,19 +165,31 @@ export default function SearchPage() {
 
           <Separator orientation={"horizontal"} size={"4"} />
 
-          <RadioGroup.Root defaultValue="1" name="sort">
-            <RadioGroup.Item value="1">Sort by relevance</RadioGroup.Item>
-            <RadioGroup.Item value="2">Sort by date</RadioGroup.Item>
+          <RadioGroup.Root
+            defaultValue="relevance"
+            name="sort"
+            onValueChange={(value) => setSortBy(value as "relevance" | "date")}
+          >
+            <RadioGroup.Item value="relevance">
+              Sort by relevance
+            </RadioGroup.Item>
+            <RadioGroup.Item value="date">Sort by date</RadioGroup.Item>
           </RadioGroup.Root>
 
           <Separator orientation={"horizontal"} size={"4"} />
 
-          <RadioGroup.Root defaultValue="1" name="time">
-            <RadioGroup.Item value="1">Any time</RadioGroup.Item>
-            <RadioGroup.Item value="2">Since last year</RadioGroup.Item>
-            <RadioGroup.Item value="2">Since last 5 years</RadioGroup.Item>
-            <RadioGroup.Item value="2">Since last 10 years</RadioGroup.Item>
-            <RadioGroup.Item value="2">Since last 20 years</RadioGroup.Item>
+          <RadioGroup.Root
+            defaultValue="any"
+            name="time"
+            onValueChange={(value) =>
+              setTimeFilter(value as "any" | "1" | "5" | "10" | "20")
+            }
+          >
+            <RadioGroup.Item value="any">Any time</RadioGroup.Item>
+            <RadioGroup.Item value="1">Since last year</RadioGroup.Item>
+            <RadioGroup.Item value="5">Since last 5 years</RadioGroup.Item>
+            <RadioGroup.Item value="10">Since last 10 years</RadioGroup.Item>
+            <RadioGroup.Item value="20">Since last 20 years</RadioGroup.Item>
           </RadioGroup.Root>
         </Flex>
 
@@ -196,15 +239,30 @@ export default function SearchPage() {
               </Text>
             </Flex>
           ) : searchResults ? (
-            searchResults.map((searchResult) => (
-              <ResultCard
-                key={searchResult.accession}
-                accesssion={searchResult.accession}
-                title={searchResult.title}
-                summary={searchResult.summary}
-                updated_at={searchResult.updated_at}
-              />
-            ))
+            (sortBy === "date"
+              ? [...searchResults].sort(
+                  (a, b) =>
+                    new Date(b.updated_at).getTime() -
+                    new Date(a.updated_at).getTime()
+                )
+              : searchResults
+            )
+              .filter((result) => {
+                if (timeFilter === "any") return true;
+                const years = parseInt(timeFilter);
+                const cutoffDate = new Date();
+                cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+                return new Date(result.updated_at) >= cutoffDate;
+              })
+              .map((searchResult) => (
+                <ResultCard
+                  key={searchResult.accession}
+                  accesssion={searchResult.accession}
+                  title={searchResult.title}
+                  summary={searchResult.summary}
+                  updated_at={searchResult.updated_at}
+                />
+              ))
           ) : (
             <Flex
               align="center"
