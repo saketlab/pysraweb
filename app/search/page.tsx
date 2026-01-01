@@ -3,7 +3,15 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
-import { Flex, RadioGroup, Separator, Skeleton, Text } from "@radix-ui/themes";
+import { ArchiveIcon, CaretSortIcon, ClockIcon } from "@radix-ui/react-icons";
+import {
+  Button,
+  Flex,
+  RadioGroup,
+  Separator,
+  Skeleton,
+  Text,
+} from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -43,16 +51,37 @@ export default function SearchPage() {
 
       {/* Search results and filters */}
       <Flex
-        gap={"8"}
+        gap={{ initial: "4", md: "8" }}
         p={"4"}
         justify={"start"}
+        direction={{ initial: "column", md: "row" }}
         // mr={{ md: "16rem" }}
       >
-        {/* Filters */}
+        {/* Filters for small screens */}
+        <Flex
+          direction={"row-reverse"}
+          justify={"center"}
+          gap={"2"}
+          display={{ initial: "flex", md: "none" }}
+        >
+          <Button variant="surface" size={"1"}>
+            <CaretSortIcon /> Sort by
+          </Button>
+          <Button variant="surface" size={"1"}>
+            <ClockIcon /> Any time
+          </Button>
+          <Button variant="surface" size={"1"}>
+            <ArchiveIcon /> From GEO & SRA
+          </Button>
+        </Flex>
+        {/* Filters for md+ screens*/}
         <Flex
           direction={"column"}
           gap={"4"}
           display={{ initial: "none", md: "flex" }}
+          position={"sticky"}
+          style={{ top: "7rem" }}
+          height={"fit-content"}
         >
           <RadioGroup.Root defaultValue="1" name="database">
             <RadioGroup.Item value="3">From GEO</RadioGroup.Item>

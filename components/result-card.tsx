@@ -32,7 +32,9 @@ export default function ResultCard({
         >
           {title}
         </Text>
-        <Text truncate>{summary}</Text>
+        <Text size={"2"} truncate>
+          {summary}
+        </Text>
         <Flex gap={"2"} align={"center"}>
           <Badge size={"2"}>{accesssion}</Badge>
           <Badge color="gray">
