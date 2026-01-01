@@ -20,7 +20,6 @@ export default function ResultCard({
     if (accesssion.startsWith("S")) router.push(`/project/sra/${accesssion}`);
     else router.push(`/project/geo/${accesssion}`);
   };
-  // const numExperiments = experiments.length;
 
   return (
     <Card>

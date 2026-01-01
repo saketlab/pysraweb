@@ -242,24 +242,11 @@ export default function SearchPage() {
           </RadioGroup.Root>
         </Flex>
 
-        <Flex
-          gap="4"
-          direction="column"
-          maxWidth={{ initial: "100%", md: "70%" }}
-          // ml={{ md: "8rem" }}
-        >
+        <Flex gap="4" direction="column" width={{ initial: "100%", md: "70%" }}>
           {!query ? (
-            <Flex align="center" justify="center">
-              <Text>Start by typing a search query above.</Text>
-            </Flex>
+            <Text>Start by typing a search query above.</Text>
           ) : isLoading ? (
-            <Flex
-              gap="3"
-              align="start"
-              maxWidth={{ initial: "100%", md: "70%" }}
-              justify="start"
-              direction={"column"}
-            >
+            <Flex gap="3" align="start" justify="start" direction={"column"}>
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
