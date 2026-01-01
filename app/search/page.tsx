@@ -1,16 +1,12 @@
 "use client";
-import GitHubButton from "@/components/github-button";
 import ResultCard from "@/components/result-card";
-import ThemeToggle from "@/components/theme-toggle";
+import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResults } from "@/utils/types";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
-import { Box, Flex, Skeleton, Text, TextField } from "@radix-ui/themes";
+import { Flex, Skeleton, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
 
 const getSearchResults = async (
   query: string | null
@@ -40,70 +36,10 @@ export default function SearchPage() {
     enabled: !!query,
   });
 
-  const [searchQuery, setSearchQuery] = useState(query);
-
   return (
     <>
       {/* Navbar and search */}
-      <Flex
-        justify={{ initial: "center", sm: "between" }}
-        align="center"
-        p={{ initial: "0", sm: "3" }}
-        pb={"3"}
-        gap={"4"}
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-          boxShadow: "0 1px 0 rgba(0,0,0,0.06)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          backgroundColor: "transparent",
-        }}
-      >
-        <Flex
-          gap={{ initial: "2", sm: "4" }}
-          align={"center"}
-          flexGrow={"1"}
-          direction={{ initial: "column", md: "row" }}
-        >
-          <Link href={"/"} style={{ width: "6.2rem" }}>
-            <Image
-              src="/pysradb_v3.png"
-              alt="pysradb logo"
-              width={116}
-              height={50}
-              style={{
-                width: "100%",
-                height: "auto",
-                backgroundColor: "transparent",
-              }}
-              unoptimized
-            />
-          </Link>
-          <Box width={{ initial: "85%", md: "70%" }}>
-            <form>
-              <TextField.Root
-                size={"3"}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                value={query ?? ""}
-              >
-                <TextField.Slot>
-                  <MagnifyingGlassIcon height="16" width="16" />
-                </TextField.Slot>
-              </TextField.Root>
-            </form>
-          </Box>
-        </Flex>
-        <Flex
-          gap={"3"}
-          align={"center"}
-          display={{ initial: "none", md: "flex" }}
-        >
-          <ThemeToggle />
-          <GitHubButton />
-        </Flex>
-      </Flex>
+      <SearchBar initialQuery={query} />
 
       {/* Search results and filters */}
       <Flex
