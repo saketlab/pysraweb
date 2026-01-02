@@ -4,10 +4,11 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import { HomeIcon, InfoCircledIcon } from "@radix-ui/react-icons";
-import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Button, Flex, Spinner, Table, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import React from "react";
 
 type Project = {
   accession: string;
@@ -16,6 +17,7 @@ type Project = {
   abstract: string;
   submission: string;
   study_type: string;
+  updated_at: Date;
 };
 
 type SimilarProject = {
@@ -23,6 +25,31 @@ type SimilarProject = {
   title: string | null;
   summary: string | null;
   updated_at: Date | null;
+};
+
+type Experiment = {
+  accession: string;
+  title: string | null;
+  design_description: string | null;
+  library_layout: string | null;
+  library_name: string | null;
+  library_selection: string | null;
+  library_source: string | null;
+  library_strategy: string | null;
+  samples: string[];
+  platform: string | null;
+  instrument_model: string | null;
+  submission: string | null;
+};
+
+type Sample = {
+  accession: string;
+  alias: string | null;
+  description: string | null;
+  title: string | null;
+  scientific_name: string | null;
+  taxon_id: string | null;
+  attributes_json: Record<string, string> | null;
 };
 
 const fetchProject = async (
@@ -57,6 +84,38 @@ const fetchSimilarProjects = async (
     .slice(0, 5);
 };
 
+const fetchExperiments = async (
+  accession: string | null
+): Promise<Experiment[]> => {
+  if (!accession) return [];
+  const res = await fetch(`${SERVER_URL}/project/${accession}/experiments`);
+  if (!res.ok) throw new Error("Network error");
+  const data = await res.json();
+  return data as Experiment[];
+};
+
+const fetchSample = async (accession: string): Promise<Sample | null> => {
+  const res = await fetch(`${SERVER_URL}/sample/${accession}`);
+  if (!res.ok) return null;
+  return res.json();
+};
+
+const fetchSamplesForExperiments = async (
+  experiments: Experiment[]
+): Promise<Map<string, Sample>> => {
+  const sampleAccessions = experiments
+    .map((exp) => exp.samples[0])
+    .filter(Boolean);
+  const samples = await Promise.all(
+    sampleAccessions.map((acc) => fetchSample(acc))
+  );
+  const sampleMap = new Map<string, Sample>();
+  samples.forEach((s) => {
+    if (s) sampleMap.set(s.accession, s);
+  });
+  return sampleMap;
+};
+
 const ABSTRACT_CHAR_LIMIT = 350;
 
 export default function ProjectPage() {
@@ -72,6 +131,34 @@ export default function ProjectPage() {
     queryFn: () => fetchProject(accession ?? null),
     enabled: !!accession,
   });
+
+  const {
+    data: experiments,
+    isLoading: isExperimentsLoading,
+    isError: isExperimentsError,
+  } = useQuery({
+    queryKey: ["project-experiments", accession],
+    queryFn: () => fetchExperiments(accession ?? null),
+    enabled: !!accession,
+  });
+
+  const { data: samplesMap } = useQuery({
+    queryKey: ["project-samples", accession],
+    queryFn: () => fetchSamplesForExperiments(experiments!),
+    enabled: !!experiments && experiments.length > 0,
+  });
+
+  // Compute unique attribute keys from all samples
+  const attributeKeys = React.useMemo(() => {
+    if (!samplesMap) return [];
+    const keys = new Set<string>();
+    samplesMap.forEach((sample) => {
+      if (sample.attributes_json) {
+        Object.keys(sample.attributes_json).forEach((k) => keys.add(k));
+      }
+    });
+    return Array.from(keys);
+  }, [samplesMap]);
 
   const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
     queryKey: ["similarProjects", project?.abstract],
@@ -164,17 +251,133 @@ export default function ProjectPage() {
                 {accession}
               </Badge>
               <Badge size={{ initial: "1", md: "3" }} color="gray">
-                20 Experiments
+                {isExperimentsLoading
+                  ? "Loading..."
+                  : experiments
+                  ? `${experiments.length} Experiments`
+                  : "0 Experiments"}
               </Badge>
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
-              <Text>Last updated on 20 Mar 2025</Text>
+              <Text>
+                Last updated on{" "}
+                {project.updated_at
+                  ? new Date(project.updated_at).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "N/A"}
+              </Text>
             </Flex>
             <ProjectSummary
               text={project.abstract}
               charLimit={ABSTRACT_CHAR_LIMIT}
             />
+            {/* Experiments table */}
+            <Flex
+              align="start"
+              gap="2"
+              mt="3"
+              direction="column"
+              style={{ width: "100%", overflowX: "auto" }}
+            >
+              {isExperimentsLoading && (
+                <Flex gap="2" align="center">
+                  <Spinner size="2" />
+                  <Text size="2">Loading experiments...</Text>
+                </Flex>
+              )}
+              {isExperimentsError && (
+                <Text color="red">Failed to load experiments</Text>
+              )}
+              {!isExperimentsLoading &&
+                experiments &&
+                experiments.length === 0 && (
+                  <Text size="2" color="gray">
+                    No experiments found
+                  </Text>
+                )}
+              {!isExperimentsLoading &&
+                experiments &&
+                experiments.length > 0 && (
+                  <Table.Root style={{ width: "100%" }} variant="surface">
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.ColumnHeaderCell>
+                          Accession
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Library</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Layout</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Platform
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Instrument
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Sample Title
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Description
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Scientific Name
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
+                          Taxon ID
+                        </Table.ColumnHeaderCell>
+                        {attributeKeys.map((key) => (
+                          <Table.ColumnHeaderCell key={key}>
+                            {key}
+                          </Table.ColumnHeaderCell>
+                        ))}
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {experiments.map((e) => {
+                        const sampleAcc = e.samples[0];
+                        const sample =
+                          sampleAcc && samplesMap
+                            ? samplesMap.get(sampleAcc)
+                            : null;
+                        return (
+                          <Table.Row key={e.accession}>
+                            <Table.RowHeaderCell>
+                              {e.accession}
+                            </Table.RowHeaderCell>
+                            <Table.Cell>{e.title ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              {e.library_name ?? e.library_strategy ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>{e.library_layout ?? "-"}</Table.Cell>
+                            <Table.Cell>{e.platform ?? "-"}</Table.Cell>
+                            <Table.Cell>{e.instrument_model ?? "-"}</Table.Cell>
+                            <Table.Cell>{sampleAcc ?? "-"}</Table.Cell>
+                            <Table.Cell>{sample?.title ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              {sample?.description ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {sample?.scientific_name ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>{sample?.taxon_id ?? "-"}</Table.Cell>
+                            {attributeKeys.map((key) => (
+                              <Table.Cell key={key}>
+                                {sample?.attributes_json?.[key] ?? "-"}
+                              </Table.Cell>
+                            ))}
+                          </Table.Row>
+                        );
+                      })}
+                    </Table.Body>
+                  </Table.Root>
+                )}
+            </Flex>
+            {/* Table here */}
             <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
