@@ -281,7 +281,12 @@ export default function ProjectPage() {
               gap="2"
               mt="3"
               direction="column"
-              style={{ width: "100%", overflowX: "auto" }}
+              style={{
+                width: "100%",
+                maxHeight: "500px",
+                overflowX: "auto",
+                overflowY: "auto",
+              }}
             >
               {isExperimentsLoading && (
                 <Flex gap="2" align="center">
@@ -303,7 +308,12 @@ export default function ProjectPage() {
                 experiments &&
                 experiments.length > 0 && (
                   <Table.Root style={{ width: "100%" }} variant="surface">
-                    <Table.Header>
+                    <Table.Header
+                      style={{
+                        overflow: "scroll",
+                        maxHeight: "30rem",
+                      }}
+                    >
                       <Table.Row>
                         <Table.ColumnHeaderCell>
                           Accession
