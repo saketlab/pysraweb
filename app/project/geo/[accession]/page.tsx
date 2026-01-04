@@ -224,6 +224,67 @@ export default function GeoProjectPage() {
               text={project.summary}
               charLimit={SUMMARY_CHAR_LIMIT}
             />
+            {project.relation &&
+              (() => {
+                const relations = project.relation as unknown as {
+                  "@target": string;
+                  "@type": string;
+                }[];
+                const superSeries = relations.filter(
+                  (r) => r["@type"] === "SuperSeries of"
+                );
+                const subSeries = relations.filter(
+                  (r) => r["@type"] === "SubSeries of"
+                );
+
+                if (superSeries.length === 0 && subSeries.length === 0)
+                  return null;
+
+                return (
+                  <Flex direction="column" gap="2">
+                    {superSeries.length > 0 && (
+                      <Flex align="center" gap="2" wrap="wrap">
+                        <Text size="2" weight="medium">
+                          SuperSeries of:
+                        </Text>
+                        {superSeries.map((s) => (
+                          <a
+                            key={s["@target"]}
+                            href={`/project/geo/${s["@target"]}`}
+                          >
+                            <Badge
+                              size={{ initial: "1", md: "2" }}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {s["@target"]}
+                            </Badge>
+                          </a>
+                        ))}
+                      </Flex>
+                    )}
+                    {subSeries.length > 0 && (
+                      <Flex align="center" gap="2" wrap="wrap">
+                        <Text size="2" weight="medium">
+                          SubSeries of:
+                        </Text>
+                        {subSeries.map((s) => (
+                          <a
+                            key={s["@target"]}
+                            href={`/project/geo/${s["@target"]}`}
+                          >
+                            <Badge
+                              size={{ initial: "1", md: "2" }}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {s["@target"]}
+                            </Badge>
+                          </a>
+                        ))}
+                      </Flex>
+                    )}
+                  </Flex>
+                );
+              })()}
             <Text weight="medium" size="6">
               Overall design
             </Text>
