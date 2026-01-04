@@ -1,3 +1,4 @@
+import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { Card, Flex, Link, Text } from "@radix-ui/themes";
 import Image from "next/image";
 
@@ -39,15 +40,15 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
             href={`https://doi.org/${doi}`}
             target="_blank"
             rel="noopener noreferrer"
-            size={{ initial: "2", md: "4" }}
+            size={{ initial: "2", md: "3" }}
             weight={"medium"}
           >
-            {publication.title}
+            {publication.title} <ExternalLinkIcon />
           </Link>
 
           <Text
             style={{ fontStyle: "italic" }}
-            size={{ initial: "2", md: "3" }}
+            size={{ initial: "1", md: "2" }}
           >
             {publication.authors.length > 4
               ? `${publication.authors
@@ -56,7 +57,9 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
                   .join(", ")} et al.`
               : publication.authors.map((a) => a.name).join(", ")}
           </Text>
-          <Text>{publication.fulljournalname}</Text>
+          <Text weight={"light"} size={{ initial: "1", md: "2" }}>
+            {publication.fulljournalname}
+          </Text>
         </Flex>
       </Flex>
     </Card>
