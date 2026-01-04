@@ -9,10 +9,11 @@ import {
   HomeIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
-import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Button, Flex, Spinner, Table, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import React from "react";
 
 type Project = {
   accession: string;
@@ -33,6 +34,45 @@ type SimilarProject = {
   title: string | null;
   summary: string | null;
   updated_at: Date | null;
+};
+
+type Characteristic = {
+  "@tag": string;
+  "#text": string;
+};
+
+type Channel = {
+  Label: string | null;
+  Source: string | null;
+  Molecule: string | null;
+  Organism: { "#text": string; "@taxid": string } | null;
+  "@position": string | null;
+  "Label-Protocol": string | null;
+  "Extract-Protocol": string | null;
+  Characteristics?: Characteristic[];
+};
+
+type GeoSample = {
+  accession: string;
+  channel_count: number | null;
+  channels: Channel[] | null;
+  description: string | null;
+  platform_ref: string | null;
+  published_at: Date | null;
+  updated_at: Date | null;
+  supplementary_data: unknown[] | null;
+  title: string | null;
+  sample_type: string | null;
+  hybridization_protocol: string | null;
+  scan_protocol: string | null;
+};
+
+const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
+  const res = await fetch(`${SERVER_URL}/geo/series/${accession}/samples`);
+  if (!res.ok) {
+    throw new Error("Network error");
+  }
+  return res.json();
 };
 
 const fetchPubMedData = async (
@@ -122,6 +162,26 @@ export default function GeoProjectPage() {
     queryFn: () => fetchPubMedData(project!.pubmed_id),
     enabled: !!project?.pubmed_id && project.pubmed_id.length > 0,
   });
+
+  const { data: samples, isLoading: isSamplesLoading } = useQuery({
+    queryKey: ["samples", accession],
+    queryFn: () => fetchSamples(accession!),
+    enabled: !!accession,
+  });
+
+  // Collect all unique characteristic tags across all samples and channels
+  const characteristicTags = React.useMemo(() => {
+    if (!samples) return [];
+    const tags = new Set<string>();
+    samples.forEach((sample) => {
+      sample.channels?.forEach((channel) => {
+        channel.Characteristics?.forEach((char) => {
+          if (char["@tag"]) tags.add(char["@tag"]);
+        });
+      });
+    });
+    return Array.from(tags);
+  }, [samples]);
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -205,9 +265,9 @@ export default function GeoProjectPage() {
             </Flex>
             <Flex align="start" gap="2" wrap="wrap">
               <Badge size={{ initial: "1", md: "3" }}>{accession}</Badge>
-              {project.series_type && (
+              {samples && samples.length > 0 && (
                 <Badge size={{ initial: "1", md: "3" }} color="gray">
-                  20 Samples
+                  {samples.length} {samples.length === 1 ? "Sample" : "Samples"}
                 </Badge>
               )}
               {project.relation &&
@@ -320,6 +380,160 @@ export default function GeoProjectPage() {
               Overall design
             </Text>
             <Text>{project.overall_design}</Text>
+
+            {/* Samples table */}
+            <Text weight="medium" size="6">
+              Samples
+            </Text>
+            <Flex
+              align="start"
+              gap="2"
+              direction="column"
+              style={{
+                width: "100%",
+                maxHeight: "500px",
+                overflowX: "auto",
+                overflowY: "auto",
+              }}
+            >
+              {isSamplesLoading && (
+                <Flex gap="2" align="center">
+                  <Spinner size="2" />
+                  <Text size="2">Loading samples...</Text>
+                </Flex>
+              )}
+              {!isSamplesLoading && samples && samples.length === 0 && (
+                <Text size="2" color="gray">
+                  No samples found
+                </Text>
+              )}
+              {!isSamplesLoading && samples && samples.length > 0 && (
+                <Table.Root style={{ width: "100%" }} variant="surface">
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>
+                        Description
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>
+                        Sample Type
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Platform</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Channel</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Label</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Source</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Molecule</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>Organism</Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>
+                        Label Protocol
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>
+                        Extract Protocol
+                      </Table.ColumnHeaderCell>
+                      {characteristicTags.map((tag) => (
+                        <Table.ColumnHeaderCell key={tag}>
+                          {tag}
+                        </Table.ColumnHeaderCell>
+                      ))}
+                      <Table.ColumnHeaderCell>
+                        Hybridization Protocol
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell>
+                        Scan Protocol
+                      </Table.ColumnHeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {samples.flatMap((sample) => {
+                      const channels = sample.channels ?? [];
+                      if (channels.length === 0) {
+                        // Show sample with no channel data
+                        return (
+                          <Table.Row key={sample.accession}>
+                            <Table.RowHeaderCell>
+                              {sample.accession}
+                            </Table.RowHeaderCell>
+                            <Table.Cell>{sample.title ?? "-"}</Table.Cell>
+                            <Table.Cell>{sample.description ?? "-"}</Table.Cell>
+                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              {sample.platform_ref ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            <Table.Cell>-</Table.Cell>
+                            {characteristicTags.map((tag) => (
+                              <Table.Cell key={tag}>-</Table.Cell>
+                            ))}
+                            <Table.Cell>
+                              {sample.hybridization_protocol ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {sample.scan_protocol ?? "-"}
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      }
+                      return channels.map((channel, channelIdx) => {
+                        // Build a map of characteristic tag -> value for this channel
+                        const charMap = new Map<string, string>();
+                        channel.Characteristics?.forEach((char) => {
+                          if (char["@tag"])
+                            charMap.set(char["@tag"], char["#text"] ?? "-");
+                        });
+                        return (
+                          <Table.Row
+                            key={`${sample.accession}-ch${channelIdx}`}
+                          >
+                            <Table.RowHeaderCell>
+                              {sample.accession}
+                            </Table.RowHeaderCell>
+                            <Table.Cell>{sample.title ?? "-"}</Table.Cell>
+                            <Table.Cell>{sample.description ?? "-"}</Table.Cell>
+                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              {sample.platform_ref ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {channel["@position"] ?? channelIdx + 1}
+                            </Table.Cell>
+                            <Table.Cell>{channel.Label ?? "-"}</Table.Cell>
+                            <Table.Cell>{channel.Source ?? "-"}</Table.Cell>
+                            <Table.Cell>{channel.Molecule ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              {channel.Organism?.["#text"] ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {channel["Label-Protocol"] ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {channel["Extract-Protocol"] ?? "-"}
+                            </Table.Cell>
+                            {characteristicTags.map((tag) => (
+                              <Table.Cell key={tag}>
+                                {charMap.get(tag) ?? "-"}
+                              </Table.Cell>
+                            ))}
+                            <Table.Cell>
+                              {sample.hybridization_protocol ?? "-"}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {sample.scan_protocol ?? "-"}
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      });
+                    })}
+                  </Table.Body>
+                </Table.Root>
+              )}
+            </Flex>
+
             <Text weight="medium" size="6">
               Linked publications
             </Text>
