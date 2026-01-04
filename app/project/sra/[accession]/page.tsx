@@ -3,7 +3,11 @@ import ProjectSummary from "@/components/project-summary";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
-import { HomeIcon, InfoCircledIcon } from "@radix-ui/react-icons";
+import {
+  ExternalLinkIcon,
+  HomeIcon,
+  InfoCircledIcon,
+} from "@radix-ui/react-icons";
 import { Badge, Button, Flex, Spinner, Table, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
@@ -257,6 +261,32 @@ export default function ProjectPage() {
                   ? `${experiments.length} Experiments`
                   : "0 Experiments"}
               </Badge>
+              {project.alias?.startsWith("P") && (
+                <a
+                  href={`https://www.ncbi.nlm.nih.gov/bioproject/${project.alias}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Badge
+                    size={{ initial: "1", md: "3" }}
+                    color="green"
+                    style={{ cursor: "pointer" }}
+                  >
+                    {project.alias}
+                    <ExternalLinkIcon />
+                  </Badge>
+                </a>
+              )}
+              {project.alias?.startsWith("G") && (
+                <a href={`/project/geo/${project.alias}`}>
+                  <Badge
+                    size={{ initial: "1", md: "3" }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {project.alias}
+                  </Badge>
+                </a>
+              )}
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
