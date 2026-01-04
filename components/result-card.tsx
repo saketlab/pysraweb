@@ -17,8 +17,8 @@ export default function ResultCard({
   const router = useRouter();
 
   const handleClick = () => {
-    if (accesssion.startsWith("S")) router.push(`/project/sra/${accesssion}`);
-    else router.push(`/project/geo/${accesssion}`);
+    if (accesssion.startsWith("G")) router.push(`/project/geo/${accesssion}`);
+    else router.push(`/project/sra/${accesssion}`);
   };
 
   return (
@@ -38,7 +38,7 @@ export default function ResultCard({
         <Flex gap={"2"} align={"center"}>
           <Badge
             size={"2"}
-            color={accesssion.startsWith("S") ? "brown" : undefined}
+            color={accesssion.startsWith("G") ? undefined : "brown"}
           >
             {accesssion}
           </Badge>
