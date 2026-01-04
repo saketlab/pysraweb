@@ -9,11 +9,52 @@ import {
   HomeIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
-import { Badge, Button, Flex, Spinner, Table, Text } from "@radix-ui/themes";
+import {
+  Badge,
+  Button,
+  Flex,
+  Link,
+  Spinner,
+  Table,
+  Text,
+} from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import React from "react";
+import React, { useState } from "react";
+
+// Component to truncate text in table cells with more/less toggle
+function TruncatedCell({
+  text,
+  wordLimit = 10,
+}: {
+  text: string | null;
+  wordLimit?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!text || text === "-") return <>{text ?? "-"}</>;
+
+  const words = text.split(/\s+/);
+  const shouldTruncate = words.length > wordLimit;
+
+  if (!shouldTruncate) return <>{text}</>;
+
+  const display = expanded ? text : words.slice(0, wordLimit).join(" ") + "...";
+
+  return (
+    <>
+      {display}
+      <Link
+        ml="1"
+        style={{ cursor: "pointer" }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? "less" : "more"}
+      </Link>
+    </>
+  );
+}
 
 type Project = {
   accession: string;
@@ -408,38 +449,64 @@ export default function GeoProjectPage() {
                 </Text>
               )}
               {!isSamplesLoading && samples && samples.length > 0 && (
-                <Table.Root style={{ width: "100%" }} variant="surface">
+                <Table.Root
+                  style={{ width: "100%", tableLayout: "fixed" }}
+                  variant="surface"
+                  size={"1"}
+                >
                   <Table.Header>
                     <Table.Row>
-                      <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
+                        Sample
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
+                        Title
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "250px" }}>
                         Description
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
+                        Channel Count
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
                         Sample Type
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Platform</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Channel</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Label</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Source</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Molecule</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>Organism</Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
+                        Platform
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "130px" }}>
+                        Channel Position
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "80px" }}>
+                        Label
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
+                        Source
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
+                        Molecule
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
+                        Organism
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
                         Label Protocol
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
                         Extract Protocol
                       </Table.ColumnHeaderCell>
                       {characteristicTags.map((tag) => (
-                        <Table.ColumnHeaderCell key={tag}>
+                        <Table.ColumnHeaderCell
+                          key={tag}
+                          style={{ minWidth: "120px" }}
+                        >
                           {tag}
                         </Table.ColumnHeaderCell>
                       ))}
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
                         Hybridization Protocol
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
                         Scan Protocol
                       </Table.ColumnHeaderCell>
                     </Table.Row>
@@ -454,8 +521,15 @@ export default function GeoProjectPage() {
                             <Table.RowHeaderCell>
                               {sample.accession}
                             </Table.RowHeaderCell>
-                            <Table.Cell>{sample.title ?? "-"}</Table.Cell>
-                            <Table.Cell>{sample.description ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              <TruncatedCell text={sample.title} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <TruncatedCell text={sample.description} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              {sample.channel_count ?? "-"}
+                            </Table.Cell>
                             <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
                             <Table.Cell>
                               {sample.platform_ref ?? "-"}
@@ -471,10 +545,12 @@ export default function GeoProjectPage() {
                               <Table.Cell key={tag}>-</Table.Cell>
                             ))}
                             <Table.Cell>
-                              {sample.hybridization_protocol ?? "-"}
+                              <TruncatedCell
+                                text={sample.hybridization_protocol}
+                              />
                             </Table.Cell>
                             <Table.Cell>
-                              {sample.scan_protocol ?? "-"}
+                              <TruncatedCell text={sample.scan_protocol} />
                             </Table.Cell>
                           </Table.Row>
                         );
@@ -493,8 +569,15 @@ export default function GeoProjectPage() {
                             <Table.RowHeaderCell>
                               {sample.accession}
                             </Table.RowHeaderCell>
-                            <Table.Cell>{sample.title ?? "-"}</Table.Cell>
-                            <Table.Cell>{sample.description ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              <TruncatedCell text={sample.title} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <TruncatedCell text={sample.description} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              {sample.channel_count ?? "-"}
+                            </Table.Cell>
                             <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
                             <Table.Cell>
                               {sample.platform_ref ?? "-"}
@@ -503,16 +586,20 @@ export default function GeoProjectPage() {
                               {channel["@position"] ?? channelIdx + 1}
                             </Table.Cell>
                             <Table.Cell>{channel.Label ?? "-"}</Table.Cell>
-                            <Table.Cell>{channel.Source ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              <TruncatedCell text={channel.Source} />
+                            </Table.Cell>
                             <Table.Cell>{channel.Molecule ?? "-"}</Table.Cell>
                             <Table.Cell>
                               {channel.Organism?.["#text"] ?? "-"}
                             </Table.Cell>
                             <Table.Cell>
-                              {channel["Label-Protocol"] ?? "-"}
+                              <TruncatedCell text={channel["Label-Protocol"]} />
                             </Table.Cell>
                             <Table.Cell>
-                              {channel["Extract-Protocol"] ?? "-"}
+                              <TruncatedCell
+                                text={channel["Extract-Protocol"]}
+                              />
                             </Table.Cell>
                             {characteristicTags.map((tag) => (
                               <Table.Cell key={tag}>
@@ -520,10 +607,12 @@ export default function GeoProjectPage() {
                               </Table.Cell>
                             ))}
                             <Table.Cell>
-                              {sample.hybridization_protocol ?? "-"}
+                              <TruncatedCell
+                                text={sample.hybridization_protocol}
+                              />
                             </Table.Cell>
                             <Table.Cell>
-                              {sample.scan_protocol ?? "-"}
+                              <TruncatedCell text={sample.scan_protocol} />
                             </Table.Cell>
                           </Table.Row>
                         );
