@@ -8,7 +8,15 @@ import {
   HomeIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
-import { Badge, Button, Flex, Spinner, Table, Text } from "@radix-ui/themes";
+import {
+  Badge,
+  Button,
+  Flex,
+  Link,
+  Spinner,
+  Table,
+  Text,
+} from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -287,6 +295,15 @@ export default function ProjectPage() {
                   </Badge>
                 </a>
               )}
+              <a
+                href={`https://trace.ncbi.nlm.nih.gov/Traces/?view=study&acc=${accession}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Badge size={{ initial: "1", md: "3" }} color="sky">
+                  Visit SRA page <ExternalLinkIcon />
+                </Badge>
+              </a>
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
@@ -359,6 +376,9 @@ export default function ProjectPage() {
                         </Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>
+                          Sample Alias
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell>
                           Sample Title
                         </Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>
@@ -387,7 +407,13 @@ export default function ProjectPage() {
                         return (
                           <Table.Row key={e.accession}>
                             <Table.RowHeaderCell>
-                              {e.accession}
+                              <Link
+                                href={`https://www.ncbi.nlm.nih.gov/sra/${e.accession}[accn]`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {e.accession}
+                              </Link>
                             </Table.RowHeaderCell>
                             <Table.Cell>{e.title ?? "-"}</Table.Cell>
                             <Table.Cell>
@@ -397,6 +423,15 @@ export default function ProjectPage() {
                             <Table.Cell>{e.platform ?? "-"}</Table.Cell>
                             <Table.Cell>{e.instrument_model ?? "-"}</Table.Cell>
                             <Table.Cell>{sampleAcc ?? "-"}</Table.Cell>
+                            <Table.Cell>
+                              <Link
+                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample?.alias}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {sample?.alias ?? "-"}
+                              </Link>
+                            </Table.Cell>
                             <Table.Cell>{sample?.title ?? "-"}</Table.Cell>
                             <Table.Cell>
                               {sample?.description ?? "-"}
