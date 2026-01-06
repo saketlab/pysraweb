@@ -16,7 +16,7 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 type Cursor = {
   rank: number;
@@ -109,7 +109,7 @@ export default function SearchPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <>
+    <Suspense fallback={<Spinner />}>
       {/* Navbar and search */}
       <SearchBar initialQuery={query} />
 
@@ -342,6 +342,6 @@ export default function SearchPage() {
           )}
         </Flex>
       </Flex>
-    </>
+    </Suspense>
   );
 }
