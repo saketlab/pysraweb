@@ -528,7 +528,13 @@ export default function GeoProjectPage() {
                         return (
                           <Table.Row key={sample.accession}>
                             <Table.RowHeaderCell>
-                              {sample.accession}
+                              <Link
+                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {sample.accession}
+                              </Link>
                             </Table.RowHeaderCell>
                             <Table.Cell>
                               <TruncatedCell text={sample.title} />
@@ -576,7 +582,13 @@ export default function GeoProjectPage() {
                             key={`${sample.accession}-ch${channelIdx}`}
                           >
                             <Table.RowHeaderCell>
-                              {sample.accession}
+                              <Link
+                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {sample.accession}
+                              </Link>
                             </Table.RowHeaderCell>
                             <Table.Cell>
                               <TruncatedCell text={sample.title} />
