@@ -228,6 +228,7 @@ export default function ProjectPage() {
           direction={"column"}
         >
           <Image
+            draggable={"false"}
             src="./controls.svg"
             alt="empty box"
             width={100}

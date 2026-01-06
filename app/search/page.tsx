@@ -326,6 +326,7 @@ export default function SearchPage() {
             >
               {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
               <Image
+                draggable={"false"}
                 src="./empty-box.svg"
                 alt="empty box"
                 width={"100"}

@@ -43,6 +43,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
             src="/pysradb_v3.png"
             alt="pysradb logo"
             placeholder="empty"
+            draggable={"false"}
             width={116}
             height={50}
             style={{

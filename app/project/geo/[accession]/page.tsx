@@ -274,6 +274,7 @@ export default function GeoProjectPage() {
           direction={"column"}
         >
           <Image
+            draggable={"false"}
             src="./controls.svg"
             alt="empty box"
             width={100}

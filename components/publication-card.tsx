@@ -35,10 +35,22 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
     <Card>
       <Flex gap={"4"} align={"center"}>
         <Box display={{ initial: "block", md: "none" }}>
-          <Image src={"/page.svg"} height={24} width={24} alt="page icon" />
+          <Image
+            draggable={"false"}
+            src={"/page.svg"}
+            height={24}
+            width={24}
+            alt="page icon"
+          />
         </Box>
         <Box display={{ initial: "none", md: "block" }}>
-          <Image src={"/page.svg"} height={40} width={40} alt="page icon" />
+          <Image
+            draggable={"false"}
+            src={"/page.svg"}
+            height={40}
+            width={40}
+            alt="page icon"
+          />
         </Box>
         <Flex direction={"column"}>
           <Link

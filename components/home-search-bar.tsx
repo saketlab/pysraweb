@@ -14,6 +14,7 @@ export default function HomeSearchBar() {
       <Box width={"12rem"}>
         <Image
           src="/pysradb_v3.png"
+          draggable={"false"}
           loading="eager"
           alt="pysradb logo"
           width={526}
@@ -26,7 +27,12 @@ export default function HomeSearchBar() {
           unoptimized // necessary for transparency
         />
       </Box>
-      <Text weight={"medium"} color="gray" size={{ initial: "1", md: "3" }}>
+      <Text
+        weight={"medium"}
+        color="gray"
+        size={{ initial: "1", md: "3" }}
+        style={{ userSelect: "none" }}
+      >
         Discover GEO & SRA datasets
       </Text>
       <HeroSearchBar />
