@@ -338,6 +338,15 @@ export default function GeoProjectPage() {
                     </a>
                   );
                 })()}
+              <a
+                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${accession}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Badge size={{ initial: "1", md: "3" }} color="sky">
+                  Visit GEO page <ExternalLinkIcon />
+                </Badge>
+              </a>
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
