@@ -20,6 +20,7 @@ export default function HeroSearchBar() {
       <Flex direction={"column"} gap={"4"}>
         <form onSubmit={handleSubmit}>
           <TextField.Root
+            aria-label="main search bar"
             size="3"
             onChange={(e) => setQuery(e.target.value)}
             autoFocus

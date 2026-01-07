@@ -6,7 +6,9 @@ export default function Home() {
   return (
     <Flex style={{ height: "100dvh" }} direction="column">
       <Navabar />
-      <HomeSearchBar />
+      <main>
+        <HomeSearchBar />
+      </main>
     </Flex>
   );
 }
