@@ -16,7 +16,7 @@ export default function HeroSearchBar() {
     router.push(`/search?q=${encodeURIComponent(query)}`);
   };
   return (
-    <Box width={{ initial: "85%", md: "60%" }}>
+    <Box width={{ initial: "85%", md: "50%" }}>
       <Flex direction={"column"} gap={"4"}>
         <form onSubmit={handleSubmit}>
           <TextField.Root

@@ -4,7 +4,7 @@ import { Button } from "@radix-ui/themes";
 export default function GitHubButton() {
   return (
     <Button variant="outline" asChild>
-      <a href="https://github.com/saketkc/pysradb">
+      <a target="_blank" href="https://github.com/saketkc/pysradb">
         <GitHubLogoIcon /> Star on GitHub
       </a>
     </Button>
