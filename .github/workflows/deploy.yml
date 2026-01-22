@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.HOSTINGER_USER }}
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: 22
-          source: ".next,public,package.json,package-lock.json,next.config.ts"
+          source: ".next,public,package.json,package-lock.json"
           target: /var/www/sramap/frontend
           strip_components: 0
 
