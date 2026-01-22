@@ -5,6 +5,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import {
+  DownloadIcon,
   ExternalLinkIcon,
   HomeIcon,
   InfoCircledIcon,
@@ -117,7 +118,7 @@ const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
 };
 
 const fetchPubMedData = async (
-  pubmedIds: string[]
+  pubmedIds: string[],
 ): Promise<PubMedArticle[]> => {
   if (!pubmedIds || pubmedIds.length === 0) {
     return [];
@@ -128,7 +129,7 @@ const fetchPubMedData = async (
   for (const id of pubmedIds) {
     try {
       const res = await fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`
+        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`,
       );
       if (!res.ok) continue;
       const data = await res.json();
@@ -144,7 +145,7 @@ const fetchPubMedData = async (
 };
 
 const fetchProject = async (
-  accession: string | null
+  accession: string | null,
 ): Promise<Project | null> => {
   if (!accession) {
     return null;
@@ -160,10 +161,10 @@ const fetchProject = async (
 
 const fetchSimilarProjects = async (
   searchText: string,
-  currentAccession: string
+  currentAccession: string,
 ): Promise<SimilarProject[]> => {
   const res = await fetch(
-    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=geo`
+    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=geo`,
   );
   if (!res.ok) {
     throw new Error("Network error");
@@ -319,7 +320,7 @@ export default function GeoProjectPage() {
                     "@type": string;
                   }[];
                   const bioProject = relations.find(
-                    (r) => r["@type"] === "BioProject"
+                    (r) => r["@type"] === "BioProject",
                   );
                   if (!bioProject) return null;
                   return (
@@ -373,10 +374,10 @@ export default function GeoProjectPage() {
                   "@type": string;
                 }[];
                 const superSeries = relations.filter(
-                  (r) => r["@type"] === "SuperSeries of"
+                  (r) => r["@type"] === "SuperSeries of",
                 );
                 const subSeries = relations.filter(
-                  (r) => r["@type"] === "SubSeries of"
+                  (r) => r["@type"] === "SubSeries of",
                 );
 
                 if (superSeries.length === 0 && subSeries.length === 0)
@@ -433,9 +434,104 @@ export default function GeoProjectPage() {
             <Text>{project.overall_design}</Text>
 
             {/* Samples table */}
-            <Text weight="medium" size="6">
-              Samples
-            </Text>
+            <Flex justify={"between"}>
+              <Text weight="medium" size="6">
+                Samples
+              </Text>
+              <Button
+                onClick={() => {
+                  if (!samples || samples.length === 0) return;
+                  // Build CSV headers
+                  const headers = [
+                    "Sample",
+                    "Title",
+                    "Description",
+                    "Channel Count",
+                    "Sample Type",
+                    "Platform",
+                    "Channel Position",
+                    "Label",
+                    "Source",
+                    "Molecule",
+                    "Organism",
+                    "Label Protocol",
+                    "Extract Protocol",
+                    ...characteristicTags,
+                    "Hybridization Protocol",
+                    "Scan Protocol",
+                  ];
+
+                  // Build CSV rows
+                  const rows = samples.flatMap((sample) => {
+                    const channels = sample.channels ?? [];
+                    if (channels.length === 0) {
+                      return [
+                        [
+                          sample.accession,
+                          sample.title ?? "-",
+                          sample.description ?? "-",
+                          sample.channel_count ?? "-",
+                          sample.sample_type ?? "-",
+                          sample.platform_ref ?? "-",
+                          "-",
+                          "-",
+                          "-",
+                          "-",
+                          "-",
+                          "-",
+                          "-",
+                          ...characteristicTags.map(() => "-"),
+                          sample.hybridization_protocol ?? "-",
+                          sample.scan_protocol ?? "-",
+                        ],
+                      ];
+                    }
+                    return channels.map((channel, channelIdx) => {
+                      const charMap = new Map();
+                      channel.Characteristics?.forEach((char) => {
+                        if (char["@tag"])
+                          charMap.set(char["@tag"], char["#text"] ?? "-");
+                      });
+                      return [
+                        sample.accession,
+                        sample.title ?? "-",
+                        sample.description ?? "-",
+                        sample.channel_count ?? "-",
+                        sample.sample_type ?? "-",
+                        sample.platform_ref ?? "-",
+                        channel["@position"] ?? channelIdx + 1,
+                        channel.Label ?? "-",
+                        channel.Source ?? "-",
+                        channel.Molecule ?? "-",
+                        channel.Organism?.["#text"] ?? "-",
+                        channel["Label-Protocol"] ?? "-",
+                        channel["Extract-Protocol"] ?? "-",
+                        ...characteristicTags.map(
+                          (tag) => charMap.get(tag) ?? "-",
+                        ),
+                        sample.hybridization_protocol ?? "-",
+                        sample.scan_protocol ?? "-",
+                      ];
+                    });
+                  });
+
+                  // Use exportCsv utility
+                  import("@/utils/exportCsv").then((mod) => {
+                    // Convert rows to array of objects for exportExperimentsToCsv
+                    const experiments = rows.map((row) => {
+                      const obj: Record<string, unknown> = {};
+                      headers.forEach((header, idx) => {
+                        obj[header] = row[idx];
+                      });
+                      return obj;
+                    });
+                    mod.default(experiments, `geo_samples_${accession}.csv`);
+                  });
+                }}
+              >
+                <DownloadIcon /> CSV
+              </Button>
+            </Flex>
             <Flex
               align="start"
               gap="2"
