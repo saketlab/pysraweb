@@ -521,7 +521,10 @@ export default function ProjectPage() {
                             <Table.Cell>{e.platform ?? "-"}</Table.Cell>
                             <Table.Cell>{e.instrument_model ?? "-"}</Table.Cell>
                             <Table.Cell>
-                              {sampleAcc && sampleAcc.startsWith("SRS") ? (
+                              {(sampleAcc &&
+                                (sampleAcc.startsWith("SRS") ||
+                                  sampleAcc.startsWith("ERS"))) ||
+                              sampleAcc.startsWith("DRS") ? (
                                 <Link
                                   href={`https://www.ncbi.nlm.nih.gov/sra/${sampleAcc}[accn]`}
                                   target="_blank"
@@ -538,6 +541,15 @@ export default function ProjectPage() {
                               sample.alias.startsWith("GSM") ? (
                                 <Link
                                   href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.alias}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {sample.alias}
+                                </Link>
+                              ) : sample?.alias &&
+                                sample.alias.startsWith("SAM") ? (
+                                <Link
+                                  href={`https://www.ncbi.nlm.nih.gov/biosample/${sample.alias}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
