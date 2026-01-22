@@ -217,9 +217,17 @@ export default function GeoProjectPage() {
     const tags = new Set<string>();
     samples.forEach((sample) => {
       sample.channels?.forEach((channel) => {
-        channel.Characteristics?.forEach((char) => {
-          if (char["@tag"]) tags.add(char["@tag"]);
-        });
+        if (Array.isArray(channel.Characteristics)) {
+          channel.Characteristics.forEach((char) => {
+            if (char["@tag"]) tags.add(char["@tag"]);
+          });
+        } else if (
+          channel.Characteristics &&
+          typeof channel.Characteristics === "object"
+        ) {
+          if (channel.Characteristics["@tag"])
+            tags.add(channel.Characteristics["@tag"]);
+        }
       });
     });
     return Array.from(tags);
@@ -488,10 +496,21 @@ export default function GeoProjectPage() {
                     }
                     return channels.map((channel, channelIdx) => {
                       const charMap = new Map();
-                      channel.Characteristics?.forEach((char) => {
-                        if (char["@tag"])
-                          charMap.set(char["@tag"], char["#text"] ?? "-");
-                      });
+                      if (Array.isArray(channel.Characteristics)) {
+                        channel.Characteristics.forEach((char) => {
+                          if (char["@tag"])
+                            charMap.set(char["@tag"], char["#text"] ?? "-");
+                        });
+                      } else if (
+                        channel.Characteristics &&
+                        typeof channel.Characteristics === "object"
+                      ) {
+                        if (channel.Characteristics["@tag"])
+                          charMap.set(
+                            channel.Characteristics["@tag"],
+                            channel.Characteristics["#text"] ?? "-",
+                          );
+                      }
                       return [
                         sample.accession,
                         sample.title ?? "-",
@@ -679,10 +698,22 @@ export default function GeoProjectPage() {
                       return channels.map((channel, channelIdx) => {
                         // Build a map of characteristic tag -> value for this channel
                         const charMap = new Map<string, string>();
-                        channel.Characteristics?.forEach((char) => {
-                          if (char["@tag"])
-                            charMap.set(char["@tag"], char["#text"] ?? "-");
-                        });
+
+                        if (Array.isArray(channel.Characteristics)) {
+                          channel.Characteristics.forEach((char) => {
+                            if (char["@tag"])
+                              charMap.set(char["@tag"], char["#text"] ?? "-");
+                          });
+                        } else if (
+                          channel.Characteristics &&
+                          typeof channel.Characteristics === "object"
+                        ) {
+                          if (channel.Characteristics["@tag"])
+                            charMap.set(
+                              channel.Characteristics["@tag"],
+                              channel.Characteristics["#text"] ?? "-",
+                            );
+                        }
                         return (
                           <Table.Row
                             key={`${sample.accession}-ch${channelIdx}`}
