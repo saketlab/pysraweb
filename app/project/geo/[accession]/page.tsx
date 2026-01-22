@@ -352,7 +352,7 @@ export default function GeoProjectPage() {
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
-              <Text>
+              <Text color="gray">
                 Last updated on{" "}
                 {project.updated_at
                   ? new Date(project.updated_at).toLocaleDateString("en-GB", {
@@ -525,7 +525,7 @@ export default function GeoProjectPage() {
                       });
                       return obj;
                     });
-                    mod.default(experiments, `geo_samples_${accession}.csv`);
+                    mod.default(experiments, `${accession}_samples.csv`);
                   });
                 }}
               >

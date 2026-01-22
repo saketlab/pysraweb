@@ -4,6 +4,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import {
+  DownloadIcon,
   ExternalLinkIcon,
   HomeIcon,
   InfoCircledIcon,
@@ -65,7 +66,7 @@ type Sample = {
 };
 
 const fetchProject = async (
-  accession: string | null
+  accession: string | null,
 ): Promise<Project | null> => {
   if (!accession) {
     return null;
@@ -81,10 +82,10 @@ const fetchProject = async (
 
 const fetchSimilarProjects = async (
   searchText: string,
-  currentAccession: string
+  currentAccession: string,
 ): Promise<SimilarProject[]> => {
   const res = await fetch(
-    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=sra`
+    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=sra`,
   );
   if (!res.ok) {
     throw new Error("Network error");
@@ -97,7 +98,7 @@ const fetchSimilarProjects = async (
 };
 
 const fetchExperiments = async (
-  accession: string | null
+  accession: string | null,
 ): Promise<Experiment[]> => {
   if (!accession) return [];
   const res = await fetch(`${SERVER_URL}/project/${accession}/experiments`);
@@ -123,13 +124,13 @@ const fetchSample = async (accession: string): Promise<Sample | null> => {
 };
 
 const fetchSamplesForExperiments = async (
-  experiments: Experiment[]
+  experiments: Experiment[],
 ): Promise<Map<string, Sample>> => {
   const sampleAccessions = experiments
     .map((exp) => exp.samples[0])
     .filter(Boolean);
   const samples = await Promise.all(
-    sampleAccessions.map((acc) => fetchSample(acc))
+    sampleAccessions.map((acc) => fetchSample(acc)),
   );
   const sampleMap = new Map<string, Sample>();
   samples.forEach((s) => {
@@ -279,8 +280,8 @@ export default function ProjectPage() {
                 {isExperimentsLoading
                   ? "Loading..."
                   : experiments
-                  ? `${experiments.length} Experiments`
-                  : "0 Experiments"}
+                    ? `${experiments.length} Experiments`
+                    : "0 Experiments"}
               </Badge>
               {project.alias?.startsWith("P") && (
                 <a
@@ -320,7 +321,7 @@ export default function ProjectPage() {
             </Flex>
             <Flex align={"center"} gap={"2"}>
               <InfoCircledIcon />
-              <Text>
+              <Text color="gray">
                 Last updated on{" "}
                 {project.updated_at
                   ? new Date(project.updated_at).toLocaleDateString("en-GB", {
@@ -335,17 +336,88 @@ export default function ProjectPage() {
               text={project.abstract}
               charLimit={ABSTRACT_CHAR_LIMIT}
             />
+            <Flex justify={"between"} align={"center"}>
+              <Text weight="medium" size="6">
+                Experiments
+              </Text>
+              <Button
+                onClick={() => {
+                  if (!experiments || !samplesMap) return;
+                  // Compose CSV header
+                  const baseHeaders = [
+                    "Accession",
+                    "Title",
+                    "Library",
+                    "Layout",
+                    "Platform",
+                    "Instrument",
+                    "Sample",
+                    "Sample Alias",
+                    "Sample Title",
+                    "Description",
+                    "Scientific Name",
+                    "Taxon ID",
+                  ];
+                  const allHeaders = baseHeaders.concat(attributeKeys);
+                  // Compose CSV rows
+                  const rows = experiments.map((e) => {
+                    const sampleAcc = e.samples[0];
+                    const sample =
+                      sampleAcc && samplesMap
+                        ? samplesMap.get(sampleAcc)
+                        : null;
+                    const baseRow = [
+                      e.accession,
+                      e.title ?? "-",
+                      e.library_name ?? e.library_strategy ?? "-",
+                      e.library_layout ?? "-",
+                      e.platform ?? "-",
+                      e.instrument_model ?? "-",
+                      sampleAcc ?? "-",
+                      sample?.alias ?? "-",
+                      sample?.title ?? "-",
+                      sample?.description ?? "-",
+                      sample?.scientific_name ?? "-",
+                      sample?.taxon_id ?? "-",
+                    ];
+                    const attrRow = attributeKeys.map(
+                      (key) => sample?.attributes_json?.[key] ?? "-",
+                    );
+                    return [...baseRow, ...attrRow];
+                  });
+                  // Convert to CSV string
+                  const escape = (val: string) =>
+                    `"${String(val).replace(/"/g, '""')}"`;
+                  const csv = [
+                    allHeaders.map(escape).join(","),
+                    ...rows.map((row) => row.map(escape).join(",")),
+                  ].join("\n");
+                  // Download
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${accession}_experiments.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }, 0);
+                }}
+              >
+                <DownloadIcon /> CSV
+              </Button>
+            </Flex>
             {/* Experiments table */}
             <Flex
               align="start"
               gap="2"
-              mt="3"
+              // mt="3"
               direction="column"
               style={{
                 width: "100%",
                 maxHeight: "500px",
-                overflowX: "auto",
-                overflowY: "auto",
               }}
             >
               {isExperimentsLoading && (
@@ -367,7 +439,15 @@ export default function ProjectPage() {
               {!isExperimentsLoading &&
                 experiments &&
                 experiments.length > 0 && (
-                  <Table.Root style={{ width: "100%" }} variant="surface">
+                  <Table.Root
+                    style={{
+                      width: "100%",
+                      tableLayout: "fixed",
+                      overflowX: "auto",
+                      overflowY: "auto",
+                    }}
+                    variant="surface"
+                  >
                     <Table.Header
                       style={{
                         overflow: "scroll",
@@ -378,7 +458,9 @@ export default function ProjectPage() {
                         <Table.ColumnHeaderCell>
                           Accession
                         </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
+                          Title
+                        </Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>Library</Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>Layout</Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>
@@ -391,20 +473,23 @@ export default function ProjectPage() {
                         <Table.ColumnHeaderCell>
                           Sample Alias
                         </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
                           Sample Title
                         </Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>
                           Description
                         </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
                           Scientific Name
                         </Table.ColumnHeaderCell>
                         <Table.ColumnHeaderCell>
                           Taxon ID
                         </Table.ColumnHeaderCell>
                         {attributeKeys.map((key) => (
-                          <Table.ColumnHeaderCell key={key}>
+                          <Table.ColumnHeaderCell
+                            style={{ minWidth: "150px" }}
+                            key={key}
+                          >
                             {key}
                           </Table.ColumnHeaderCell>
                         ))}
