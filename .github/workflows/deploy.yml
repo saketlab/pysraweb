@@ -24,8 +24,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: https://sramap.saketlab.org/api
 
       - name: Prepare deployment directory
         uses: appleboy/ssh-action@v1.0.3
@@ -61,5 +59,6 @@ jobs:
             cd /var/www/sramap/frontend
             npm ci --production
             sudo systemctl restart sramap-frontend
+            sudo systemctl restart sramap-backend
             sleep 3
             curl -f http://localhost:3002 || echo "Health check pending..."
