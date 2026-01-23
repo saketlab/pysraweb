@@ -1,5 +1,4 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import Image from "next/image";
 import HeroSearchBar from "./hero-search-bar";
 
 export default function HomeSearchBar() {
@@ -11,8 +10,8 @@ export default function HomeSearchBar() {
       gap="4"
       mt={{ initial: "4rem" }}
     >
-      <Box width={"12rem"}>
-        <Image
+      <Box pb={"3"}>
+        {/* <Image
           src="/pysradb_v3.png"
           draggable={"false"}
           loading="eager"
@@ -25,7 +24,16 @@ export default function HomeSearchBar() {
             backgroundColor: "transparent",
           }}
           unoptimized // necessary for transparency
-        />
+        /> */}
+        <Text
+          color="gray"
+          size={{ initial: "8", md: "9" }}
+          weight={"bold"}
+          style={{ fontFamily: "monospace" }}
+          align={"center"}
+        >
+          pysraweb
+        </Text>
       </Box>
       <Text
         weight={"medium"}

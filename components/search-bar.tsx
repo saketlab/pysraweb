@@ -2,9 +2,7 @@
 import GitHubButton from "@/components/github-button";
 import ThemeToggle from "@/components/theme-toggle";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
-import { Box, Flex, TextField } from "@radix-ui/themes";
-import Image from "next/image";
-import Link from "next/link";
+import { Box, Flex, Link, Text, TextField } from "@radix-ui/themes";
 import { useState } from "react";
 
 interface SearchBarProps {
@@ -38,7 +36,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
         direction={{ initial: "column", md: "row" }}
         pt={"2"}
       >
-        <Box width={{ initial: "6rem", md: "11rem" }}>
+        {/* <Box width={{ initial: "6rem", md: "11rem" }}>
           <Link href={"/"}>
             <Image
               src="/pysradb_v3.png"
@@ -56,14 +54,42 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
               unoptimized
             />
           </Link>
-        </Box>
+        </Box> */}
+        <Link href="/" style={{ textDecoration: "none" }}>
+          <Box width={{ initial: "6rem", md: "11rem" }}>
+            {/* <Image
+          src="/pysradb_v3.png"
+          draggable={"false"}
+          loading="eager"
+          alt="pysradb logo"
+          width={526}
+          height={233}
+          style={{
+            width: "100%",
+            height: "auto",
+            backgroundColor: "transparent",
+          }}
+          unoptimized // necessary for transparency
+        /> */}
+            <Text
+              color="gray"
+              size={{ initial: "8", md: "8" }}
+              weight={"bold"}
+              style={{ fontFamily: "monospace" }}
+              align={"center"}
+            >
+              pysraweb
+            </Text>
+          </Box>
+        </Link>
+
         <Box width={{ initial: "90%", md: "70%" }}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (searchQuery) {
                 window.location.href = `/search?q=${encodeURIComponent(
-                  searchQuery
+                  searchQuery,
                 )}`;
               }
             }}
