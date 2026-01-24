@@ -103,7 +103,7 @@ export default function FAQ() {
           width="198"
           height="63"
           alt="KCDH + IITB Logo"
-          src={"/kcdh_iitb.png"}
+          src={"/KCDH_logo.webp"}
         />
         <Text size={"2"}>© Saket Lab, 2026</Text>
       </Flex>
