@@ -1,7 +1,6 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
 import PublicationCard, { PubMedArticle } from "@/components/publication-card";
-import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import {
@@ -71,12 +70,12 @@ type Project = {
   updated_at: Date | null;
 };
 
-type SimilarProject = {
-  accession: string;
-  title: string | null;
-  summary: string | null;
-  updated_at: Date | null;
-};
+// type SimilarProject = {
+//   accession: string;
+//   title: string | null;
+//   summary: string | null;
+//   updated_at: Date | null;
+// };
 
 type Characteristic = {
   "@tag": string;
@@ -159,22 +158,22 @@ const fetchProject = async (
   return data as Project;
 };
 
-const fetchSimilarProjects = async (
-  searchText: string,
-  currentAccession: string,
-): Promise<SimilarProject[]> => {
-  const res = await fetch(
-    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=geo`,
-  );
-  if (!res.ok) {
-    throw new Error("Network error");
-  }
-  const data = await res.json();
-  // Filter out the current project and return top 5
-  return (data.results as SimilarProject[])
-    .filter((p) => p.accession !== currentAccession)
-    .slice(0, 5);
-};
+// const fetchSimilarProjects = async (
+//   searchText: string,
+//   currentAccession: string,
+// ): Promise<SimilarProject[]> => {
+//   const res = await fetch(
+//     `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=geo`,
+//   );
+//   if (!res.ok) {
+//     throw new Error("Network error");
+//   }
+//   const data = await res.json();
+//   // Filter out the current project and return top 5
+//   return (data.results as SimilarProject[])
+//     .filter((p) => p.accession !== currentAccession)
+//     .slice(0, 5);
+// };
 
 const SUMMARY_CHAR_LIMIT = 350;
 
@@ -192,12 +191,12 @@ export default function GeoProjectPage() {
     enabled: !!accession,
   });
 
-  const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
-    queryKey: ["similarProjects", project?.overall_design],
-    queryFn: () =>
-      fetchSimilarProjects(project!.overall_design, project!.accession),
-    enabled: !!project?.overall_design,
-  });
+  // const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
+  //   queryKey: ["similarProjects", project?.overall_design],
+  //   queryFn: () =>
+  //     fetchSimilarProjects(project!.overall_design, project!.accession),
+  //   enabled: !!project?.overall_design,
+  // });
 
   const { data: publications, isLoading: isPublicationsLoading } = useQuery({
     queryKey: ["publications", project?.pubmed_id],
@@ -812,7 +811,7 @@ export default function GeoProjectPage() {
                   No linked publications found
                 </Text>
               )}
-            <Flex align="center" gap="2">
+            {/* <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
               </Text>
@@ -835,12 +834,12 @@ export default function GeoProjectPage() {
                   />
                 ))}
               </Flex>
-            )}
-            {similarProjects && similarProjects.length === 0 && (
+            )} */}
+            {/* {similarProjects && similarProjects.length === 0 && (
               <Text size="2" color="gray">
                 No similar projects found
               </Text>
-            )}
+            )} */}
           </Flex>
         </>
       )}

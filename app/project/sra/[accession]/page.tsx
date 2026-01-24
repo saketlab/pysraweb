@@ -1,10 +1,10 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
-import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
+  EnterIcon,
   ExternalLinkIcon,
   HomeIcon,
   InfoCircledIcon,
@@ -33,12 +33,12 @@ type Project = {
   updated_at: Date;
 };
 
-type SimilarProject = {
-  accession: string;
-  title: string | null;
-  summary: string | null;
-  updated_at: Date | null;
-};
+// type SimilarProject = {
+//   accession: string;
+//   title: string | null;
+//   summary: string | null;
+//   updated_at: Date | null;
+// };
 
 type Experiment = {
   accession: string;
@@ -80,22 +80,22 @@ const fetchProject = async (
   return data as Project;
 };
 
-const fetchSimilarProjects = async (
-  searchText: string,
-  currentAccession: string,
-): Promise<SimilarProject[]> => {
-  const res = await fetch(
-    `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=sra`,
-  );
-  if (!res.ok) {
-    throw new Error("Network error");
-  }
-  const data = await res.json();
-  // Filter out the current project and return top 5
-  return (data.results as SimilarProject[])
-    .filter((p) => p.accession !== currentAccession)
-    .slice(0, 5);
-};
+// const fetchSimilarProjects = async (
+//   searchText: string,
+//   currentAccession: string,
+// ): Promise<SimilarProject[]> => {
+//   const res = await fetch(
+//     `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=sra`,
+//   );
+//   if (!res.ok) {
+//     throw new Error("Network error");
+//   }
+//   const data = await res.json();
+//   // Filter out the current project and return top 5
+//   return (data.results as SimilarProject[])
+//     .filter((p) => p.accession !== currentAccession)
+//     .slice(0, 5);
+// };
 
 const fetchExperiments = async (
   accession: string | null,
@@ -185,11 +185,11 @@ export default function ProjectPage() {
     return Array.from(keys);
   }, [samplesMap]);
 
-  const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
-    queryKey: ["similarProjects", project?.abstract],
-    queryFn: () => fetchSimilarProjects(project!.abstract, project!.accession),
-    enabled: !!project?.abstract,
-  });
+  // const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
+  //   queryKey: ["similarProjects", project?.abstract],
+  //   queryFn: () => fetchSimilarProjects(project!.abstract, project!.accession),
+  //   enabled: !!project?.abstract,
+  // });
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -306,6 +306,7 @@ export default function ProjectPage() {
                     style={{ cursor: "pointer" }}
                   >
                     {project.alias}
+                    <EnterIcon />
                   </Badge>
                 </a>
               )}
@@ -580,7 +581,7 @@ export default function ProjectPage() {
                 )}
             </Flex>
             {/* Table here */}
-            <Flex align="center" gap="2">
+            {/* <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
               </Text>
@@ -608,7 +609,7 @@ export default function ProjectPage() {
               <Text size="2" color="gray">
                 No similar projects found
               </Text>
-            )}
+            )} */}
           </Flex>
         </>
       )}
