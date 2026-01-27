@@ -1,6 +1,16 @@
 import SearchBar from "@/components/search-bar";
 import { Flex, Link, Text } from "@radix-ui/themes";
 import Image from "next/image";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About & FAQ",
+  description:
+    "Learn about pysraweb - a fast exploration tool for GEO and SRA sequencing datasets. Frequently asked questions about data sources, features, and usage.",
+  alternates: {
+    canonical: "https://pysraweb.saketlab.org/faq",
+  },
+};
 
 export default function FAQ() {
   return (
