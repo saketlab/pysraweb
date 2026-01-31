@@ -11,20 +11,6 @@ export default function HomeSearchBar() {
       mt={{ initial: "4rem" }}
     >
       <Box pb={"3"}>
-        {/* <Image
-          src="/pysradb_v3.png"
-          draggable={"false"}
-          loading="eager"
-          alt="pysradb logo"
-          width={526}
-          height={233}
-          style={{
-            width: "100%",
-            height: "auto",
-            backgroundColor: "transparent",
-          }}
-          unoptimized // necessary for transparency
-        /> */}
         <Text
           color="gray"
           size={{ initial: "8", md: "9" }}
