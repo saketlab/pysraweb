@@ -1,7 +1,7 @@
 "use client";
 import { CountdownTimerIcon, Cross1Icon } from "@radix-ui/react-icons";
 import { Box, Button, Card, Flex, Text } from "@radix-ui/themes";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 interface SearchHistoryDropdownProps {
   isVisible: boolean;
@@ -19,6 +19,7 @@ export default function SearchHistoryDropdown({
   position = "relative",
 }: SearchHistoryDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   if (!isVisible || filteredHistory.length === 0) return null;
 
@@ -26,6 +27,7 @@ export default function SearchHistoryDropdown({
     return (
       <Flex style={{ width: "100%" }} mt={"1"}>
         <Card
+          variant="surface"
           ref={dropdownRef}
           style={{ width: "100%" }}
           onMouseDown={(e) => {
@@ -33,24 +35,33 @@ export default function SearchHistoryDropdown({
             e.preventDefault();
           }}
         >
-          <Flex direction={"column"} gap={"2"}>
+          <Flex direction={"column"} gap={"1"}>
             {filteredHistory.map((item) => (
               <div key={item}>
                 <Flex
                   align={"center"}
                   justify={"between"}
-                  style={{ cursor: "pointer" }}
+                  style={{
+                    cursor: "pointer",
+                    color: "var(--accent-12)",
+                    backgroundColor:
+                      hoveredItem === item ? "var(--accent-5)" : undefined,
+                    borderRadius: "4px",
+                    padding: "0.2rem 0.5rem 0.2rem 0.5rem",
+                  }}
                   onClick={() => onHistoryClick(item)}
+                  onMouseEnter={() => setHoveredItem(item)}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   <Flex align={"center"} gap={"2"}>
-                    <CountdownTimerIcon color="gray" />
-                    <Text color="gray">{item}</Text>
+                    <CountdownTimerIcon />
+                    <Text>{item}</Text>
                   </Flex>
                   <Button
                     variant="ghost"
                     onClick={(e) => onRemoveItem(item, e)}
                   >
-                    <Cross1Icon color="gray" />
+                    <Cross1Icon />
                   </Button>
                 </Flex>
               </div>
@@ -72,6 +83,7 @@ export default function SearchHistoryDropdown({
       >
         <Card
           ref={dropdownRef}
+          variant="surface"
           style={{ width: "100%" }}
           onMouseDown={(e) => {
             // Prevent blur when clicking inside dropdown
@@ -84,8 +96,17 @@ export default function SearchHistoryDropdown({
                 <Flex
                   align={"center"}
                   justify={"between"}
-                  style={{ cursor: "pointer" }}
+                  style={{
+                    cursor: "pointer",
+                    color: "var(--accent-12)",
+                    backgroundColor:
+                      hoveredItem === item ? "var(--accent-5)" : undefined,
+                    borderRadius: "4px",
+                    padding: "0.2rem 0.5rem 0.2rem 0.5rem",
+                  }}
                   onClick={() => onHistoryClick(item)}
+                  onMouseEnter={() => setHoveredItem(item)}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   <Flex align={"center"} gap={"2"}>
                     <CountdownTimerIcon color="gray" />
