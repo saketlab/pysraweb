@@ -8,6 +8,7 @@ interface SearchHistoryDropdownProps {
   filteredHistory: string[];
   onHistoryClick: (item: string) => void;
   onRemoveItem: (item: string, e: React.MouseEvent) => void;
+  activeItem?: string | null;
   position?: "relative" | "absolute";
 }
 
@@ -16,6 +17,7 @@ export default function SearchHistoryDropdown({
   filteredHistory,
   onHistoryClick,
   onRemoveItem,
+  activeItem = null,
   position = "relative",
 }: SearchHistoryDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,7 +47,9 @@ export default function SearchHistoryDropdown({
                     cursor: "pointer",
                     color: "var(--accent-12)",
                     backgroundColor:
-                      hoveredItem === item ? "var(--accent-5)" : undefined,
+                      hoveredItem === item || activeItem === item
+                        ? "var(--accent-5)"
+                        : undefined,
                     borderRadius: "4px",
                     padding: "0.2rem 0.5rem 0.2rem 0.5rem",
                   }}
@@ -100,7 +104,9 @@ export default function SearchHistoryDropdown({
                     cursor: "pointer",
                     color: "var(--accent-12)",
                     backgroundColor:
-                      hoveredItem === item ? "var(--accent-5)" : undefined,
+                      hoveredItem === item || activeItem === item
+                        ? "var(--accent-5)"
+                        : undefined,
                     borderRadius: "4px",
                     padding: "0.2rem 0.5rem 0.2rem 0.5rem",
                   }}

@@ -6,7 +6,7 @@ import { useSearchHistory } from "@/utils/useSearchHistory";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { Box, Flex, Link, Text, TextField } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SearchBarProps {
   initialQuery?: string | null;
@@ -15,6 +15,7 @@ interface SearchBarProps {
 export default function SearchBar({ initialQuery }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState(initialQuery ?? "");
   const [isFocused, setIsFocused] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
 
@@ -46,6 +47,14 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
         })
         .slice(0, 5)
     : [];
+
+  useEffect(() => {
+    if (!isFocused) {
+      setActiveIndex(-1);
+      return;
+    }
+    setActiveIndex(-1);
+  }, [isFocused, filteredHistory.length, trimmedQuery]);
 
   return (
     <Flex
@@ -94,6 +103,33 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              onKeyDown={(e) => {
+                if (!isFocused || filteredHistory.length === 0) return;
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setActiveIndex((prev) => {
+                    if (prev === -1) return 0;
+                    return (prev + 1) % filteredHistory.length;
+                  });
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setActiveIndex((prev) => {
+                    if (prev === -1) return filteredHistory.length - 1;
+                    return (prev - 1 + filteredHistory.length) %
+                      filteredHistory.length;
+                  });
+                } else if (e.key === "Enter") {
+                  if (activeIndex >= 0) {
+                    e.preventDefault();
+                    const item = filteredHistory[activeIndex];
+                    void handleHistoryClick(item);
+                  }
+                } else if (e.key === "Escape") {
+                  setIsFocused(false);
+                  setActiveIndex(-1);
+                }
+              }}
               value={searchQuery}
             >
               <TextField.Slot>
@@ -107,6 +143,9 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
             filteredHistory={filteredHistory}
             onHistoryClick={handleHistoryClick}
             onRemoveItem={removeItem}
+            activeItem={
+              activeIndex >= 0 ? filteredHistory[activeIndex] : null
+            }
             position="absolute"
           />
         </Box>

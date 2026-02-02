@@ -4,11 +4,12 @@ import { useSearchHistory } from "@/utils/useSearchHistory";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { Box, Flex, TextField } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 export default function HeroSearchBar() {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
 
@@ -41,6 +42,14 @@ export default function HeroSearchBar() {
         .slice(0, 5)
     : [];
 
+  useEffect(() => {
+    if (!isFocused) {
+      setActiveIndex(-1);
+      return;
+    }
+    setActiveIndex(-1);
+  }, [isFocused, filteredHistory.length, trimmedQuery]);
+
   return (
     <Box width={{ initial: "85%", md: "50%" }}>
       <Flex direction={"column"} gap={"4"}>
@@ -52,6 +61,33 @@ export default function HeroSearchBar() {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            onKeyDown={(e) => {
+              if (!isFocused || filteredHistory.length === 0) return;
+
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveIndex((prev) => {
+                  if (prev === -1) return 0;
+                  return (prev + 1) % filteredHistory.length;
+                });
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex((prev) => {
+                  if (prev === -1) return filteredHistory.length - 1;
+                  return (prev - 1 + filteredHistory.length) %
+                    filteredHistory.length;
+                });
+              } else if (e.key === "Enter") {
+                if (activeIndex >= 0) {
+                  e.preventDefault();
+                  const item = filteredHistory[activeIndex];
+                  void handleHistoryClick(item);
+                }
+              } else if (e.key === "Escape") {
+                setIsFocused(false);
+                setActiveIndex(-1);
+              }
+            }}
             autoFocus
           >
             <TextField.Slot>
@@ -65,6 +101,7 @@ export default function HeroSearchBar() {
         filteredHistory={filteredHistory}
         onHistoryClick={handleHistoryClick}
         onRemoveItem={removeItem}
+        activeItem={activeIndex >= 0 ? filteredHistory[activeIndex] : null}
         position="relative"
       />
     </Box>
