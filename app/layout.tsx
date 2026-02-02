@@ -32,6 +32,12 @@ export const metadata: Metadata = {
   creator: "Saket Lab, IIT Bombay",
   publisher: "Saket Lab",
   metadataBase: new URL("https://pysraweb.saketlab.org"),
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0e1015",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
   alternates: {
     canonical: "/",
   },
