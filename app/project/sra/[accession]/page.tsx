@@ -242,16 +242,16 @@ export default function ProjectPage() {
         >
           <Image
             draggable={"false"}
-            src="./controls.svg"
+            src="/empty-box.svg"
             alt="empty box"
             width={100}
             height={100}
           />
           <Text color="gray" size={"6"} weight={"bold"}>
-            Failed to connect
+            Could not find project
           </Text>
           <Text color="gray" size={"2"}>
-            Check your network connection
+            Check your network connection or query
           </Text>
         </Flex>
       )}
