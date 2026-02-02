@@ -34,7 +34,20 @@ export function useSearchHistory() {
     );
     saveHistory(newHistory);
 
-    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    const isSingleTerm = trimmed.split(/\s+/).length === 1;
+
+    if (isSingleTerm && trimmed.startsWith("GSE")) {
+      navigate(`/project/geo/${encodeURIComponent(trimmed)}`);
+    } else if (
+      isSingleTerm &&
+      (trimmed.startsWith("SRP") ||
+        trimmed.startsWith("ERP") ||
+        trimmed.startsWith("DRP"))
+    ) {
+      navigate(`/project/sra/${encodeURIComponent(trimmed)}`);
+    } else {
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
   };
 
   return { history, saveHistory, performSearch };
