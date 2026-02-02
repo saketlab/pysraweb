@@ -12,15 +12,15 @@ export default function HeroSearchBar() {
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    performSearch(query, router.push);
+    await performSearch(query, router.push);
   };
 
-  const handleHistoryClick = (item: string) => {
+  const handleHistoryClick = async (item: string) => {
     setQuery(item);
     setIsFocused(false);
-    performSearch(item, router.push);
+    await performSearch(item, router.push);
   };
 
   const removeItem = (item: string, e: React.MouseEvent) => {

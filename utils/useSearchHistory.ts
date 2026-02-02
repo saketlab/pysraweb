@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SERVER_URL } from "./constants";
 
 const HISTORY_KEY = "searchHistory";
 const MAX_HISTORY = 5;
@@ -24,7 +25,10 @@ export function useSearchHistory() {
     setHistory(newHistory);
   };
 
-  const performSearch = (query: string, navigate: (url: string) => void) => {
+  const performSearch = async (
+    query: string,
+    navigate: (url: string) => void,
+  ) => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
@@ -35,6 +39,16 @@ export function useSearchHistory() {
     saveHistory(newHistory);
 
     const isSingleTerm = trimmed.split(/\s+/).length === 1;
+    const fetchPrefixes = [
+      "SRS",
+      "SRX",
+      "DRS",
+      "DRX",
+      "ERX",
+      "ERS",
+      "GSM",
+      "PRJ",
+    ];
 
     if (isSingleTerm && trimmed.startsWith("GSE")) {
       navigate(`/project/geo/${encodeURIComponent(trimmed)}`);
@@ -45,6 +59,43 @@ export function useSearchHistory() {
         trimmed.startsWith("DRP"))
     ) {
       navigate(`/project/sra/${encodeURIComponent(trimmed)}`);
+    } else if (
+      isSingleTerm &&
+      fetchPrefixes.some((p) => trimmed.startsWith(p))
+    ) {
+      try {
+        let url;
+        if (trimmed.startsWith("PRJ")) {
+          url = `${SERVER_URL}/prj/${encodeURIComponent(trimmed)}`;
+        } else {
+          url = `${SERVER_URL}/accession/${encodeURIComponent(trimmed)}/project`;
+        }
+        const res = await fetch(url);
+        if (res.status === 500) {
+          alert("project not found");
+          return;
+        }
+        if (!res.ok) {
+          navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+          return;
+        }
+        const data = await res.json();
+        const projectAccession = data.project_accession;
+        if (projectAccession.startsWith("GSE")) {
+          navigate(`/project/geo/${encodeURIComponent(projectAccession)}`);
+        } else if (
+          projectAccession.startsWith("SRP") ||
+          projectAccession.startsWith("ERP") ||
+          projectAccession.startsWith("DRP")
+        ) {
+          navigate(`/project/sra/${encodeURIComponent(projectAccession)}`);
+        } else {
+          navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+        }
+      } catch (error) {
+        console.error("Error fetching project:", error);
+        navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+      }
     } else {
       navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     }

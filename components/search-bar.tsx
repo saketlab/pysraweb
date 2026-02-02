@@ -18,15 +18,15 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    performSearch(searchQuery, router.push);
+    await performSearch(searchQuery, router.push);
   };
 
-  const handleHistoryClick = (item: string) => {
+  const handleHistoryClick = async (item: string) => {
     setSearchQuery(item);
     setIsFocused(false);
-    performSearch(item, router.push);
+    await performSearch(item, router.push);
   };
 
   const removeItem = (item: string, e: React.MouseEvent) => {
