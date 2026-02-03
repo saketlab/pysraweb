@@ -2,44 +2,68 @@
 import GitHubButton from "@/components/github-button";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
+import { useSearchQuery } from "@/context/search_query";
 import { useSearchHistory } from "@/utils/useSearchHistory";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
-import { Box, Flex, Link, Text, TextField } from "@radix-ui/themes";
+import {
+  CountdownTimerIcon,
+  Cross1Icon,
+  MagnifyingGlassIcon,
+} from "@radix-ui/react-icons";
+import {
+  Box,
+  Button,
+  Card,
+  Flex,
+  Link,
+  Text,
+  TextField,
+} from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface SearchBarProps {
   initialQuery?: string | null;
 }
 
 export default function SearchBar({ initialQuery }: SearchBarProps) {
-  const [searchQuery, setSearchQuery] = useState(initialQuery ?? "");
+  const { lastSearchQuery, setLastSearchQuery } = useSearchQuery();
+  const resolvedQuery = (initialQuery ?? "") || lastSearchQuery;
+  const [searchQuery, setSearchQuery] = useState(resolvedQuery);
+
+  useEffect(() => {
+    setSearchQuery(resolvedQuery);
+  }, [resolvedQuery]);
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (trimmed) setLastSearchQuery(trimmed);
     await performSearch(searchQuery, router.push);
   };
 
   const handleHistoryClick = async (item: string) => {
     setSearchQuery(item);
     setIsFocused(false);
+    const trimmed = item.trim();
+    if (trimmed) setLastSearchQuery(trimmed);
     await performSearch(item, router.push);
   };
 
   const removeItem = (item: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    saveHistory(history.filter((h) => h !== item));
+    saveHistory(history.filter((h: string) => h !== item));
   };
 
   // Filter history based on query - only show if query has text
   const trimmedQuery = searchQuery.trim();
   const filteredHistory = trimmedQuery
     ? history
-        .filter((h) => {
+        .filter((h: string) => {
           const hLower = h.toLowerCase();
           const qLower = trimmedQuery.toLowerCase();
           // include if it contains the query but is not an exact match

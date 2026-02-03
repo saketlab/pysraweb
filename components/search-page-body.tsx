@@ -1,6 +1,7 @@
 "use client";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
+import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResult } from "@/utils/types";
 import { ArrowUpIcon } from "@radix-ui/react-icons";
@@ -61,6 +62,11 @@ export default function SearchPageBody() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get("q");
+  const { setLastSearchQuery } = useSearchQuery();
+
+  useEffect(() => {
+    if (query) setLastSearchQuery(query);
+  }, [query, setLastSearchQuery]);
 
   const db = searchParams.get("db");
   const [sortBy, setSortBy] = useState<"relevance" | "date">("relevance");
