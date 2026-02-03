@@ -1,4 +1,5 @@
 "use client";
+import { useSearchQuery } from "@/context/search_query";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import { useSearchHistory } from "@/utils/useSearchHistory";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 export default function HeroSearchBar() {
+  const { setLastSearchQuery } = useSearchQuery();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -15,6 +17,8 @@ export default function HeroSearchBar() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const trimmed = query.trim();
+    if (trimmed) setLastSearchQuery(trimmed);
     await performSearch(query, router.push);
   };
 
