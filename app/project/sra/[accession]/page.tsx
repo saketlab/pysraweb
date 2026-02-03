@@ -1,5 +1,8 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
+import PublicationCard, {
+  PubMedArticle,
+} from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
 import { SERVER_URL } from "@/utils/constants";
 import {
@@ -31,6 +34,8 @@ type Project = {
   submission: string;
   study_type: string;
   updated_at: Date;
+  external_id?: Record<string, string> | string | null;
+  links?: unknown;
 };
 
 // type SimilarProject = {
@@ -76,8 +81,114 @@ const fetchProject = async (
   if (!res.ok) {
     throw new Error("Network error");
   }
-  const data = await res.json();
-  return data as Project;
+  const data = (await res.json()) as Project;
+  if (data && typeof data.external_id === "string") {
+    try {
+      data.external_id = JSON.parse(data.external_id) as Record<string, string>;
+    } catch {
+      data.external_id = null;
+    }
+  }
+  if (data && typeof data.links === "string") {
+    try {
+      data.links = JSON.parse(data.links) as Record<string, unknown>;
+    } catch {
+      data.links = null;
+    }
+  }
+  return data;
+};
+
+const fetchPubMedData = async (
+  pubmedIds: string[],
+): Promise<PubMedArticle[]> => {
+  if (!pubmedIds || pubmedIds.length === 0) {
+    return [];
+  }
+
+  const articles: PubMedArticle[] = [];
+
+  for (const id of pubmedIds) {
+    try {
+      const res = await fetch(
+        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`,
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.result && data.result[id]) {
+        articles.push(data.result[id] as PubMedArticle);
+      }
+    } catch (error) {
+      console.error(`Failed to fetch PubMed data for ID ${id}:`, error);
+    }
+  }
+
+  return articles;
+};
+
+const normalizeExternalIds = (
+  externalId: unknown,
+): { key: string; value: string }[] => {
+  if (!externalId) return [];
+
+  let parsed = externalId;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (!parsed || typeof parsed !== "object") return [];
+
+  const entries: { key: string; value: string }[] = [];
+  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item) entries.push({ key, value: String(item) });
+      });
+    } else if (value) {
+      entries.push({ key, value: String(value) });
+    }
+  }
+
+  return entries;
+};
+
+const extractPubmedIds = (links: unknown): string[] => {
+  if (!links) return [];
+
+  let parsed = links;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (!parsed || typeof parsed !== "object") return [];
+
+  const obj = parsed as Record<string, unknown>;
+  const ids = new Set<string>();
+
+  const addFrom = (item: unknown) => {
+    if (!item || typeof item !== "object") return;
+    const record = item as Record<string, unknown>;
+    const db = String(record.DB ?? record.db ?? "").toLowerCase();
+    if (db === "pubmed") {
+      const id = record.ID ?? record.Id ?? record.id;
+      if (id) ids.add(String(id));
+    }
+  };
+
+  const xref = obj.XREF_LINK ?? obj.xref_link ?? obj.XrefLink;
+  if (Array.isArray(xref)) {
+    xref.forEach(addFrom);
+  } else {
+    addFrom(xref);
+  }
+
+  return Array.from(ids);
 };
 
 // const fetchSimilarProjects = async (
@@ -169,6 +280,22 @@ export default function ProjectPage() {
     queryKey: ["project-samples", accession],
     queryFn: () => fetchSamplesForExperiments(experiments!),
     enabled: !!experiments && experiments.length > 0,
+  });
+
+  const externalIds = React.useMemo(
+    () => normalizeExternalIds(project?.external_id),
+    [project?.external_id],
+  );
+
+  const pubmedIds = React.useMemo(
+    () => extractPubmedIds(project?.links),
+    [project?.links],
+  );
+
+  const { data: publications, isLoading: isPublicationsLoading } = useQuery({
+    queryKey: ["publications", pubmedIds.join(",")],
+    queryFn: () => fetchPubMedData(pubmedIds),
+    enabled: pubmedIds.length > 0,
   });
 
   // Compute unique attribute keys from all samples
@@ -310,6 +437,76 @@ export default function ProjectPage() {
                   </Badge>
                 </a>
               )}
+              {externalIds
+                .filter((entry) => entry.value !== project.alias)
+                .map((entry) => {
+                  const keyLower = entry.key.toLowerCase();
+                  const value = entry.value;
+                  if (keyLower === "bioproject") {
+                    return (
+                      <a
+                        key={`${entry.key}:${value}`}
+                        href={`https://www.ncbi.nlm.nih.gov/bioproject/${value}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Badge
+                          size={{ initial: "1", md: "3" }}
+                          color="green"
+                          style={{ cursor: "pointer" }}
+                        >
+                          {value}
+                          <ExternalLinkIcon />
+                        </Badge>
+                      </a>
+                    );
+                  }
+                  if (keyLower === "biosample") {
+                    return (
+                      <a
+                        key={`${entry.key}:${value}`}
+                        href={`https://www.ncbi.nlm.nih.gov/biosample/${value}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Badge
+                          size={{ initial: "1", md: "3" }}
+                          color="gray"
+                          style={{ cursor: "pointer" }}
+                        >
+                          {value}
+                          <ExternalLinkIcon />
+                        </Badge>
+                      </a>
+                    );
+                  }
+                  if (keyLower === "geo" || value.startsWith("GSE")) {
+                    return (
+                      <a
+                        key={`${entry.key}:${value}`}
+                        href={`/project/geo/${value}`}
+                      >
+                        <Badge
+                          size={{ initial: "1", md: "3" }}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {value}
+                          <EnterIcon />
+                        </Badge>
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <Badge
+                      key={`${entry.key}:${value}`}
+                      size={{ initial: "1", md: "3" }}
+                      color="gray"
+                    >
+                      {entry.key}: {value}
+                    </Badge>
+                  );
+                })}
               <a
                 href={`https://trace.ncbi.nlm.nih.gov/Traces/?view=study&acc=${accession}`}
                 target="_blank"
@@ -580,6 +777,31 @@ export default function ProjectPage() {
                   </Table.Root>
                 )}
             </Flex>
+            <Text weight="medium" size="6">
+              Linked publications
+            </Text>
+
+            {isPublicationsLoading && (
+              <Flex gap="2" align="center">
+                <Spinner size="2" />
+                <Text size="2">Loading publications...</Text>
+              </Flex>
+            )}
+
+            {publications && publications.length > 0 && (
+              <Flex direction="column" gap="3">
+                {publications.map((pub) => (
+                  <PublicationCard key={pub.uid} publication={pub} />
+                ))}
+              </Flex>
+            )}
+
+            {!isPublicationsLoading &&
+              (!publications || publications.length === 0) && (
+                <Text size="2" color="gray">
+                  No linked publications found
+                </Text>
+              )}
             {/* Table here */}
             {/* <Flex align="center" gap="2">
               <Text weight="medium" size="6">
