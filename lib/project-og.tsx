@@ -21,6 +21,29 @@ const labelByKind: Record<ProjectKind, string> = {
   sra: "SRA Study",
 };
 
+function decodeHtmlEntities(input: string): string {
+  return input
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = Number(dec);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      const code = Number.parseInt(hex, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function truncateOgTitle(title: string, maxChars = 88): string {
+  const normalized = title.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars).trimEnd()}...`;
+}
+
 async function fetchProjectTitle(accession: string): Promise<string> {
   try {
     const response = await fetch(
@@ -35,7 +58,8 @@ async function fetchProjectTitle(accession: string): Promise<string> {
     }
 
     const payload = (await response.json()) as ProjectPayload;
-    return payload.title?.trim() || accession;
+    const title = payload.title?.trim();
+    return title ? decodeHtmlEntities(title) : accession;
   } catch {
     return accession;
   }
@@ -49,7 +73,7 @@ export async function generateProjectOgImage(
   accession: string,
   kind: ProjectKind,
 ) {
-  const title = await fetchProjectTitle(accession);
+  const title = truncateOgTitle(await fetchProjectTitle(accession));
   const sourceLabel = labelByKind[kind];
 
   return new ImageResponse(
