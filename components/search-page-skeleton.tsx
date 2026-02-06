@@ -56,6 +56,7 @@ export default function SearchPageSkeleton() {
           gap={"2"}
           display={{ initial: "flex", md: "none" }}
         >
+          <Skeleton height={"2rem"} width={"7rem"} />
           <Skeleton height={"2rem"} width={"7.5rem"} />
           <Skeleton height={"2rem"} width={"7.5rem"} />
           <Skeleton height={"2rem"} width={"8.5rem"} />
@@ -85,7 +86,12 @@ export default function SearchPageSkeleton() {
           ))}
         </Flex>
 
-        <Flex gap="4" direction="column" width={{ initial: "100%", md: "70%" }}>
+        <Flex
+          gap="4"
+          direction="column"
+          width={{ initial: "100%", md: "auto" }}
+          style={{ flex: 1, minWidth: 0 }}
+        >
           <Skeleton height={"1rem"} width={"18rem"} />
           {results.map((item) => (
             <Skeleton key={`result-${item}`} width={"100%"} height={"6rem"} />
@@ -93,6 +99,23 @@ export default function SearchPageSkeleton() {
           <Flex justify="center" py="4">
             <Skeleton height={"2.25rem"} width={"9rem"} />
           </Flex>
+        </Flex>
+        <Flex
+          direction={"column"}
+          gap={"3"}
+          display={{ initial: "none", md: "flex" }}
+          height={"fit-content"}
+          width={"18rem"}
+        >
+          <Skeleton height={"2rem"} width={"100%"} />
+          <Skeleton height={"2rem"} width={"100%"} />
+          {filterItems.map((item) => (
+            <Skeleton
+              key={`org-${item}`}
+              height={"1.5rem"}
+              width={"100%"}
+            />
+          ))}
         </Flex>
       </Flex>
     </>

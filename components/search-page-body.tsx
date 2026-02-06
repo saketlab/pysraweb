@@ -1,12 +1,14 @@
 "use client";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
+import OrganismFilter from "@/components/organism-filter";
 import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResult } from "@/utils/types";
 import { ArrowUpIcon, DownloadIcon } from "@radix-ui/react-icons";
 import {
   Button,
+  Dialog,
   Flex,
   RadioGroup,
   Select,
@@ -20,7 +22,7 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Cursor = {
   rank: number;
@@ -32,43 +34,203 @@ type SearchResponse = {
   total: number;
   took_ms: number;
   next_cursor: Cursor;
+  facets?: {
+    organism?: unknown;
+  };
 };
 
 const getSearchResults = async (
   query: string | null,
   db: string | null,
   cursor: Cursor,
+  organisms: string[],
 ): Promise<SearchResponse | null> => {
   if (!query) return null;
 
-  let url = `${SERVER_URL}/search?q=${encodeURIComponent(query)}`;
-  if (db === "sra" || db === "geo") {
-    url += `&db=${encodeURIComponent(db)}`;
-  }
+  const params = new URLSearchParams();
+  params.set("q", query);
+  if (db === "sra" || db === "geo") params.set("db", db);
+  params.append("facets", "organism");
   if (cursor) {
-    url += `&cursor_rank=${cursor.rank}&cursor_acc=${encodeURIComponent(
-      cursor.accession,
-    )}`;
+    params.set("cursor_rank", String(cursor.rank));
+    params.set("cursor_acc", cursor.accession);
   }
+  organisms.forEach((item) => params.append("organism", item));
 
-  const res = await fetch(url);
+  const res = await fetch(`${SERVER_URL}/search?${params.toString()}`);
   if (!res.ok) {
     throw new Error("Network Error");
   }
   return res.json();
 };
 
+type OrganismItem = {
+  name: string;
+  count: number;
+};
+
+const getOrganismSource = (page: unknown): unknown => {
+  if (!page || typeof page !== "object") return null;
+  const obj = page as Record<string, unknown>;
+  const facets = obj.facets;
+  if (facets && typeof facets === "object") {
+    const f = facets as Record<string, unknown>;
+    if (f.organism) return f.organism;
+    if (f.organisms) return f.organisms;
+  }
+  const facet = obj.facet;
+  if (facet && typeof facet === "object") {
+    const f = facet as Record<string, unknown>;
+    if (f.organism) return f.organism;
+    if (f.organisms) return f.organisms;
+  }
+  const aggs = obj.aggregations;
+  if (aggs && typeof aggs === "object") {
+    const f = aggs as Record<string, unknown>;
+    if (f.organism) return f.organism;
+    if (f.organisms) return f.organisms;
+  }
+  const agg = obj.aggregation;
+  if (agg && typeof agg === "object") {
+    const f = agg as Record<string, unknown>;
+    if (f.organism) return f.organism;
+    if (f.organisms) return f.organisms;
+  }
+  return obj.organisms ?? obj.organism ?? null;
+};
+
+const normalizeOrganisms = (input: unknown): OrganismItem[] => {
+  const map = new Map<string, number>();
+  const add = (name: unknown, count: unknown) => {
+    if (typeof name !== "string") return;
+    const key = name.trim();
+    if (!key) return;
+    const num = Number(count);
+    const value = Number.isFinite(num) ? num : 0;
+    map.set(key, (map.get(key) ?? 0) + value);
+  };
+
+  if (Array.isArray(input)) {
+    input.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const obj = item as Record<string, unknown>;
+      add(obj.name ?? obj.key ?? obj.organism, obj.count ?? obj.doc_count);
+    });
+  } else if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    const buckets = obj.buckets;
+    if (Array.isArray(buckets)) {
+      buckets.forEach((item) => {
+        if (!item || typeof item !== "object") return;
+        const bucket = item as Record<string, unknown>;
+        add(bucket.key ?? bucket.name, bucket.doc_count ?? bucket.count);
+      });
+    } else {
+      Object.entries(obj).forEach(([key, value]) => {
+        if (typeof value === "number") {
+          add(key, value);
+        } else if (value && typeof value === "object") {
+          const entry = value as Record<string, unknown>;
+          add(key, entry.count ?? entry.doc_count);
+        }
+      });
+    }
+  }
+
+  return Array.from(map.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+};
+
+const normalizeFromResults = (results: SearchResult[]): OrganismItem[] => {
+  const map = new Map<string, number>();
+  const addValue = (value: unknown) => {
+    if (!value) return;
+    if (typeof value === "string") {
+      const key = value.trim();
+      if (key) map.set(key, (map.get(key) ?? 0) + 1);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(addValue);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      addValue(obj.name ?? obj.organism ?? obj.scientific_name);
+    }
+  };
+
+  results.forEach((item) => {
+    const obj = item as Record<string, unknown>;
+    addValue(
+      obj.organism ??
+        obj.organisms ??
+        obj.scientific_name ??
+        obj.species ??
+        obj.taxon_name ??
+        obj.organism_name ??
+        obj.organismName,
+    );
+  });
+
+  return Array.from(map.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+};
+
+const getOrganismValues = (item: SearchResult): string[] => {
+  const values: string[] = [];
+  const addValue = (value: unknown) => {
+    if (!value) return;
+    if (typeof value === "string") {
+      const key = value.trim();
+      if (key) values.push(key);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(addValue);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      addValue(obj.name ?? obj.organism ?? obj.scientific_name);
+    }
+  };
+
+  const obj = item as Record<string, unknown>;
+  addValue(
+    obj.organism ??
+      obj.organisms ??
+      obj.scientific_name ??
+      obj.species ??
+      obj.taxon_name ??
+      obj.organism_name ??
+      obj.organismName,
+  );
+
+  return values;
+};
+
 export default function SearchPageBody() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const query = searchParams.get("q");
+  const [mounted, setMounted] = useState(false);
+  const query = mounted ? searchParams.get("q") : null;
   const { setLastSearchQuery } = useSearchQuery();
 
   useEffect(() => {
     if (query) setLastSearchQuery(query);
   }, [query, setLastSearchQuery]);
 
-  const db = searchParams.get("db");
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const db = mounted ? searchParams.get("db") : null;
+  const selectedOrganisms = mounted
+    ? Array.from(new Set(searchParams.getAll("organism").filter(Boolean)))
+    : [];
   const [sortBy, setSortBy] = useState<"relevance" | "date">("relevance");
   const [timeFilter, setTimeFilter] = useState<
     "any" | "1" | "5" | "10" | "20" | "custom"
@@ -77,6 +239,8 @@ export default function SearchPageBody() {
     from: string;
     to: string;
   }>({ from: "", to: "" });
+  const [now, setNow] = useState<Date | null>(null);
+  const datasetValue = db === "sra" || db === "geo" ? db : "both";
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -88,23 +252,28 @@ export default function SearchPageBody() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["search", query, db],
+    queryKey: ["search", query, db, selectedOrganisms.join("|")],
     queryFn: ({ pageParam }) =>
-      getSearchResults(query, db, pageParam as Cursor),
+      getSearchResults(query, db, pageParam as Cursor, selectedOrganisms),
     initialPageParam: null as Cursor,
     getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
-    enabled: !!query,
+    enabled: mounted && !!query,
   });
 
   const total = data?.pages?.[0]?.total ?? 0;
 
   const tookMs = data?.pages?.[0]?.took_ms ?? 0;
 
-  // Flatten all pages into a single array of results
   const searchResults =
     data?.pages.flatMap((page) => page?.results ?? []) ?? [];
 
-  // Intersection Observer for infinite scroll
+  const organismItems = useMemo(() => {
+    const source = getOrganismSource(data?.pages?.[0]);
+    const fromFacet = normalizeOrganisms(source);
+    if (fromFacet.length > 0) return fromFacet;
+    return normalizeFromResults(searchResults);
+  }, [data?.pages, searchResults]);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -130,6 +299,7 @@ export default function SearchPageBody() {
   const [showTopButton, setShowTopButton] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
+  const [organismDialogOpen, setOrganismDialogOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -138,6 +308,9 @@ export default function SearchPageBody() {
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    setNow(new Date());
   }, []);
 
   const sortedResults =
@@ -149,6 +322,13 @@ export default function SearchPageBody() {
       : searchResults;
 
   const filteredResults = sortedResults.filter((result) => {
+    if (selectedOrganisms.length > 0) {
+      const values = getOrganismValues(result).map((v) => v.toLowerCase());
+      const matches = selectedOrganisms.some((sel) =>
+        values.includes(sel.toLowerCase()),
+      );
+      if (!matches) return false;
+    }
     if (timeFilter === "any") return true;
     if (timeFilter === "custom") {
       const from = parseInt(customYearRange.from);
@@ -158,10 +338,23 @@ export default function SearchPageBody() {
       return d.getFullYear() >= from && d.getFullYear() <= to;
     }
     const years = parseInt(timeFilter);
-    const cutoffDate = new Date();
+    if (!now) return true;
+    const cutoffDate = new Date(now.getTime());
     cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
     return new Date(result.updated_at) >= cutoffDate;
   });
+
+  const updateSearchParams = (next: URLSearchParams) => {
+    const text = next.toString();
+    router.push(text ? `/search?${text}` : "/search");
+  };
+
+  const handleOrganismChange = (next: string[]) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("organism");
+    next.forEach((item) => params.append("organism", item));
+    updateSearchParams(params);
+  };
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -175,6 +368,7 @@ export default function SearchPageBody() {
       if (db === "sra" || db === "geo") {
         params.set("db", db);
       }
+      selectedOrganisms.forEach((item) => params.append("organism", item));
 
       if (timeFilter === "custom") {
         const from = parseInt(customYearRange.from);
@@ -220,23 +414,39 @@ export default function SearchPageBody() {
 
   return (
     <>
-      {/* Navbar and search */}
       <SearchBar initialQuery={query} />
 
-      {/* Search results and filters */}
       <Flex
         gap={{ initial: "4", md: "8" }}
         p={"4"}
         justify={"start"}
         direction={{ initial: "column", md: "row" }}
       >
-        {/* Filters for small screens */}
         <Flex
           direction={"row-reverse"}
           justify={"center"}
           gap={"2"}
           display={{ initial: "flex", md: "none" }}
         >
+          <Dialog.Root
+            open={organismDialogOpen}
+            onOpenChange={setOrganismDialogOpen}
+          >
+            <Dialog.Trigger>
+              <Button variant="soft" size="1">
+                Organisms
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content size="3">
+              <Dialog.Title>Organisms</Dialog.Title>
+              <OrganismFilter
+                items={organismItems}
+                selected={selectedOrganisms}
+                onChange={handleOrganismChange}
+                loading={isLoading}
+              />
+            </Dialog.Content>
+          </Dialog.Root>
           <Select.Root
             defaultValue="relevance"
             name="sort"
@@ -273,15 +483,15 @@ export default function SearchPageBody() {
           </Select.Root>
 
           <Select.Root
-            defaultValue={db ? db : "both"}
+            value={datasetValue}
             onValueChange={(value) => {
-              if (query) {
-                let url = `/search?q=${encodeURIComponent(query)}`;
-                if (value === "sra" || value === "geo") {
-                  url += `&db=${encodeURIComponent(value)}`;
-                }
-                router.push(url);
+              const params = new URLSearchParams(searchParams.toString());
+              if (value === "sra" || value === "geo") {
+                params.set("db", value);
+              } else {
+                params.delete("db");
               }
+              updateSearchParams(params);
             }}
             size={"1"}
           >
@@ -295,7 +505,6 @@ export default function SearchPageBody() {
             </Select.Content>
           </Select.Root>
         </Flex>
-        {/* Filters for md+ screens*/}
         <Flex
           direction={"column"}
           gap={"4"}
@@ -305,16 +514,16 @@ export default function SearchPageBody() {
           height={"fit-content"}
         >
           <RadioGroup.Root
-            defaultValue={db ? db : "both"}
+            value={datasetValue}
             name="dataset"
             onValueChange={(value) => {
-              if (query) {
-                let url = `/search?q=${encodeURIComponent(query)}`;
-                if (value === "sra" || value === "geo") {
-                  url += `&db=${encodeURIComponent(value)}`;
-                }
-                router.push(url);
+              const params = new URLSearchParams(searchParams.toString());
+              if (value === "sra" || value === "geo") {
+                params.set("db", value);
+              } else {
+                params.delete("db");
               }
+              updateSearchParams(params);
             }}
           >
             <RadioGroup.Item value="geo">From GEO</RadioGroup.Item>
@@ -356,7 +565,7 @@ export default function SearchPageBody() {
               <TextField.Root
                 type="number"
                 min="2000"
-                max={new Date().getFullYear()}
+                max={now ? now.getFullYear() : undefined}
                 value={customYearRange.from}
                 onChange={(e) =>
                   setCustomYearRange((r) => ({ ...r, from: e.target.value }))
@@ -370,7 +579,7 @@ export default function SearchPageBody() {
               <TextField.Root
                 type="number"
                 min="2000"
-                max={new Date().getFullYear()}
+                max={now ? now.getFullYear() : undefined}
                 value={customYearRange.to}
                 onChange={(e) =>
                   setCustomYearRange((r) => ({ ...r, to: e.target.value }))
@@ -384,7 +593,12 @@ export default function SearchPageBody() {
           )}
         </Flex>
 
-        <Flex gap="4" direction="column" width={{ initial: "100%", md: "70%" }}>
+        <Flex
+          gap="4"
+          direction="column"
+          width={{ initial: "100%", md: "auto" }}
+          style={{ flex: 1, minWidth: 0 }}
+        >
           {!query ? (
             <Text>Start by typing a search query above.</Text>
           ) : isLoading ? (
@@ -432,7 +646,6 @@ export default function SearchPageBody() {
                 />
               ))}
 
-              {/* Infinite scroll trigger */}
               <div ref={loadMoreRef} style={{ minHeight: "1px" }}>
                 {isFetchingNextPage && (
                   <Flex justify="center" py="4">
@@ -455,7 +668,6 @@ export default function SearchPageBody() {
               direction={"column"}
               height={"20rem"}
             >
-              {/* Credits: https://www.svgrepo.com/svg/489659/empty-box */}
               <Image
                 draggable={"false"}
                 src="./empty-box.svg"
@@ -471,6 +683,21 @@ export default function SearchPageBody() {
               </Text>
             </Flex>
           )}
+        </Flex>
+        <Flex
+          display={{ initial: "none", md: "flex" }}
+          direction="column"
+          width="18rem"
+          height="fit-content"
+          position="sticky"
+          style={{ top: "7rem" }}
+        >
+          <OrganismFilter
+            items={organismItems}
+            selected={selectedOrganisms}
+            onChange={handleOrganismChange}
+            loading={isLoading}
+          />
         </Flex>
 
         {filteredResults.length > 0 && (

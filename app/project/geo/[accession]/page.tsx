@@ -125,24 +125,15 @@ const fetchPubMedData = async (
     return [];
   }
 
-  const articles: PubMedArticle[] = [];
-
-  for (const id of pubmedIds) {
-    try {
-      const res = await fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`,
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.result && data.result[id]) {
-        articles.push(data.result[id] as PubMedArticle);
-      }
-    } catch (error) {
-      console.error(`Failed to fetch PubMed data for ID ${id}:`, error);
-    }
-  }
-
-  return articles;
+  const res = await fetch(
+    `/api/pubmed?ids=${encodeURIComponent(pubmedIds.join(","))}`,
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (!data?.result) return [];
+  return pubmedIds
+    .map((id) => data.result[id])
+    .filter(Boolean) as PubMedArticle[];
 };
 
 const fetchProject = async (
