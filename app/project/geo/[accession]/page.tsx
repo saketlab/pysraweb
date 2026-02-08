@@ -2,6 +2,9 @@
 import ProjectSummary from "@/components/project-summary";
 import PublicationCard, { PubMedArticle } from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
+import SimilarProjectsGraph, {
+  SimilarNeighbor,
+} from "@/components/similar-projects-graph";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -62,6 +65,9 @@ type Project = {
   title: string;
   summary: string;
   overall_design: string;
+  coords_2d?: number[] | null;
+  coords_3d?: number[] | null;
+  neighbors?: SimilarNeighbor[] | null;
   alias?: string | null;
   pubmed_id: string[];
   samples_ref: string | null;
@@ -156,7 +162,16 @@ const fetchProject = async (
   if (!res.ok) {
     throw new Error("Network error");
   }
-  const data = await res.json();
+  const data = (await res.json()) as Project & {
+    neighbors?: SimilarNeighbor[] | string | null;
+  };
+  if (data && typeof data.neighbors === "string") {
+    try {
+      data.neighbors = JSON.parse(data.neighbors) as SimilarNeighbor[];
+    } catch {
+      data.neighbors = null;
+    }
+  }
   return data as Project;
 };
 
@@ -841,35 +856,20 @@ export default function GeoProjectPage() {
                   No linked publications found
                 </Text>
               )}
-            {/* <Flex align="center" gap="2">
+            <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
               </Text>
             </Flex>
-            {isSimilarLoading && (
-              <Flex gap="2" align="center">
-                <Spinner size="2" />
-                <Text size="2">Finding similar projects...</Text>
-              </Flex>
-            )}
-            {similarProjects && similarProjects.length > 0 && (
-              <Flex direction="column" gap="3">
-                {similarProjects.map((p) => (
-                  <ResultCard
-                    key={p.accession}
-                    accesssion={p.accession}
-                    title={p.title}
-                    summary={p.summary}
-                    updated_at={p.updated_at}
-                  />
-                ))}
-              </Flex>
-            )} */}
-            {/* {similarProjects && similarProjects.length === 0 && (
-              <Text size="2" color="gray">
-                No similar projects found
-              </Text>
-            )} */}
+            <SimilarProjectsGraph
+              accession={project.accession}
+              source="geo"
+              title={project.title}
+              description={project.summary}
+              coords2d={project.coords_2d}
+              coords3d={project.coords_3d}
+              neighbors={project.neighbors}
+            />
           </Flex>
         </>
       )}

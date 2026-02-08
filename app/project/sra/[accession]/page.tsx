@@ -4,6 +4,9 @@ import PublicationCard, {
   PubMedArticle,
 } from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
+import SimilarProjectsGraph, {
+  SimilarNeighbor,
+} from "@/components/similar-projects-graph";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -31,6 +34,9 @@ type Project = {
   alias: string;
   title: string;
   abstract: string;
+  coords_2d?: number[] | null;
+  coords_3d?: number[] | null;
+  neighbors?: SimilarNeighbor[] | null;
   submission: string;
   study_type: string;
   updated_at: Date;
@@ -81,7 +87,9 @@ const fetchProject = async (
   if (!res.ok) {
     throw new Error("Network error");
   }
-  const data = (await res.json()) as Project;
+  const data = (await res.json()) as Project & {
+    neighbors?: SimilarNeighbor[] | string | null;
+  };
   if (data && typeof data.external_id === "string") {
     try {
       data.external_id = JSON.parse(data.external_id) as Record<string, string>;
@@ -94,6 +102,13 @@ const fetchProject = async (
       data.links = JSON.parse(data.links) as Record<string, unknown>;
     } catch {
       data.links = null;
+    }
+  }
+  if (data && typeof data.neighbors === "string") {
+    try {
+      data.neighbors = JSON.parse(data.neighbors) as SimilarNeighbor[];
+    } catch {
+      data.neighbors = null;
     }
   }
   return data;
@@ -802,36 +817,20 @@ export default function ProjectPage() {
                   No linked publications found
                 </Text>
               )}
-            {/* Table here */}
-            {/* <Flex align="center" gap="2">
+            <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
               </Text>
             </Flex>
-            {isSimilarLoading && (
-              <Flex gap="2" align="center">
-                <Spinner size="2" />
-                <Text size="2">Finding similar projects...</Text>
-              </Flex>
-            )}
-            {similarProjects && similarProjects.length > 0 && (
-              <Flex direction="column" gap="3">
-                {similarProjects.map((p) => (
-                  <ResultCard
-                    key={p.accession}
-                    accesssion={p.accession}
-                    title={p.title}
-                    summary={p.summary}
-                    updated_at={p.updated_at}
-                  />
-                ))}
-              </Flex>
-            )}
-            {similarProjects && similarProjects.length === 0 && (
-              <Text size="2" color="gray">
-                No similar projects found
-              </Text>
-            )} */}
+            <SimilarProjectsGraph
+              accession={project.accession}
+              source="sra"
+              title={project.title}
+              description={project.abstract}
+              coords2d={project.coords_2d}
+              coords3d={project.coords_3d}
+              neighbors={project.neighbors}
+            />
           </Flex>
         </>
       )}
