@@ -2,13 +2,14 @@
 
 import type { ForceGraph3DInstance } from "3d-force-graph";
 import { SERVER_URL } from "@/utils/constants";
-import { Badge, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Flex, Select, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type SimilarNeighbor = {
   accession: string;
   source?: string | null;
+  organisms?: unknown;
   x_2d?: number | null;
   y_2d?: number | null;
   x_3d?: number | null;
@@ -23,6 +24,7 @@ type SimilarProjectsGraphProps = {
   source: "geo" | "sra";
   title: string;
   description: string | null | undefined;
+  organisms?: unknown;
   coords2d?: number[] | null;
   coords3d?: number[] | null;
   neighbors?: SimilarNeighbor[] | null;
@@ -39,17 +41,19 @@ type GraphNode = {
   fz: number;
   title?: string | null;
   description?: string | null;
+  organisms: string[];
   isCenter: boolean;
 };
 
 type GraphLink = {
-  source: string;
-  target: string;
+  source: string | { id?: string };
+  target: string | { id?: string };
 };
 
 type NeighborDetails = {
   title?: string | null;
   description?: string | null;
+  organisms: string[];
 };
 
 const safeNum = (value: unknown, fallback = 0) =>
@@ -73,6 +77,48 @@ const toSource = (value: string | null | undefined, fallback: "geo" | "sra") =>
 
 const MIN_RADIUS = 45;
 const TARGET_MEDIAN_RADIUS = 170;
+const ALL_ORGANISMS = "__all__";
+
+const normalizeOrganisms = (value: unknown): string[] => {
+  if (!value) return [];
+  let parsed: unknown = value;
+
+  if (typeof parsed === "string") {
+    const trimmed = parsed.trim();
+    if (!trimmed) return [];
+    try {
+      parsed = JSON.parse(trimmed) as unknown;
+    } catch {
+      return trimmed
+        .split(/[;,|]/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    return parsed
+      .map((item) =>
+        typeof item === "string"
+          ? item.trim()
+          : item && typeof item === "object" && "name" in item
+            ? String((item as { name: unknown }).name).trim()
+            : "",
+      )
+      .filter((item) => item.length > 0);
+  }
+
+  return [];
+};
+
+const linkEndpointId = (endpoint: GraphLink["source"]): string | null => {
+  if (typeof endpoint === "string") return endpoint;
+  if (endpoint && typeof endpoint === "object" && "id" in endpoint) {
+    const id = endpoint.id;
+    return typeof id === "string" ? id : null;
+  }
+  return null;
+};
 
 function nodeLabel(node: GraphNode) {
   const title = node.title ? escHtml(node.title) : "Untitled project";
@@ -95,12 +141,14 @@ export default function SimilarProjectsGraph({
   source,
   title,
   description,
+  organisms,
   coords2d,
   coords3d,
   neighbors,
 }: SimilarProjectsGraphProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<ForceGraph3DInstance | null>(null);
+  const [organismFilter, setOrganismFilter] = useState<string>(ALL_ORGANISMS);
 
   const normalizedNeighbors = useMemo(() => {
     if (!neighbors || !Array.isArray(neighbors)) return [];
@@ -139,6 +187,7 @@ export default function SimilarProjectsGraph({
               {
                 title: neighborTitle,
                 description: neighborDescription,
+                organisms: normalizeOrganisms(payload.organisms),
               } as NeighborDetails,
             ] as const;
           } catch {
@@ -157,6 +206,8 @@ export default function SimilarProjectsGraph({
     staleTime: 5 * 60 * 1000,
   });
 
+  const centerOrganisms = useMemo(() => normalizeOrganisms(organisms), [organisms]);
+
   const graphData = useMemo(() => {
     const centerX2d = safeNum(coords2d?.[0], 0);
     const centerY2d = safeNum(coords2d?.[1], 0);
@@ -169,6 +220,7 @@ export default function SimilarProjectsGraph({
       source,
       title,
       description: description ?? null,
+      organisms: centerOrganisms,
       isCenter: true,
       x: 0,
       y: 0,
@@ -231,6 +283,9 @@ export default function SimilarProjectsGraph({
           source: inferredSource,
           title: n.title ?? detail?.title ?? null,
           description: n.description ?? detail?.description ?? null,
+          organisms: normalizeOrganisms(n.organisms).length
+            ? normalizeOrganisms(n.organisms)
+            : (detail?.organisms ?? []),
           isCenter: false,
           x,
           y,
@@ -260,7 +315,51 @@ export default function SimilarProjectsGraph({
     coords3d,
     normalizedNeighbors,
     neighborDetails,
+    centerOrganisms,
   ]);
+
+  const organismOptions = useMemo(() => {
+    const values = new Set<string>();
+    graphData.nodes.forEach((node) =>
+      node.organisms.forEach((item) => values.add(item)),
+    );
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [graphData]);
+
+  const filteredGraphData = useMemo(() => {
+    if (organismFilter === ALL_ORGANISMS) return graphData;
+    const centerNode = graphData.nodes.find((node) => node.isCenter);
+    if (!centerNode) return graphData;
+
+    const allowedNeighbors = graphData.nodes.filter(
+      (node) =>
+        !node.isCenter && node.organisms.some((item) => item === organismFilter),
+    );
+
+    const allowedIds = new Set([centerNode.id, ...allowedNeighbors.map((n) => n.id)]);
+    return {
+      nodes: [centerNode, ...allowedNeighbors],
+      links: graphData.links.filter(
+        (link) => {
+          const sourceId = linkEndpointId(link.source);
+          const targetId = linkEndpointId(link.target);
+          return (
+            sourceId !== null &&
+            targetId !== null &&
+            allowedIds.has(sourceId) &&
+            allowedIds.has(targetId)
+          );
+        },
+      ),
+    };
+  }, [graphData, organismFilter]);
+
+  useEffect(() => {
+    if (organismFilter === ALL_ORGANISMS) return;
+    if (!organismOptions.includes(organismFilter)) {
+      setOrganismFilter(ALL_ORGANISMS);
+    }
+  }, [organismFilter, organismOptions]);
 
   useEffect(() => {
     let isActive = true;
@@ -314,10 +413,10 @@ export default function SimilarProjectsGraph({
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph) return;
-    graph.graphData(graphData);
+    graph.graphData(filteredGraphData);
     graph.nodeLabel((node) => nodeLabel(node as GraphNode));
     graph.zoomToFit(450, 48);
-  }, [graphData]);
+  }, [filteredGraphData]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -345,21 +444,34 @@ export default function SimilarProjectsGraph({
   return (
     <Flex direction="column" gap="3">
       <Flex justify="between" align="center" gap="2" wrap="wrap">
-        <Text size="2" color="gray">
-          Hover a node to view title and description. Click a neighbor to open
-          it.
-        </Text>
+        {isDetailsLoading ? (
+          <Flex align="center" gap="1">
+            <Spinner size="1" />
+            <Text size="2" color="gray">
+              Loading...
+            </Text>
+          </Flex>
+        ) : (
+          <Text size="2" color="gray">
+            Hover a node to view title and description. Click a neighbor to open
+            it.
+          </Text>
+        )}
         <Flex align="center" gap="2" wrap="wrap">
-          <Badge color="blue">GEO</Badge>
-          <Badge color="brown">SRA</Badge>
-          {isDetailsLoading && (
-            <Flex align="center" gap="1">
-              <Spinner size="1" />
-              <Text size="1" color="gray">
-                Loading
-              </Text>
-            </Flex>
-          )}
+          <Select.Root
+            value={organismFilter}
+            onValueChange={(value) => setOrganismFilter(value)}
+          >
+            <Select.Trigger style={{ minWidth: "220px" }} />
+            <Select.Content position="popper">
+              <Select.Item value={ALL_ORGANISMS}>All organisms</Select.Item>
+              {organismOptions.map((item) => (
+                <Select.Item key={item} value={item}>
+                  {item}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
         </Flex>
       </Flex>
 
@@ -373,6 +485,11 @@ export default function SimilarProjectsGraph({
           overflow: "hidden",
         }}
       />
+      {organismFilter !== ALL_ORGANISMS && filteredGraphData.nodes.length <= 1 && (
+        <Text size="2" color="gray">
+          No neighbors found for the selected organism.
+        </Text>
+      )}
     </Flex>
   );
 }

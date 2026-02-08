@@ -65,6 +65,7 @@ type Project = {
   title: string;
   summary: string;
   overall_design: string;
+  organisms?: string[] | string | null;
   coords_2d?: number[] | null;
   coords_3d?: number[] | null;
   neighbors?: SimilarNeighbor[] | null;
@@ -170,6 +171,17 @@ const fetchProject = async (
       data.neighbors = JSON.parse(data.neighbors) as SimilarNeighbor[];
     } catch {
       data.neighbors = null;
+    }
+  }
+  if (data && typeof data.organisms === "string") {
+    const organismText = data.organisms;
+    try {
+      data.organisms = JSON.parse(organismText) as string[];
+    } catch {
+      data.organisms = organismText
+        .split(/[;,|]/)
+        .map((item: string) => item.trim())
+        .filter((item: string) => item.length > 0);
     }
   }
   return data as Project;
@@ -869,6 +881,7 @@ export default function GeoProjectPage() {
               source="geo"
               title={project.title}
               description={project.summary}
+              organisms={project.organisms}
               coords2d={project.coords_2d}
               coords3d={project.coords_3d}
               neighbors={project.neighbors}
