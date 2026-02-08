@@ -50,9 +50,10 @@ type GraphLink = {
   target: string | { id?: string };
 };
 
-type NeighborDetails = {
+type BulkProjectMetadata = {
   title?: string | null;
   description?: string | null;
+  organisms: string[];
 };
 
 const safeNum = (value: unknown, fallback = 0) =>
@@ -119,21 +120,43 @@ const linkEndpointId = (endpoint: GraphLink["source"]): string | null => {
   return null;
 };
 
-const parseBulkOrganismsPayload = (
+const parseBulkProjectMetadataPayload = (
   payload: unknown,
-): Map<string, string[]> => {
-  const map = new Map<string, string[]>();
+): Map<string, BulkProjectMetadata> => {
+  const map = new Map<string, BulkProjectMetadata>();
 
-  const add = (accession: unknown, organisms: unknown) => {
+  const add = (accession: unknown, metadata: unknown) => {
     if (typeof accession !== "string" || accession.length === 0) return;
-    map.set(accession.toUpperCase(), normalizeOrganisms(organisms));
+
+    if (!metadata || typeof metadata !== "object") {
+      map.set(accession.toUpperCase(), { organisms: [] });
+      return;
+    }
+
+    const record = metadata as Record<string, unknown>;
+    const title = typeof record.title === "string" ? record.title : null;
+    const description =
+      typeof record.description === "string"
+        ? record.description
+        : typeof record.summary === "string"
+          ? record.summary
+          : typeof record.abstract === "string"
+            ? record.abstract
+            : null;
+    const organisms = normalizeOrganisms(record.organisms);
+
+    map.set(accession.toUpperCase(), {
+      title,
+      description,
+      organisms,
+    });
   };
 
   if (Array.isArray(payload)) {
     payload.forEach((entry) => {
       if (!entry || typeof entry !== "object") return;
       const item = entry as Record<string, unknown>;
-      add(item.accession, item.organisms);
+      add(item.accession, item);
     });
     return map;
   }
@@ -145,7 +168,7 @@ const parseBulkOrganismsPayload = (
       obj.results.forEach((entry) => {
         if (!entry || typeof entry !== "object") return;
         const item = entry as Record<string, unknown>;
-        add(item.accession, item.organisms);
+        add(item.accession, item);
       });
       return map;
     }
@@ -154,13 +177,13 @@ const parseBulkOrganismsPayload = (
       obj.data.forEach((entry) => {
         if (!entry || typeof entry !== "object") return;
         const item = entry as Record<string, unknown>;
-        add(item.accession, item.organisms);
+        add(item.accession, item);
       });
       return map;
     }
 
-    Object.entries(obj).forEach(([accession, organisms]) => {
-      add(accession, organisms);
+    Object.entries(obj).forEach(([accession, metadata]) => {
+      add(accession, metadata);
     });
   }
 
@@ -210,62 +233,23 @@ export default function SimilarProjectsGraph({
     [normalizedNeighbors],
   );
 
-  const { data: neighborDetails, isLoading: isDetailsLoading } = useQuery({
-    queryKey: ["neighbor-project-details", uniqueNeighborAccessions.join(",")],
-    queryFn: async () => {
-      const results = await Promise.all(
-        uniqueNeighborAccessions.map(async (neighborAccession) => {
-          try {
-            const res = await fetch(
-              `${SERVER_URL}/project/${neighborAccession}`,
-            );
-            if (!res.ok) return null;
-            const payload = (await res.json()) as Record<string, unknown>;
-            const neighborTitle =
-              typeof payload.title === "string" ? payload.title : null;
-            const neighborDescription =
-              typeof payload.summary === "string"
-                ? payload.summary
-                : typeof payload.abstract === "string"
-                  ? payload.abstract
-                  : null;
-            return [
-              neighborAccession,
-              {
-                title: neighborTitle,
-                description: neighborDescription,
-              } as NeighborDetails,
-            ] as const;
-          } catch {
-            return null;
-          }
-        }),
-      );
-
-      return new Map(
-        results.filter(
-          (item): item is readonly [string, NeighborDetails] => item !== null,
-        ),
-      );
-    },
-    enabled: uniqueNeighborAccessions.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: bulkOrganismsMap, isLoading: isBulkOrganismsLoading } =
+  const {
+    data: bulkProjectMetadataMap,
+    isLoading: isBulkProjectMetadataLoading,
+  } =
     useQuery({
-      queryKey: ["bulk-organisms", uniqueNeighborAccessions.join(",")],
+      queryKey: ["bulk-project-metadata", uniqueNeighborAccessions.join(",")],
       queryFn: async () => {
-        const res = await fetch(`${SERVER_URL}/bulk/organisms`, {
+        const res = await fetch(`${SERVER_URL}/bulk/project-metadata`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accessions: uniqueNeighborAccessions }),
         });
         if (!res.ok) {
-          throw new Error("Failed to fetch organisms in bulk");
+          throw new Error("Failed to fetch project metadata in bulk");
         }
         const payload = (await res.json()) as unknown;
-        return parseBulkOrganismsPayload(payload);
+        return parseBulkProjectMetadataPayload(payload);
       },
       enabled: uniqueNeighborAccessions.length > 0,
       staleTime: 5 * 60 * 1000,
@@ -323,8 +307,9 @@ export default function SimilarProjectsGraph({
 
     const neighborNodes: GraphNode[] = rawNeighbors.map(
       ({ n, idx, rawX, rawY, rawZ }) => {
-        const detail = neighborDetails?.get(n.accession);
+        const detail = bulkProjectMetadataMap?.get(n.accession.toUpperCase());
         const inferredSource = toSource(n.source, source);
+        const neighborOrganisms = normalizeOrganisms(n.organisms);
 
         let x = rawX * scale;
         let y = rawY * scale;
@@ -348,9 +333,9 @@ export default function SimilarProjectsGraph({
           source: inferredSource,
           title: n.title ?? detail?.title ?? null,
           description: n.description ?? detail?.description ?? null,
-          organisms: normalizeOrganisms(n.organisms).length
-            ? normalizeOrganisms(n.organisms)
-            : (bulkOrganismsMap?.get(n.accession.toUpperCase()) ?? []),
+          organisms: neighborOrganisms.length
+            ? neighborOrganisms
+            : (detail?.organisms ?? []),
           isCenter: false,
           x,
           y,
@@ -379,8 +364,7 @@ export default function SimilarProjectsGraph({
     coords2d,
     coords3d,
     normalizedNeighbors,
-    neighborDetails,
-    bulkOrganismsMap,
+    bulkProjectMetadataMap,
     centerOrganisms,
   ]);
 
@@ -514,7 +498,7 @@ export default function SimilarProjectsGraph({
   return (
     <Flex direction="column" gap="3">
       <Flex justify="between" align="center" gap="2" wrap="wrap">
-        {isDetailsLoading || isBulkOrganismsLoading ? (
+        {isBulkProjectMetadataLoading ? (
           <Flex align="center" gap="1">
             <Spinner size="1" />
             <Text size="2" color="gray">
