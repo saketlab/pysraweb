@@ -392,7 +392,11 @@ export default function SimilarProjectsGraph({
         .onNodeClick((node) => {
           const graphNode = node as GraphNode;
           if (graphNode.id === accession) return;
-          window.location.href = `/project/${graphNode.source}/${graphNode.id}`;
+          window.open(
+            `/project/${graphNode.source}/${graphNode.id}`,
+            "_blank",
+            "noopener,noreferrer",
+          );
         });
 
       const rect = mountRef.current.getBoundingClientRect();
