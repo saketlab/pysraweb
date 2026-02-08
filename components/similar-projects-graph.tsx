@@ -100,9 +100,7 @@ export default function SimilarProjectsGraph({
   neighbors,
 }: SimilarProjectsGraphProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const graphRef = useRef<ForceGraph3DInstance<GraphNode, GraphLink> | null>(
-    null,
-  );
+  const graphRef = useRef<ForceGraph3DInstance | null>(null);
 
   const normalizedNeighbors = useMemo(() => {
     if (!neighbors || !Array.isArray(neighbors)) return [];
