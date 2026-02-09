@@ -469,7 +469,7 @@ export default function ProjectPage() {
                 </a>
               )}
               {project.alias?.startsWith("G") && (
-                <a href={`/project/g/${project.alias}`}>
+                <a href={`/p/${project.alias}`}>
                   <Badge
                     size={{ initial: "1", md: "3" }}
                     style={{ cursor: "pointer" }}
@@ -526,7 +526,7 @@ export default function ProjectPage() {
                     return (
                       <a
                         key={`${entry.key}:${value}`}
-                        href={`/project/g/${value}`}
+                        href={`/p/${value}`}
                       >
                         <Badge
                           size={{ initial: "1", md: "3" }}

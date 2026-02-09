@@ -13,5 +13,7 @@ export const contentType = projectOgContentType;
 
 export default async function OpengraphImage({ params }: Props) {
   const { accession } = await params;
-  return generateProjectOgImage(accession, "sra");
+  // Auto-detect project type from accession prefix
+  const projectType = accession.startsWith("G") ? "geo" : "sra";
+  return generateProjectOgImage(accession, projectType);
 }

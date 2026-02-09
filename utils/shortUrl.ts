@@ -1,10 +1,10 @@
+/**
+ * Generate a project URL
+ * @param accession - Project accession (e.g., "GSE123456" or "SRP123456")
+ * @returns Project URL path (e.g., "/p/GSE123456" or "/p/SRP123456")
+ */
 export function getProjectUrl(accession: string): string {
-  // GEO projects start with G (GSE, GPL, etc.)
-  if (accession.startsWith("G")) {
-    return `/project/g/${accession}`;
-  }
-  // SRA projects (SRP, ERP, DRP, etc.)
-  return `/project/s/${accession}`;
+  return `/p/${accession}`;
 }
 
 // Alias for backward compatibility
