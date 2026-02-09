@@ -2,15 +2,28 @@
 
 import { SERVER_URL } from "@/utils/constants";
 import { OrthographicView } from "@deck.gl/core";
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import DeckGL from "@deck.gl/react";
 import { CornersIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
 import { Box, Card, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type DecodedPoint = {
   accession: string;
+  x: number;
+  y: number;
+};
+
+type ClusterRaw = {
+  title: string;
+  centroid: number[];
+  num_points: number;
+};
+
+type ClusterPoint = {
+  title: string;
+  num_points: number;
   x: number;
   y: number;
 };
@@ -21,8 +34,10 @@ type ViewState = {
 };
 
 const POINT_COLOR: [number, number, number, number] = [97, 207, 196, 210];
+const CLUSTER_TEXT_COLOR: [number, number, number, number] = [255, 255, 255, 235];
 const MIN_ZOOM = -8;
 const MAX_ZOOM = 22;
+const CLUSTER_LABEL_MIN_ZOOM = 0.9;
 const ZOOM_STEP = 0.45;
 const INITIAL_VIEW_STATE: ViewState = {
   target: [0, 0, 0],
@@ -106,8 +121,38 @@ async function fetchMapData(): Promise<DecodedPoint[]> {
   }));
 }
 
+async function fetchClusters(): Promise<ClusterRaw[]> {
+  const response = await fetch(`${SERVER_URL}/clusters.json`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch clusters.");
+  }
+
+  return response.json() as Promise<ClusterRaw[]>;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 export default function MapGraph() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const { clientWidth, clientHeight } = container;
+      setViewportSize({ width: clientWidth, height: clientHeight });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const dataQuery = useQuery({
     queryKey: ["map-binaries"],
@@ -119,10 +164,20 @@ export default function MapGraph() {
     refetchOnReconnect: false,
   });
 
-  const points = useMemo<DecodedPoint[]>(() => {
+  const clusterQuery = useQuery({
+    queryKey: ["map-clusters"],
+    queryFn: fetchClusters,
+    retry: 2,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  const normalization = useMemo(() => {
     const raw = dataQuery.data;
     if (!raw || raw.length === 0) {
-      return [];
+      return null;
     }
 
     let minX = Number.POSITIVE_INFINITY;
@@ -137,16 +192,106 @@ export default function MapGraph() {
       if (point.y > maxY) maxY = point.y;
     }
 
-    const xSpan = maxX - minX || 1;
-    const ySpan = maxY - minY || 1;
-    const extent = 2200;
+    return { minX, maxX, minY, maxY, xSpan: maxX - minX || 1, ySpan: maxY - minY || 1 };
+  }, [dataQuery.data]);
 
+  const points = useMemo<DecodedPoint[]>(() => {
+    const raw = dataQuery.data;
+    if (!raw || !normalization) {
+      return [];
+    }
+
+    const extent = 2200;
     return raw.map((point) => ({
       accession: point.accession,
-      x: ((point.x - minX) / xSpan - 0.5) * extent,
-      y: ((point.y - minY) / ySpan - 0.5) * extent,
+      x: ((point.x - normalization.minX) / normalization.xSpan - 0.5) * extent,
+      y: ((point.y - normalization.minY) / normalization.ySpan - 0.5) * extent,
     }));
-  }, [dataQuery.data]);
+  }, [dataQuery.data, normalization]);
+
+  const clusters = useMemo<ClusterPoint[]>(() => {
+    const rawClusters = clusterQuery.data;
+    if (!rawClusters || !normalization) {
+      return [];
+    }
+
+    const extent = 2200;
+    return rawClusters
+      .filter(
+        (cluster) =>
+          Array.isArray(cluster.centroid) &&
+          cluster.centroid.length >= 2 &&
+          typeof cluster.centroid[0] === "number" &&
+          typeof cluster.centroid[1] === "number" &&
+          Number.isFinite(cluster.centroid[0]) &&
+          Number.isFinite(cluster.centroid[1]) &&
+          typeof cluster.num_points === "number" &&
+          Number.isFinite(cluster.num_points) &&
+          cluster.num_points > 0 &&
+          typeof cluster.title === "string" &&
+          cluster.title.length > 0,
+      )
+      .map((cluster) => ({
+        title: cluster.title,
+        num_points: cluster.num_points,
+        x:
+          ((cluster.centroid[0] - normalization.minX) / normalization.xSpan - 0.5) *
+          extent,
+        y:
+          ((cluster.centroid[1] - normalization.minY) / normalization.ySpan - 0.5) *
+          extent,
+      }))
+      .sort((a, b) => b.num_points - a.num_points);
+  }, [clusterQuery.data, normalization]);
+
+  const visibleClusters = useMemo(() => {
+    if (viewState.zoom < CLUSTER_LABEL_MIN_ZOOM) {
+      return [];
+    }
+
+    if (clusters.length === 0) {
+      return [];
+    }
+
+    const zoomProgress = clamp(
+      (viewState.zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM),
+      0,
+      1,
+    );
+    const visibleFraction = 0.02 + 0.98 * Math.pow(zoomProgress, 1.7);
+    const visibleCount = Math.max(1, Math.ceil(clusters.length * visibleFraction));
+    const candidates = clusters.slice(0, visibleCount);
+
+    if (viewportSize.width <= 0 || viewportSize.height <= 0) {
+      return candidates;
+    }
+
+    const scale = 2 ** viewState.zoom;
+    const baseCellSize = 150;
+    const cellSize = clamp(baseCellSize - viewState.zoom * 6, 48, 170);
+    const chosenByCell = new Map<string, ClusterPoint>();
+
+    // candidates are pre-sorted by descending num_points, so first in each cell wins
+    for (const cluster of candidates) {
+      const sx = (cluster.x - viewState.target[0]) * scale + viewportSize.width / 2;
+      const sy = viewportSize.height / 2 - (cluster.y - viewState.target[1]) * scale;
+
+      if (sx < -24 || sx > viewportSize.width + 24) continue;
+      if (sy < -24 || sy > viewportSize.height + 24) continue;
+
+      const cellX = Math.floor(sx / cellSize);
+      const cellY = Math.floor(sy / cellSize);
+      const key = `${cellX}:${cellY}`;
+
+      if (!chosenByCell.has(key)) {
+        chosenByCell.set(key, cluster);
+      }
+    }
+
+    return Array.from(chosenByCell.values())
+      .sort((a, b) => b.num_points - a.num_points)
+      .slice(0, 10);
+  }, [clusters, viewState.zoom, viewState.target, viewportSize.width, viewportSize.height]);
 
   const layers = useMemo(
     () => [
@@ -162,8 +307,23 @@ export default function MapGraph() {
         radiusMaxPixels: 1.4,
         stroked: false,
       }),
+      new TextLayer<ClusterPoint>({
+        id: "map-cluster-labels",
+        data: visibleClusters,
+        pickable: false,
+        getPosition: (d) => [d.x, d.y],
+        getText: (d) => d.title,
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+        getSize: 12,
+        getColor: CLUSTER_TEXT_COLOR,
+        fontWeight: 700,
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "bottom",
+        getPixelOffset: [0, -8],
+      }),
     ],
-    [points],
+    [points, visibleClusters],
   );
 
   if (dataQuery.isLoading) {
@@ -183,7 +343,7 @@ export default function MapGraph() {
   }
 
   return (
-    <Box style={{ height: "100%", position: "relative" }}>
+    <Box ref={containerRef} style={{ height: "100%", position: "relative" }}>
       <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
         <Card>
           <Flex gap="2" direction="column" align="center">
