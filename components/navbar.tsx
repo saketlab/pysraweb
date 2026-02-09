@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     external: true,
   },
   { label: "MCP", href: "/mcp" },
+  { label: "Map", href: "/map" },
   // { label: "Paper", href: "#" },
   { label: "Saket Lab", href: "https://saketlab.in/", external: true },
   { label: "Contact", href: "mailto:saketc@iitb.ac.in", mailto: true },
