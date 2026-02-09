@@ -7,10 +7,20 @@ import DeckGL from "@deck.gl/react";
 import {
   CornersIcon,
   Cross1Icon,
+  MagnifyingGlassIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons";
-import { Box, Card, Flex, IconButton, Link, Text, Tooltip } from "@radix-ui/themes";
+import {
+  Box,
+  Card,
+  Flex,
+  IconButton,
+  Link,
+  Text,
+  TextField,
+  Tooltip,
+} from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -161,6 +171,9 @@ export default function MapGraph() {
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [containerOffset, setContainerOffset] = useState({ left: 0, top: 0 });
+  const [searchInput, setSearchInput] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [highlightedPoint, setHighlightedPoint] = useState<DecodedPoint | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<{
     accession: string;
     x: number;
@@ -333,6 +346,14 @@ export default function MapGraph() {
       .slice(0, 10);
   }, [clusters, viewState.zoom, viewState.target, viewportSize.width, viewportSize.height]);
 
+  const pointsByAccession = useMemo(() => {
+    const lookup = new Map<string, DecodedPoint>();
+    for (const point of points) {
+      lookup.set(point.accession.toLowerCase(), point);
+    }
+    return lookup;
+  }, [points]);
+
   const layers = useMemo(
     () => [
       new ScatterplotLayer<DecodedPoint>({
@@ -367,6 +388,20 @@ export default function MapGraph() {
           });
         },
       }),
+      new ScatterplotLayer<DecodedPoint>({
+        id: "map-highlight-point",
+        data: highlightedPoint ? [highlightedPoint] : [],
+        pickable: false,
+        getPosition: (d) => [d.x, d.y],
+        getFillColor: [255, 92, 71, 255],
+        getRadius: 1.4,
+        radiusUnits: "pixels",
+        radiusMinPixels: 1.6,
+        radiusMaxPixels: 2.8,
+        stroked: true,
+        getLineColor: [255, 255, 255, 220],
+        lineWidthMinPixels: 0.8,
+      }),
       new TextLayer<ClusterPoint>({
         id: "map-cluster-labels",
         data: visibleClusters,
@@ -383,7 +418,13 @@ export default function MapGraph() {
         getPixelOffset: [0, -8],
       }),
     ],
-    [points, visibleClusters, containerOffset.left, containerOffset.top],
+    [
+      points,
+      highlightedPoint,
+      visibleClusters,
+      containerOffset.left,
+      containerOffset.top,
+    ],
   );
 
   const metadataCardPosition = useMemo(() => {
@@ -420,8 +461,56 @@ export default function MapGraph() {
     );
   }
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchInput.trim().toLowerCase();
+    if (!query) {
+      return;
+    }
+
+    const targetPoint = pointsByAccession.get(query);
+    if (!targetPoint) {
+      setSearchError("Accession not found.");
+      return;
+    }
+
+    setSearchError(null);
+    setHighlightedPoint(targetPoint);
+    setViewState((prev) => ({
+      ...prev,
+      target: [targetPoint.x, targetPoint.y, 0],
+      zoom: Math.max(prev.zoom, 6),
+    }));
+  };
+
   return (
     <Box ref={containerRef} style={{ height: "100%", position: "relative" }}>
+      <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
+        <Card>
+          <form onSubmit={handleSearchSubmit}>
+            <Flex direction="column" gap="2" >
+              <Flex gap="2" align="center">
+                <TextField.Root
+                  placeholder="Search accession"
+                  value={searchInput}
+                  onChange={(event) => {
+                    setSearchInput(event.target.value);
+                    if (searchError) setSearchError(null);
+                  }}
+                />
+                <IconButton type="submit" variant="soft" aria-label="Search accession">
+                  <MagnifyingGlassIcon />
+                </IconButton>
+              </Flex>
+              {searchError && (
+                <Text size="1" color="red">
+                  {searchError}
+                </Text>
+              )}
+            </Flex>
+          </form>
+        </Card>
+      </Box>
       <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
         <Card>
           <Flex gap="2" direction="column" align="center">
