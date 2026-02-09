@@ -1,12 +1,12 @@
 "use client";
 
 import { SERVER_URL } from "@/utils/constants";
-import { CornersIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
-import { Box, Card, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { useQuery } from "@tanstack/react-query";
 import { OrthographicView } from "@deck.gl/core";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import DeckGL from "@deck.gl/react";
+import { CornersIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
+import { Box, Card, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 type DecodedPoint = {
@@ -95,7 +95,7 @@ async function fetchMapData(): Promise<DecodedPoint[]> {
 
   if (points.length !== accessions.length) {
     throw new Error(
-      `Data mismatch: points=${points.length}, accessions=${accessions.length}`
+      `Data mismatch: points=${points.length}, accessions=${accessions.length}`,
     );
   }
 
@@ -163,7 +163,7 @@ export default function MapGraph() {
         stroked: false,
       }),
     ],
-    [points]
+    [points],
   );
 
   if (dataQuery.isLoading) {
@@ -239,7 +239,7 @@ export default function MapGraph() {
         onViewStateChange={({ viewState: nextViewState }) => {
           setViewState({
             target: nextViewState.target as [number, number, number],
-            zoom: nextViewState.zoom,
+            zoom: nextViewState.zoom as number,
           });
         }}
         layers={layers}
