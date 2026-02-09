@@ -16,11 +16,13 @@ export default function UnifiedProjectPage() {
   const accession = params.accession as string | undefined;
 
   // Detect project type from accession prefix
-  // GEO projects start with G (GSE, GPL, GDS, etc.)
-  // SRA projects start with S, E, D (SRP, ERP, DRP, etc.)
-  const isGeoProject = accession?.startsWith("G");
+  // GEO projects: GSE, GPL, GDS, etc.
+  // ArrayExpress: E-XXXX-NNN (similar structure to GEO - experiment → samples)
+  // SRA projects: SRP, ERP, DRP (study → experiments → samples)
+  const upperAccession = accession?.toUpperCase();
+  const isGeoLike = upperAccession?.startsWith("G") || upperAccession?.startsWith("E-");
 
-  if (isGeoProject) {
+  if (isGeoLike) {
     return <GeoProjectPage />;
   }
 
