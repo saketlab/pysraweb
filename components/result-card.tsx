@@ -1,5 +1,6 @@
 import { Badge, Card, Flex, Text } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
+import { getProjectShortUrl } from "@/utils/shortUrl";
 
 type ResultCardProps = {
   accesssion: string;
@@ -17,8 +18,7 @@ export default function ResultCard({
   const router = useRouter();
 
   const handleClick = () => {
-    if (accesssion.startsWith("G")) router.push(`/project/geo/${accesssion}`);
-    else router.push(`/project/sra/${accesssion}`);
+    router.push(getProjectShortUrl(accesssion));
   };
 
   return (

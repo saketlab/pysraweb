@@ -11,8 +11,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { accession } = await params;
   const title = await fetchProjectSocialTitle(accession);
   const pageTitle = `${title} (${accession})`;
-  const description = `SRA Study ${accession} on pysraweb.saketlab.org`;
-  const image = `/project/sra/${encodeURIComponent(accession)}/opengraph-image`;
+  const description = `GEO Series ${accession} on pysraweb.saketlab.org`;
+  const image = `/project/g/${encodeURIComponent(accession)}/opengraph-image`;
 
   return {
     title: pageTitle,
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: image,
           width: 1200,
           height: 630,
-          alt: `${title} ${accession} SRA Study`,
+          alt: `${title} ${accession} GEO Series`,
         },
       ],
     },
@@ -39,6 +39,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function SraProjectLayout({ children }: Props) {
+export default function GeoProjectLayout({ children }: Props) {
   return children;
 }

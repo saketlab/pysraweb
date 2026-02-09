@@ -381,7 +381,7 @@ export default function GeoProjectPage() {
                 </a>
               )}
               {project.alias?.startsWith("S") && (
-                <a href={`/project/sra/${project.alias}`}>
+                <a href={`/project/s/${project.alias}`}>
                   <Badge
                     size={{ initial: "1", md: "3" }}
                     color="brown"
@@ -472,7 +472,7 @@ export default function GeoProjectPage() {
                         {superSeries.map((s) => (
                           <a
                             key={s["@target"]}
-                            href={`/project/geo/${s["@target"]}`}
+                            href={`/project/g/${s["@target"]}`}
                           >
                             <Badge
                               size={{ initial: "1", md: "2" }}
@@ -492,7 +492,7 @@ export default function GeoProjectPage() {
                         {subSeries.map((s) => (
                           <a
                             key={s["@target"]}
-                            href={`/project/geo/${s["@target"]}`}
+                            href={`/project/g/${s["@target"]}`}
                           >
                             <Badge
                               size={{ initial: "1", md: "2" }}
