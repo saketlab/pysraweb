@@ -1,11 +1,16 @@
 "use client";
 
 import { SERVER_URL } from "@/utils/constants";
-import { OrthographicView } from "@deck.gl/core";
+import { type PickingInfo, OrthographicView } from "@deck.gl/core";
 import { ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import DeckGL from "@deck.gl/react";
-import { CornersIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons";
-import { Box, Card, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import {
+  CornersIcon,
+  Cross1Icon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "@radix-ui/react-icons";
+import { Box, Card, Flex, IconButton, Link, Text, Tooltip } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -26,6 +31,12 @@ type ClusterPoint = {
   num_points: number;
   x: number;
   y: number;
+};
+
+type ProjectMetadata = {
+  accession: string;
+  title: string;
+  description: string;
 };
 
 type ViewState = {
@@ -134,10 +145,27 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+async function fetchProjectMetadata(accession: string): Promise<ProjectMetadata> {
+  const response = await fetch(
+    `${SERVER_URL}/project/${encodeURIComponent(accession)}/metadata`,
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch project metadata.");
+  }
+
+  return response.json() as Promise<ProjectMetadata>;
+}
+
 export default function MapGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [containerOffset, setContainerOffset] = useState({ left: 0, top: 0 });
+  const [selectedPoint, setSelectedPoint] = useState<{
+    accession: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -146,6 +174,8 @@ export default function MapGraph() {
     const updateSize = () => {
       const { clientWidth, clientHeight } = container;
       setViewportSize({ width: clientWidth, height: clientHeight });
+      const rect = container.getBoundingClientRect();
+      setContainerOffset({ left: rect.left, top: rect.top });
     };
 
     updateSize();
@@ -170,6 +200,16 @@ export default function MapGraph() {
     retry: 2,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  const metadataQuery = useQuery({
+    queryKey: ["point-metadata", selectedPoint?.accession],
+    enabled: Boolean(selectedPoint?.accession),
+    queryFn: () => fetchProjectMetadata(selectedPoint!.accession),
+    staleTime: 30 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -298,7 +338,7 @@ export default function MapGraph() {
       new ScatterplotLayer<DecodedPoint>({
         id: "map-points",
         data: points,
-        pickable: false,
+        pickable: true,
         getPosition: (d) => [d.x, d.y],
         getFillColor: POINT_COLOR,
         getRadius: 0.4,
@@ -306,6 +346,26 @@ export default function MapGraph() {
         radiusMinPixels: 0.2,
         radiusMaxPixels: 1.4,
         stroked: false,
+        onClick: (info: PickingInfo<DecodedPoint>) => {
+          if (!info.object) {
+            return;
+          }
+          const srcEvent = info.srcEvent;
+          const clickX =
+            srcEvent && "clientX" in srcEvent
+              ? (srcEvent as MouseEvent).clientX - containerOffset.left
+              : info.x;
+          const clickY =
+            srcEvent && "clientY" in srcEvent
+              ? (srcEvent as MouseEvent).clientY - containerOffset.top
+              : info.y;
+
+          setSelectedPoint({
+            accession: info.object.accession,
+            x: clickX,
+            y: clickY,
+          });
+        },
       }),
       new TextLayer<ClusterPoint>({
         id: "map-cluster-labels",
@@ -323,8 +383,26 @@ export default function MapGraph() {
         getPixelOffset: [0, -8],
       }),
     ],
-    [points, visibleClusters],
+    [points, visibleClusters, containerOffset.left, containerOffset.top],
   );
+
+  const metadataCardPosition = useMemo(() => {
+    if (!selectedPoint) {
+      return null;
+    }
+    const cardWidth = 360;
+    const cardHeight = 220;
+    const margin = 12;
+
+    const maxLeft = Math.max(margin, viewportSize.width - cardWidth - margin);
+    const maxTop = Math.max(margin, viewportSize.height - cardHeight - margin);
+
+    return {
+      left: clamp(selectedPoint.x + 14, margin, maxLeft),
+      top: clamp(selectedPoint.y + 14, margin, maxTop),
+      width: cardWidth,
+    };
+  }, [selectedPoint, viewportSize.width, viewportSize.height]);
 
   if (dataQuery.isLoading) {
     return (
@@ -387,6 +465,68 @@ export default function MapGraph() {
           </Flex>
         </Card>
       </Box>
+      {selectedPoint && metadataCardPosition && (
+        <Box
+          style={{
+            position: "absolute",
+            left: metadataCardPosition.left,
+            top: metadataCardPosition.top,
+            width: metadataCardPosition.width,
+            maxWidth: "min(90vw, 360px)",
+            zIndex: 25,
+          }}
+        >
+          <Card>
+            <Flex direction="column" gap="2">
+              <Flex align="center" justify="between" gap="2">
+                <Text size="1" color="gray" style={{ overflowWrap: "anywhere" }}>
+                  {metadataQuery.data?.accession || selectedPoint.accession}
+                </Text>
+                <IconButton
+                  variant="ghost"
+                  size="1"
+                  aria-label="Close metadata card"
+                  onClick={() => setSelectedPoint(null)}
+                >
+                  <Cross1Icon />
+                </IconButton>
+              </Flex>
+
+              {metadataQuery.isLoading && (
+                <Text size="2" color="gray">
+                  Loading metadata...
+                </Text>
+              )}
+
+              {metadataQuery.isError && (
+                <Text size="2" color="red">
+                  {(metadataQuery.error as Error).message}
+                </Text>
+              )}
+
+              {metadataQuery.data && (
+                <>
+                  <Link
+                    href={`/p/${encodeURIComponent(
+                      metadataQuery.data.accession || selectedPoint.accession,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Text size="3" weight="bold">
+                      {metadataQuery.data.title || "Untitled"}
+                    </Text>
+                  </Link>
+                  <Text size="2" color="gray">
+                    {metadataQuery.data.description || "No description available."}
+                  </Text>
+                </>
+              )}
+            </Flex>
+          </Card>
+        </Box>
+      )}
 
       <DeckGL
         views={new OrthographicView({ id: "ortho" })}
