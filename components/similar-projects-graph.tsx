@@ -2,9 +2,9 @@
 
 import type { ForceGraph3DInstance } from "3d-force-graph";
 import { SERVER_URL } from "@/utils/constants";
-import { Flex, Select, Spinner, Text } from "@radix-ui/themes";
+import { Button, Flex, Select, Spinner, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type SimilarNeighbor = {
   accession: string;
@@ -216,9 +216,18 @@ export default function SimilarProjectsGraph({
   coords3d,
   neighbors,
 }: SimilarProjectsGraphProps) {
+  const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<ForceGraph3DInstance | null>(null);
   const [organismFilter, setOrganismFilter] = useState<string>(ALL_ORGANISMS);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const updateGraphSize = useCallback(() => {
+    if (!mountRef.current || !graphRef.current) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    const height = isFullscreen ? Math.max(420, window.innerHeight - 24) : 420;
+    graphRef.current.width(Math.max(320, rect.width)).height(height);
+  }, [isFullscreen]);
 
   const normalizedNeighbors = useMemo(() => {
     if (!neighbors || !Array.isArray(neighbors)) return [];
@@ -480,12 +489,52 @@ export default function SimilarProjectsGraph({
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
-      graph.width(Math.max(320, entry.contentRect.width)).height(420);
+      graph
+        .width(Math.max(320, entry.contentRect.width))
+        .height(isFullscreen ? Math.max(420, window.innerHeight - 24) : 420);
     });
 
     observer.observe(mountRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const activeElement = document.fullscreenElement;
+      setIsFullscreen(
+        !!activeElement &&
+          activeElement === graphContainerRef.current,
+      );
+      updateGraphSize();
+      graphRef.current?.zoomToFit(450, 48);
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, [updateGraphSize]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onWindowResize = () => {
+      updateGraphSize();
+      graphRef.current?.zoomToFit(450, 48);
+    };
+    window.addEventListener("resize", onWindowResize);
+    return () => window.removeEventListener("resize", onWindowResize);
+  }, [isFullscreen, updateGraphSize]);
+
+  const toggleFullscreen = async () => {
+    const container = graphContainerRef.current;
+    if (!container) return;
+
+    if (document.fullscreenElement === container) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await container.requestFullscreen();
+  };
 
   if (normalizedNeighbors.length === 0) {
     return (
@@ -512,6 +561,9 @@ export default function SimilarProjectsGraph({
           </Text>
         )}
         <Flex align="center" gap="2" wrap="wrap">
+          <Button variant="soft" color="gray" onClick={toggleFullscreen}>
+            {isFullscreen ? "Exit full screen" : "View full screen"}
+          </Button>
           <Select.Root
             value={organismFilter}
             onValueChange={(value) => setOrganismFilter(value)}
@@ -530,15 +582,24 @@ export default function SimilarProjectsGraph({
       </Flex>
 
       <div
-        ref={mountRef}
+        ref={graphContainerRef}
         style={{
           width: "100%",
-          minHeight: "420px",
-          border: "1px solid var(--gray-a6)",
-          borderRadius: "12px",
-          overflow: "hidden",
+          background: "var(--gray-1)",
+          padding: isFullscreen ? "12px" : "0",
         }}
-      />
+      >
+        <div
+          ref={mountRef}
+          style={{
+            width: "100%",
+            minHeight: "420px",
+            border: "1px solid var(--gray-a6)",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        />
+      </div>
       {organismFilter !== ALL_ORGANISMS && filteredGraphData.nodes.length <= 1 && (
         <Text size="2" color="gray">
           No neighbors found for the selected organism.

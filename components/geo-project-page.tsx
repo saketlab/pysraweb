@@ -224,7 +224,8 @@ const SUMMARY_CHAR_LIMIT = 350;
 export default function GeoProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
-  // summary expansion handled by ProjectSummary component
+  const isArrayExpress = accession?.toUpperCase().startsWith("E-") ?? false;
+
   const {
     data: project,
     isLoading,
@@ -381,7 +382,7 @@ export default function GeoProjectPage() {
                 </a>
               )}
               {project.alias?.startsWith("S") && (
-                <a href={`/project/sra/${project.alias}`}>
+                <a href={`/p/${project.alias}`}>
                   <Badge
                     size={{ initial: "1", md: "3" }}
                     color="brown"
@@ -420,12 +421,17 @@ export default function GeoProjectPage() {
                   );
                 })()}
               <a
-                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${accession}`}
+                href={
+                  isArrayExpress
+                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
+                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${accession}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <Badge size={{ initial: "1", md: "3" }} color="sky">
-                  Visit GEO page <ExternalLinkIcon />
+                  {isArrayExpress ? "Visit ArrayExpress page" : "Visit GEO page"}{" "}
+                  <ExternalLinkIcon />
                 </Badge>
               </a>
             </Flex>
@@ -472,7 +478,7 @@ export default function GeoProjectPage() {
                         {superSeries.map((s) => (
                           <a
                             key={s["@target"]}
-                            href={`/project/geo/${s["@target"]}`}
+                            href={`/p/${s["@target"]}`}
                           >
                             <Badge
                               size={{ initial: "1", md: "2" }}
@@ -492,7 +498,7 @@ export default function GeoProjectPage() {
                         {subSeries.map((s) => (
                           <a
                             key={s["@target"]}
-                            href={`/project/geo/${s["@target"]}`}
+                            href={`/p/${s["@target"]}`}
                           >
                             <Badge
                               size={{ initial: "1", md: "2" }}
@@ -719,7 +725,11 @@ export default function GeoProjectPage() {
                           <Table.Row key={sample.accession}>
                             <Table.RowHeaderCell>
                               <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`}
+                                href={
+                                  isArrayExpress
+                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
+                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
@@ -791,7 +801,11 @@ export default function GeoProjectPage() {
                           >
                             <Table.RowHeaderCell>
                               <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`}
+                                href={
+                                  isArrayExpress
+                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
+                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >

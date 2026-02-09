@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SERVER_URL } from "./constants";
+import { getProjectShortUrl } from "./shortUrl";
 
 const HISTORY_KEY = "searchHistory";
 const MAX_HISTORY = 5;
@@ -51,14 +52,14 @@ export function useSearchHistory() {
     ];
 
     if (isSingleTerm && trimmed.startsWith("GSE")) {
-      navigate(`/project/geo/${encodeURIComponent(trimmed)}`);
+      navigate(getProjectShortUrl(trimmed));
     } else if (
       isSingleTerm &&
       (trimmed.startsWith("SRP") ||
         trimmed.startsWith("ERP") ||
         trimmed.startsWith("DRP"))
     ) {
-      navigate(`/project/sra/${encodeURIComponent(trimmed)}`);
+      navigate(getProjectShortUrl(trimmed));
     } else if (
       isSingleTerm &&
       fetchPrefixes.some((p) => trimmed.startsWith(p))
@@ -81,17 +82,7 @@ export function useSearchHistory() {
         }
         const data = await res.json();
         const projectAccession = data.project_accession;
-        if (projectAccession.startsWith("GSE")) {
-          navigate(`/project/geo/${encodeURIComponent(projectAccession)}`);
-        } else if (
-          projectAccession.startsWith("SRP") ||
-          projectAccession.startsWith("ERP") ||
-          projectAccession.startsWith("DRP")
-        ) {
-          navigate(`/project/sra/${encodeURIComponent(projectAccession)}`);
-        } else {
-          navigate(`/search?q=${encodeURIComponent(trimmed)}`);
-        }
+        navigate(getProjectShortUrl(projectAccession));
       } catch (error) {
         console.error("Error fetching project:", error);
         navigate(`/search?q=${encodeURIComponent(trimmed)}`);

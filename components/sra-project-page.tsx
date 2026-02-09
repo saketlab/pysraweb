@@ -29,7 +29,7 @@ import React from "react";
 
 type Project = {
   accession: string;
-  alias: string;
+  alias: string | null;
   title: string;
   abstract: string;
   organisms?: string[] | string | null;
@@ -41,6 +41,25 @@ type Project = {
   updated_at: Date;
   external_id?: Record<string, string> | string | null;
   links?: unknown;
+};
+
+type GeoNeighborsPayload = {
+  coords_3d?: unknown;
+  neighbors?: SimilarNeighbor[] | string | null;
+};
+
+const normalizeCoords3d = (value: unknown): number[] | null => {
+  if (!Array.isArray(value)) return null;
+  const parsed = value
+    .map((item) =>
+      typeof item === "number"
+        ? item
+        : typeof item === "string"
+          ? Number(item)
+          : NaN,
+    )
+    .filter((item) => Number.isFinite(item));
+  return parsed.length > 0 ? parsed : null;
 };
 
 // type SimilarProject = {
@@ -121,6 +140,44 @@ const fetchProject = async (
         .filter((item: string) => item.length > 0);
     }
   }
+
+  const alias = data?.alias?.trim().toUpperCase();
+  const shouldFetchGeoNeighbors =
+    !!alias &&
+    alias.startsWith("GSE") &&
+    (!Array.isArray(data.neighbors) ||
+      data.neighbors.length === 0 ||
+      !Array.isArray(data.coords_3d) ||
+      data.coords_3d.length === 0);
+
+  if (shouldFetchGeoNeighbors) {
+    try {
+      const geoRes = await fetch(`${SERVER_URL}/geo/series/${alias}/neighbors`);
+      if (geoRes.ok) {
+        const geoData = (await geoRes.json()) as GeoNeighborsPayload;
+        if (typeof geoData.neighbors === "string") {
+          try {
+            geoData.neighbors = JSON.parse(geoData.neighbors) as SimilarNeighbor[];
+          } catch {
+            geoData.neighbors = null;
+          }
+        }
+        const parsedCoords3d = normalizeCoords3d(geoData.coords_3d);
+        if (
+          Array.isArray(geoData.neighbors) &&
+          geoData.neighbors.length > 0
+        ) {
+          data.neighbors = geoData.neighbors;
+        }
+        if (parsedCoords3d) {
+          data.coords_3d = parsedCoords3d;
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to fetch GEO neighbors for alias ${alias}:`, error);
+    }
+  }
+
   return data;
 };
 
@@ -469,7 +526,7 @@ export default function ProjectPage() {
                 </a>
               )}
               {project.alias?.startsWith("G") && (
-                <a href={`/project/geo/${project.alias}`}>
+                <a href={`/p/${project.alias}`}>
                   <Badge
                     size={{ initial: "1", md: "3" }}
                     style={{ cursor: "pointer" }}
@@ -526,7 +583,7 @@ export default function ProjectPage() {
                     return (
                       <a
                         key={`${entry.key}:${value}`}
-                        href={`/project/geo/${value}`}
+                        href={`/p/${value}`}
                       >
                         <Badge
                           size={{ initial: "1", md: "3" }}
