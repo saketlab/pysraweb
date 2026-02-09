@@ -179,7 +179,7 @@ export default function MapGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
-  const [containerOffset, setContainerOffset] = useState({ left: 0, top: 0 });
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [searchInput, setSearchInput] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [highlightedPoint, setHighlightedPoint] = useState<DecodedPoint | null>(
@@ -198,14 +198,21 @@ export default function MapGraph() {
     const updateSize = () => {
       const { clientWidth, clientHeight } = container;
       setViewportSize({ width: clientWidth, height: clientHeight });
-      const rect = container.getBoundingClientRect();
-      setContainerOffset({ left: rect.left, top: rect.top });
     };
 
     updateSize();
     const observer = new ResizeObserver(updateSize);
     observer.observe(container);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const updateWindowSize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    updateWindowSize();
+    window.addEventListener("resize", updateWindowSize);
+    return () => window.removeEventListener("resize", updateWindowSize);
   }, []);
 
   const dataQuery = useQuery({
@@ -407,18 +414,23 @@ export default function MapGraph() {
           ).srcEvent;
           const clickX =
             srcEvent && "clientX" in srcEvent
-              ? (srcEvent as MouseEvent).clientX - containerOffset.left
-              : info.x;
+              ? (srcEvent as MouseEvent).clientX
+              : Number.isFinite(info.x)
+                ? info.x
+                : windowSize.width / 2;
           const clickY =
             srcEvent && "clientY" in srcEvent
-              ? (srcEvent as MouseEvent).clientY - containerOffset.top
-              : info.y;
+              ? (srcEvent as MouseEvent).clientY
+              : Number.isFinite(info.y)
+                ? info.y
+                : windowSize.height / 2;
 
           setSelectedPoint({
             accession: info.object.accession,
             x: clickX,
             y: clickY,
           });
+          setHighlightedPoint(info.object);
         },
       }),
       new ScatterplotLayer<DecodedPoint>({
@@ -455,8 +467,8 @@ export default function MapGraph() {
       points,
       highlightedPoint,
       visibleClusters,
-      containerOffset.left,
-      containerOffset.top,
+      windowSize.width,
+      windowSize.height,
     ],
   );
 
@@ -464,19 +476,19 @@ export default function MapGraph() {
     if (!selectedPoint) {
       return null;
     }
+
     const cardWidth = 360;
     const cardHeight = 220;
     const margin = 12;
-
-    const maxLeft = Math.max(margin, viewportSize.width - cardWidth - margin);
-    const maxTop = Math.max(margin, viewportSize.height - cardHeight - margin);
+    const maxLeft = Math.max(margin, windowSize.width - cardWidth - margin);
+    const maxTop = Math.max(margin, windowSize.height - cardHeight - margin);
 
     return {
-      left: clamp(selectedPoint.x + 14, margin, maxLeft),
+      left: clamp(selectedPoint.x + 24, margin, maxLeft),
       top: clamp(selectedPoint.y + 14, margin, maxTop),
       width: cardWidth,
     };
-  }, [selectedPoint, viewportSize.width, viewportSize.height]);
+  }, [selectedPoint, windowSize.width, windowSize.height]);
 
   if (dataQuery.isLoading) {
     return (
@@ -594,7 +606,7 @@ export default function MapGraph() {
       {selectedPoint && metadataCardPosition && (
         <Box
           style={{
-            position: "absolute",
+            position: "fixed",
             left: metadataCardPosition.left,
             top: metadataCardPosition.top,
             width: metadataCardPosition.width,
