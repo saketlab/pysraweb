@@ -55,7 +55,9 @@ type ViewState = {
 };
 
 const POINT_COLOR: [number, number, number, number] = [97, 207, 196, 210];
-const CLUSTER_TEXT_COLOR: [number, number, number, number] = [255, 255, 255, 235];
+const CLUSTER_TEXT_COLOR: [number, number, number, number] = [
+  255, 255, 255, 235,
+];
 const MIN_ZOOM = -8;
 const MAX_ZOOM = 22;
 const CLUSTER_LABEL_MIN_ZOOM = 0.9;
@@ -160,7 +162,9 @@ function truncateText(value: string, maxLength: number): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
-async function fetchProjectMetadata(accession: string): Promise<ProjectMetadata> {
+async function fetchProjectMetadata(
+  accession: string,
+): Promise<ProjectMetadata> {
   const response = await fetch(
     `${SERVER_URL}/project/${encodeURIComponent(accession)}/metadata`,
   );
@@ -178,7 +182,9 @@ export default function MapGraph() {
   const [containerOffset, setContainerOffset] = useState({ left: 0, top: 0 });
   const [searchInput, setSearchInput] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [highlightedPoint, setHighlightedPoint] = useState<DecodedPoint | null>(null);
+  const [highlightedPoint, setHighlightedPoint] = useState<DecodedPoint | null>(
+    null,
+  );
   const [selectedPoint, setSelectedPoint] = useState<{
     accession: string;
     x: number;
@@ -250,7 +256,14 @@ export default function MapGraph() {
       if (point.y > maxY) maxY = point.y;
     }
 
-    return { minX, maxX, minY, maxY, xSpan: maxX - minX || 1, ySpan: maxY - minY || 1 };
+    return {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      xSpan: maxX - minX || 1,
+      ySpan: maxY - minY || 1,
+    };
   }, [dataQuery.data]);
 
   const points = useMemo<DecodedPoint[]>(() => {
@@ -293,10 +306,12 @@ export default function MapGraph() {
         title: cluster.title,
         num_points: cluster.num_points,
         x:
-          ((cluster.centroid[0] - normalization.minX) / normalization.xSpan - 0.5) *
+          ((cluster.centroid[0] - normalization.minX) / normalization.xSpan -
+            0.5) *
           extent,
         y:
-          ((cluster.centroid[1] - normalization.minY) / normalization.ySpan - 0.5) *
+          ((cluster.centroid[1] - normalization.minY) / normalization.ySpan -
+            0.5) *
           extent,
       }))
       .sort((a, b) => b.num_points - a.num_points);
@@ -317,7 +332,10 @@ export default function MapGraph() {
       1,
     );
     const visibleFraction = 0.02 + 0.98 * Math.pow(zoomProgress, 1.7);
-    const visibleCount = Math.max(1, Math.ceil(clusters.length * visibleFraction));
+    const visibleCount = Math.max(
+      1,
+      Math.ceil(clusters.length * visibleFraction),
+    );
     const candidates = clusters.slice(0, visibleCount);
 
     if (viewportSize.width <= 0 || viewportSize.height <= 0) {
@@ -331,8 +349,10 @@ export default function MapGraph() {
 
     // candidates are pre-sorted by descending num_points, so first in each cell wins
     for (const cluster of candidates) {
-      const sx = (cluster.x - viewState.target[0]) * scale + viewportSize.width / 2;
-      const sy = viewportSize.height / 2 - (cluster.y - viewState.target[1]) * scale;
+      const sx =
+        (cluster.x - viewState.target[0]) * scale + viewportSize.width / 2;
+      const sy =
+        viewportSize.height / 2 - (cluster.y - viewState.target[1]) * scale;
 
       if (sx < -24 || sx > viewportSize.width + 24) continue;
       if (sy < -24 || sy > viewportSize.height + 24) continue;
@@ -349,7 +369,13 @@ export default function MapGraph() {
     return Array.from(chosenByCell.values())
       .sort((a, b) => b.num_points - a.num_points)
       .slice(0, 10);
-  }, [clusters, viewState.zoom, viewState.target, viewportSize.width, viewportSize.height]);
+  }, [
+    clusters,
+    viewState.zoom,
+    viewState.target,
+    viewportSize.width,
+    viewportSize.height,
+  ]);
 
   const pointsByAccession = useMemo(() => {
     const lookup = new Map<string, DecodedPoint>();
@@ -376,7 +402,9 @@ export default function MapGraph() {
           if (!info.object) {
             return;
           }
-          const srcEvent = info.srcEvent;
+          const srcEvent = (
+            info as PickingInfo<DecodedPoint> & { srcEvent?: Event }
+          ).srcEvent;
           const clickX =
             srcEvent && "clientX" in srcEvent
               ? (srcEvent as MouseEvent).clientX - containerOffset.left
@@ -493,7 +521,7 @@ export default function MapGraph() {
       <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
         <Card>
           <form onSubmit={handleSearchSubmit}>
-            <Flex direction="column" gap="2" >
+            <Flex direction="column" gap="2">
               <Flex gap="2" align="center">
                 <TextField.Root
                   placeholder="Search accession"
@@ -503,7 +531,11 @@ export default function MapGraph() {
                     if (searchError) setSearchError(null);
                   }}
                 />
-                <IconButton type="submit" variant="soft" aria-label="Search accession">
+                <IconButton
+                  type="submit"
+                  variant="soft"
+                  aria-label="Search accession"
+                >
                   <MagnifyingGlassIcon />
                 </IconButton>
               </Flex>
@@ -573,7 +605,11 @@ export default function MapGraph() {
           <Card>
             <Flex direction="column" gap="2">
               <Flex align="center" justify="between" gap="2">
-                <Text size="1" color="gray" style={{ overflowWrap: "anywhere" }}>
+                <Text
+                  size="1"
+                  color="gray"
+                  style={{ overflowWrap: "anywhere" }}
+                >
                   {metadataQuery.data?.accession || selectedPoint.accession}
                 </Text>
                 <IconButton
