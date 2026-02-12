@@ -16,9 +16,6 @@ type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 type SearchFiltersProps = {
   db: string | null;
   query: string | null;
-  results: SearchResult[];
-  selectedOrganism: string | null;
-  setSelectedOrganism: (value: string | null) => void;
   setSortBy: (value: "relevance" | "date") => void;
   setTimeFilter: (value: TimeFilter) => void;
   timeFilter: TimeFilter;
@@ -30,9 +27,6 @@ type SearchFiltersProps = {
 export function SearchFilters({
   db,
   query,
-  results,
-  selectedOrganism,
-  setSelectedOrganism,
   setSortBy,
   setTimeFilter,
   timeFilter,
@@ -49,12 +43,6 @@ export function SearchFilters({
         wrap="wrap"
         display={{ initial: "flex", md: "none" }}
       >
-        <OrganismFilter
-          results={results}
-          selected={selectedOrganism}
-          onChangeSelected={setSelectedOrganism}
-        />
-
         <Select.Root
           defaultValue="relevance"
           name="sort"

@@ -248,9 +248,6 @@ export default function SearchPageBody() {
         <SearchFilters
           db={db}
           query={query}
-          results={searchResults}
-          selectedOrganism={selectedOrganism}
-          setSelectedOrganism={setSelectedOrganism}
           setSortBy={setSortBy}
           setTimeFilter={setTimeFilter}
           timeFilter={timeFilter}
