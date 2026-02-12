@@ -1,4 +1,5 @@
 "use client";
+import { OrganismFilter } from "@/components/organism_filter";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { useSearchQuery } from "@/context/search_query";
@@ -78,6 +79,9 @@ export default function SearchPageBody() {
     to: string;
   }>({ from: "", to: "" });
 
+
+  const [selectedOrganism, setSelectedOrganism] = useState<string | null>(null);
+
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -148,7 +152,7 @@ export default function SearchPageBody() {
         )
       : searchResults;
 
-  const filteredResults = sortedResults.filter((result) => {
+  const timeFilteredResults = sortedResults.filter((result) => {
     if (timeFilter === "any") return true;
     if (timeFilter === "custom") {
       const from = parseInt(customYearRange.from);
@@ -162,6 +166,13 @@ export default function SearchPageBody() {
     cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
     return new Date(result.updated_at) >= cutoffDate;
   });
+
+  const organismFilteredResults = selectedOrganism
+  ? timeFilteredResults.filter((result) =>
+      (result.organisms ?? []).includes(selectedOrganism)
+    )
+  : timeFilteredResults;
+
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -223,20 +234,30 @@ export default function SearchPageBody() {
       {/* Navbar and search */}
       <SearchBar initialQuery={query} />
 
-      {/* Search results and filters */}
+      {/* Search results and filters */} 
+      {/* Parent Flex */}
       <Flex
         gap={{ initial: "4", md: "8" }}
         p={"4"}
         justify={"start"}
         direction={{ initial: "column", md: "row" }}
       >
-        {/* Filters for small screens */}
+        
+        {/* Filters for small screens  */}
+        {/* Child flex-1 */}
         <Flex
           direction={"row-reverse"}
           justify={"center"}
           gap={"2"}
+          wrap="wrap"
           display={{ initial: "flex", md: "none" }}
         >
+          <OrganismFilter
+            results={searchResults}
+            selected={selectedOrganism}
+            onChangeSelected={setSelectedOrganism}
+          />
+            
           <Select.Root
             defaultValue="relevance"
             name="sort"
@@ -296,6 +317,7 @@ export default function SearchPageBody() {
           </Select.Root>
         </Flex>
         {/* Filters for md+ screens*/}
+        {/* Child flex-2 */}
         <Flex
           direction={"column"}
           gap={"4"}
@@ -384,6 +406,7 @@ export default function SearchPageBody() {
           )}
         </Flex>
 
+          {/* Child Flex-3 : handles middle col */}
         <Flex gap="4" direction="column" width={{ initial: "100%", md: "70%" }}>
           {!query ? (
             <Text>Start by typing a search query above.</Text>
@@ -416,21 +439,38 @@ export default function SearchPageBody() {
                 Check your network connection
               </Text>
             </Flex>
-          ) : searchResults.length > 0 ? (
+              ) : searchResults.length > 0 ? (
             <>
               <Text color="gray" weight={"light"}>
                 Fetched {total} result{total == 1 ? "" : "s"} in{" "}
                 {(tookMs / 1000).toFixed(2)} seconds
               </Text>
-              {filteredResults.map((searchResult) => (
-                <ResultCard
-                  key={searchResult.accession}
-                  accesssion={searchResult.accession}
-                  title={searchResult.title}
-                  summary={searchResult.summary}
-                  updated_at={searchResult.updated_at}
-                />
-              ))}
+              
+              {organismFilteredResults.length === 0 ? (
+                <Flex
+                  align="center"
+                  justify="center"
+                  direction={"column"}
+                  height={"12rem"}
+                >
+                  <Text color="gray" size={"4"} weight={"bold"}>
+                    No results match your filters
+                  </Text>
+                  <Text color="gray" size={"2"}>
+                    Try clearing the organism filter or widening the time range.
+                  </Text>
+                </Flex>
+              ) : (
+                organismFilteredResults.map((searchResult) => (
+                  <ResultCard
+                    key={searchResult.accession}
+                    accesssion={searchResult.accession}
+                    title={searchResult.title}
+                    summary={searchResult.summary}
+                    updated_at={searchResult.updated_at}
+                  />
+                ))
+              )}
 
               {/* Infinite scroll trigger */}
               <div ref={loadMoreRef} style={{ minHeight: "1px" }}>
@@ -473,7 +513,23 @@ export default function SearchPageBody() {
           )}
         </Flex>
 
-        {filteredResults.length > 0 && (
+        {/* Right-side organism filter (desktop only) */}
+          <Flex
+            display={{ initial: "none", lg: "flex" }}
+            direction="column"
+            width="280px"
+            position="sticky"
+            style={{ top: "7rem", height: "fit-content" }}
+          >
+            <OrganismFilter
+              results={searchResults}
+              selected={selectedOrganism}
+              onChangeSelected={setSelectedOrganism}
+            />
+          </Flex>
+
+
+        {organismFilteredResults.length > 0 && (
           <Flex
             position="fixed"
             direction="column"
