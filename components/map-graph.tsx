@@ -70,6 +70,8 @@ const MIN_ZOOM = -8;
 const MAX_ZOOM = 22;
 const CLUSTER_LABEL_MIN_ZOOM = 0.9;
 const ZOOM_STEP = 0.45;
+const MOBILE_MAX_DEVICE_PIXELS = 1;
+const MOBILE_INTERACTION_FPS = 20;
 const INITIAL_VIEW_STATE: ViewState = {
   target: [0, 0, 0],
   zoom: 0,
@@ -209,9 +211,13 @@ async function fetchProjectMetadata(
 export default function MapGraph() {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pendingViewStateRef = useRef<ViewState | null>(null);
+  const viewStateCommitRafRef = useRef<number | null>(null);
+  const lastViewStateCommitRef = useRef(0);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [colorByClusters, setColorByClusters] = useState(false);
@@ -246,6 +252,26 @@ export default function MapGraph() {
     updateWindowSize();
     window.addEventListener("resize", updateWindowSize);
     return () => window.removeEventListener("resize", updateWindowSize);
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      "(max-width: 900px), (pointer: coarse), (hover: none)",
+    );
+    const updateIsMobileDevice = () => {
+      setIsMobileDevice(mediaQuery.matches);
+    };
+    updateIsMobileDevice();
+    mediaQuery.addEventListener("change", updateIsMobileDevice);
+    return () => mediaQuery.removeEventListener("change", updateIsMobileDevice);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (viewStateCommitRafRef.current !== null) {
+        cancelAnimationFrame(viewStateCommitRafRef.current);
+      }
+    };
   }, []);
 
   const dataQuery = useQuery({
@@ -563,6 +589,12 @@ export default function MapGraph() {
     ],
   );
 
+  const orthographicView = useMemo(() => new OrthographicView({ id: "ortho" }), []);
+  const deckController = useMemo(
+    () => ({ dragPan: true, scrollZoom: true, touchZoom: true }),
+    [],
+  );
+
   const metadataCardPosition = useMemo(() => {
     if (!selectedPoint) {
       return null;
@@ -778,19 +810,58 @@ export default function MapGraph() {
       )}
 
       <DeckGL
-        views={new OrthographicView({ id: "ortho" })}
-        controller={{ dragPan: true, scrollZoom: true, touchZoom: true }}
-        pickingRadius={8}
+        views={orthographicView}
+        controller={deckController}
+        useDevicePixels={isMobileDevice ? MOBILE_MAX_DEVICE_PIXELS : true}
+        pickingRadius={isMobileDevice ? 5 : 8}
         viewState={{
           ...viewState,
           minZoom: MIN_ZOOM,
           maxZoom: MAX_ZOOM,
         }}
-        onViewStateChange={({ viewState: nextViewState }) => {
-          setViewState({
+        onViewStateChange={({ viewState: nextViewState, interactionState }) => {
+          const next: ViewState = {
             target: nextViewState.target as [number, number, number],
             zoom: nextViewState.zoom as number,
-          });
+          };
+          const isInteracting = Boolean(
+            interactionState?.isDragging ||
+              interactionState?.isPanning ||
+              interactionState?.isZooming,
+          );
+
+          if (!isMobileDevice || !isInteracting) {
+            pendingViewStateRef.current = null;
+            if (viewStateCommitRafRef.current !== null) {
+              cancelAnimationFrame(viewStateCommitRafRef.current);
+              viewStateCommitRafRef.current = null;
+            }
+            lastViewStateCommitRef.current = performance.now();
+            setViewState(next);
+            return;
+          }
+
+          const now = performance.now();
+          const minFrameMs = 1000 / MOBILE_INTERACTION_FPS;
+          const elapsed = now - lastViewStateCommitRef.current;
+
+          if (elapsed >= minFrameMs) {
+            pendingViewStateRef.current = null;
+            lastViewStateCommitRef.current = now;
+            setViewState(next);
+            return;
+          }
+
+          pendingViewStateRef.current = next;
+          if (viewStateCommitRafRef.current === null) {
+            viewStateCommitRafRef.current = requestAnimationFrame(() => {
+              viewStateCommitRafRef.current = null;
+              if (!pendingViewStateRef.current) return;
+              lastViewStateCommitRef.current = performance.now();
+              setViewState(pendingViewStateRef.current);
+              pendingViewStateRef.current = null;
+            });
+          }
         }}
         layers={layers}
       />
