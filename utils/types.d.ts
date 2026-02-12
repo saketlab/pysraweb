@@ -2,7 +2,8 @@ export type SearchResult = {
   accession: string;
   title: string;
   summary: string;
-  updated_at: Date;
+  updated_at: string;
+  organisms: string[] | null;
   source: string;
   rank: number;
 };
