@@ -331,13 +331,6 @@ export default function SearchPageBody() {
                     <Spinner size="3" />
                   </Flex>
                 )}
-                {hasNextPage && !isFetchingNextPage && (
-                  <Flex justify="center" py="4">
-                    <Button variant="soft" onClick={() => fetchNextPage()}>
-                      Load more
-                    </Button>
-                  </Flex>
-                )}
               </div>
             </>
           ) : (
