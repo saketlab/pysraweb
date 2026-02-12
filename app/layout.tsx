@@ -37,10 +37,6 @@ export const metadata: Metadata = {
   publisher: "Saket Lab",
   metadataBase: new URL("https://pysraweb.saketlab.org"),
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
-  },
   alternates: {
     canonical: "/",
   },
@@ -52,21 +48,21 @@ export const metadata: Metadata = {
     title: "pysraweb - Search GEO and SRA Datasets",
     description:
       "Fast exploration of GEO and SRA sequencing datasets. Search millions of experiments with unified metadata views and relevance-ranked results.",
-    // images: [
-    //   {
-    //     url: "/og-image.png",
-    //     width: 1200,
-    //     height: 630,
-    //     alt: "pysraweb - GEO & SRA Dataset Search",
-    //   },
-    // ],
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "pysraweb - GEO, SRA, ENA & ArrayExpress Dataset Search",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "pysraweb - Search GEO & SRA Datasets",
+    title: "pysraweb - Search GEO, SRA, ENA & ArrayExpress",
     description:
-      "Fast exploration of GEO and SRA sequencing datasets. Search millions of experiments with unified metadata views.",
-    images: ["/og-image.png"],
+      "Fast exploration of sequencing datasets. Search millions of experiments with unified metadata views.",
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,

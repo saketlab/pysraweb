@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 const API_BASE_URL =
   process.env.PYSRAWEB_API_BASE ?? "https://pysraweb.saketlab.org/api";
 
-type ProjectKind = "geo" | "sra";
+type ProjectKind = "geo" | "sra" | "ena" | "arrayexpress";
 
 type ProjectPayload = {
   title?: string | null;
@@ -17,8 +17,36 @@ export const projectOgSize = {
 export const projectOgContentType = "image/png";
 
 const labelByKind: Record<ProjectKind, string> = {
-  geo: "GEO Series",
-  sra: "SRA Study",
+  geo: "GEO",
+  sra: "SRA",
+  ena: "ENA",
+  arrayexpress: "ArrayExpress",
+};
+
+const colorSchemes: Record<
+  ProjectKind,
+  { primary: string; secondary: string; accent: string }
+> = {
+  geo: {
+    primary: "#0ea5e9",
+    secondary: "#0284c7",
+    accent: "#7dd3fc",
+  },
+  sra: {
+    primary: "#8b5cf6",
+    secondary: "#6d28d9",
+    accent: "#c4b5fd",
+  },
+  ena: {
+    primary: "#10b981",
+    secondary: "#059669",
+    accent: "#6ee7b7",
+  },
+  arrayexpress: {
+    primary: "#f59e0b",
+    secondary: "#d97706",
+    accent: "#fcd34d",
+  },
 };
 
 function decodeHtmlEntities(input: string): string {
@@ -75,6 +103,7 @@ export async function generateProjectOgImage(
 ) {
   const title = truncateOgTitle(await fetchProjectTitle(accession));
   const sourceLabel = labelByKind[kind];
+  const colors = colorSchemes[kind];
 
   return new ImageResponse(
     (
@@ -85,63 +114,114 @@ export async function generateProjectOgImage(
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: "52px 60px",
-          color: "#f8fafc",
-          background:
-            "radial-gradient(circle at top right, #818cf8 0%, #4338ca 45%, #1e1b4b 100%)",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          padding: "60px 70px",
+          color: "#ffffff",
+          background: `linear-gradient(135deg, ${colors.secondary} 0%, #0f172a 50%, #1e293b 100%)`,
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          position: "relative",
         }}
       >
         <div
           style={{
+            position: "absolute",
+            top: "-100px",
+            right: "-100px",
+            width: "400px",
+            height: "400px",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${colors.primary} 0%, transparent 70%)`,
+            opacity: 0.3,
             display: "flex",
-            alignSelf: "flex-start",
-            padding: "10px 18px",
-            borderRadius: "9999px",
-            fontSize: 30,
-            fontWeight: 700,
-            backgroundColor: "rgba(15, 23, 42, 0.7)",
-            border: "2px solid rgba(148, 163, 184, 0.4)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            zIndex: 1,
           }}
         >
-          {sourceLabel}
+          <div
+            style={{
+              display: "flex",
+              padding: "14px 28px",
+              borderRadius: "12px",
+              fontSize: 32,
+              fontWeight: 700,
+              backgroundColor: colors.primary,
+              color: "#ffffff",
+              boxShadow: `0 4px 20px ${colors.primary}40`,
+            }}
+          >
+            {sourceLabel}
+          </div>
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 600,
+              color: "#94a3b8",
+              display: "flex",
+            }}
+          >
+            pysraweb
+          </div>
         </div>
 
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 22,
+            gap: 24,
             width: "100%",
+            zIndex: 1,
           }}
         >
           <div
             style={{
-              fontSize: 68,
-              lineHeight: 1.1,
+              fontSize: 64,
+              lineHeight: 1.15,
               fontWeight: 800,
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.025em",
+              color: "#ffffff",
+              textShadow: "0 2px 10px rgba(0, 0, 0, 0.3)",
+              display: "flex",
             }}
           >
             {title}
           </div>
+
           <div
             style={{
-              fontSize: 36,
-              fontWeight: 600,
-              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
             }}
           >
-            {accession}
+            <div
+              style={{
+                fontSize: 40,
+                fontWeight: 700,
+                color: colors.accent,
+                fontFamily: "monospace",
+                display: "flex",
+              }}
+            >
+              {accession}
+            </div>
           </div>
+
           <div
             style={{
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: 500,
-              color: "#e0e7ff",
+              color: "#cbd5e1",
+              marginTop: 8,
+              display: "flex",
             }}
           >
-            pysraweb.saketlab.org
+            Explore sequencing datasets • Unified metadata views
           </div>
         </div>
       </div>

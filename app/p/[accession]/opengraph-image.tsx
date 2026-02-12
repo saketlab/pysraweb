@@ -11,9 +11,28 @@ type Props = {
 export const size = projectOgSize;
 export const contentType = projectOgContentType;
 
+function detectProjectType(
+  accession: string,
+): "geo" | "sra" | "ena" | "arrayexpress" {
+  const upper = accession.toUpperCase();
+
+  if (upper.startsWith("E-")) {
+    return "arrayexpress";
+  }
+
+  if (upper.startsWith("G")) {
+    return "geo";
+  }
+
+  if (upper.startsWith("ERP") || upper.startsWith("DRP")) {
+    return "ena";
+  }
+
+  return "sra";
+}
+
 export default async function OpengraphImage({ params }: Props) {
   const { accession } = await params;
-  // Auto-detect project type from accession prefix
-  const projectType = accession.startsWith("G") ? "geo" : "sra";
+  const projectType = detectProjectType(accession);
   return generateProjectOgImage(accession, projectType);
 }
