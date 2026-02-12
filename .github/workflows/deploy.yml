@@ -57,7 +57,10 @@ jobs:
           script: |
             export PATH="/home/sramap/.nvm/versions/node/v24.13.0/bin:$PATH"
             cd /var/www/sramap/frontend
-            npm ci
+            # Clean npm cache and node_modules to prevent build errors
+            rm -rf node_modules package-lock.json
+            npm cache clean --force
+            npm install
             sudo systemctl restart sramap-frontend
             sudo systemctl restart sramap-backend
             sleep 3
