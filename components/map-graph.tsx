@@ -584,7 +584,7 @@ export default function MapGraph() {
   if (dataQuery.isLoading) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Text>Loading map data...</Text>
+        <Text size={{ initial: "2", md: "3" }}>Loading map data...</Text>
       </Flex>
     );
   }
@@ -592,7 +592,9 @@ export default function MapGraph() {
   if (dataQuery.isError) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Text color="red">{(dataQuery.error as Error).message}</Text>
+        <Text size={{ initial: "2", md: "3" }} color="red">
+          {(dataQuery.error as Error).message}
+        </Text>
       </Flex>
     );
   }
@@ -622,13 +624,14 @@ export default function MapGraph() {
   return (
     <Box ref={containerRef} style={{ height: "100%", position: "relative" }}>
       <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
-        <Card>
+        <Card size={{ initial: "1", md: "2" }}>
           <form onSubmit={handleSearchSubmit}>
             <Flex direction="column" gap="2">
               <Flex gap="2" align="center">
                 <TextField.Root
                   placeholder="Search accession"
                   value={searchInput}
+                  size={{ initial: "1", md: "2" }}
                   onChange={(event) => {
                     setSearchInput(event.target.value);
                     if (searchError) setSearchError(null);
@@ -637,13 +640,14 @@ export default function MapGraph() {
                 <IconButton
                   type="submit"
                   variant="soft"
+                  size={{ initial: "2", md: "2" }}
                   aria-label="Search accession"
                 >
                   <MagnifyingGlassIcon />
                 </IconButton>
               </Flex>
               {searchError && (
-                <Text size="1" color="red">
+                <Text size={{ initial: "1", md: "2" }} color="red">
                   {searchError}
                 </Text>
               )}
@@ -652,25 +656,31 @@ export default function MapGraph() {
         </Card>
       </Box>
       <Box style={{ position: "absolute", top: 12, right: 12, zIndex: 22 }}>
-        <Card>
+        <Card size={{ initial: "1", md: "2" }}>
           <Flex align="center" gap="2">
             <Checkbox
               id="cluster-color-toggle"
+              size={{ initial: "1", md: "2" }}
               checked={colorByClusters}
               onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
             />
-            <Text as="label" htmlFor="cluster-color-toggle" size="2">
+            <Text
+              as="label"
+              htmlFor="cluster-color-toggle"
+              size={{ initial: "1", md: "2" }}
+            >
               Color by clusters
             </Text>
           </Flex>
         </Card>
       </Box>
       <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
-        <Card>
+        <Card size={{ initial: "1", md: "2" }}>
           <Flex gap="2" direction="column" align="center">
             <Tooltip content="Zoom in" side="left">
               <IconButton
                 variant="soft"
+                size={{ initial: "2", md: "2" }}
                 aria-label="Zoom in"
                 onClick={() =>
                   setViewState((prev) => ({
@@ -685,6 +695,7 @@ export default function MapGraph() {
             <Tooltip content="Zoom out" side="left">
               <IconButton
                 variant="soft"
+                size={{ initial: "2", md: "2" }}
                 aria-label="Zoom out"
                 onClick={() =>
                   setViewState((prev) => ({
@@ -699,6 +710,7 @@ export default function MapGraph() {
             <Tooltip content="Reset view" side="left">
               <IconButton
                 variant="soft"
+                size={{ initial: "2", md: "2" }}
                 aria-label="Reset zoom"
                 onClick={() => setViewState(INITIAL_VIEW_STATE)}
               >
@@ -719,11 +731,11 @@ export default function MapGraph() {
             zIndex: 25,
           }}
         >
-          <Card>
+          <Card size={{ initial: "1", md: "2" }}>
             <Flex direction="column" gap="2">
               <Flex align="center" justify="between" gap="2">
                 <Text
-                  size="1"
+                  size={{ initial: "1", md: "2" }}
                   color="gray"
                   style={{ overflowWrap: "anywhere" }}
                 >
@@ -731,7 +743,7 @@ export default function MapGraph() {
                 </Text>
                 <IconButton
                   variant="ghost"
-                  size="1"
+                  size={{ initial: "1", md: "2" }}
                   aria-label="Close metadata card"
                   onClick={() => setSelectedPoint(null)}
                 >
@@ -740,13 +752,13 @@ export default function MapGraph() {
               </Flex>
 
               {metadataQuery.isLoading && (
-                <Text size="2" color="gray">
+                <Text size={{ initial: "2", md: "3" }} color="gray">
                   Loading metadata...
                 </Text>
               )}
 
               {metadataQuery.isError && (
-                <Text size="2" color="red">
+                <Text size={{ initial: "2", md: "3" }} color="red">
                   {(metadataQuery.error as Error).message}
                 </Text>
               )}
@@ -761,11 +773,11 @@ export default function MapGraph() {
                     rel="noopener noreferrer"
                     style={{ textDecoration: "none" }}
                   >
-                    <Text size="3" weight="bold">
+                    <Text size={{ initial: "2", md: "3" }} weight="bold">
                       {metadataQuery.data.title || "Untitled"}
                     </Text>
                   </Link>
-                  <Text size="2" color="gray">
+                  <Text size={{ initial: "1", md: "2" }} color="gray">
                     {metadataQuery.data.description
                       ? truncateText(metadataQuery.data.description, 100)
                       : "No description available."}
