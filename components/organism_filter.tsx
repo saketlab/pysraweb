@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Badge, Button, Card, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { Badge, Button, Card, Flex, Text } from "@radix-ui/themes";
 
 type OrganismFacet = { name: string; count: number };
 
@@ -62,12 +62,11 @@ function FilterList({
       </Button>
 
       {/* Organisms list */}
-      <ScrollArea
-        type="always"
-        scrollbars="vertical"
-        style={{ maxHeight: isExpanded ? 360 : undefined }}
+      <div
+        className={isExpanded ? "organism-list-scroll" : undefined}
+        style={{ maxHeight: isExpanded ? 360 : undefined, overflowY: isExpanded ? "auto" : "visible" }}
       >
-        <Flex direction="column" gap="2" pr="2">
+        <Flex direction="column" gap="2">
           {visibleFacets.map((f) => {
             const active = selected === f.name;
             return (
@@ -92,7 +91,7 @@ function FilterList({
             </Text>
           ) : null}
         </Flex>
-      </ScrollArea>
+      </div>
 
       {hasMoreThanTop ? (
         <Button
@@ -104,6 +103,15 @@ function FilterList({
           {isExpanded ? "Show less" : `Show ${facets.length - 5} more`}
         </Button>
       ) : null}
+      <style jsx>{`
+        .organism-list-scroll {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .organism-list-scroll::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </Flex>
   );
 }
