@@ -192,9 +192,9 @@ export function SearchOrganismRail({
 }) {
   return (
     <Flex
-      display={{ initial: "none", lg: "flex" }}
+      display={{ initial: "none", md: "flex" }}
       direction="column"
-      width="280px"
+      width={{ md: "220px", lg: "280px" }}
       position="sticky"
       style={{ top: "7rem", height: "fit-content" }}
     >

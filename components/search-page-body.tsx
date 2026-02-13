@@ -245,7 +245,7 @@ export default function SearchPageBody() {
       <Flex
         gap={{ initial: "4", md: "8" }}
         p={"4"}
-        justify={"start"}
+        justify={{ initial: "start", md: "between" }}
         direction={{ initial: "column", md: "row" }}
       >
         <SearchFilters
@@ -260,7 +260,11 @@ export default function SearchPageBody() {
         />
 
           {/* Child Flex-3 : handles middle col */}
-        <Flex gap="4" direction="column" width={{ initial: "100%", md: "70%" }}>
+        <Flex
+          gap="4"
+          direction="column"
+          width={{ initial: "100%", md: "58%", lg: "60%" }}
+        >
           {!query ? (
             <Text>Start by typing a search query above.</Text>
           ) : isLoading ? (
