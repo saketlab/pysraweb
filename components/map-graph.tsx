@@ -71,7 +71,6 @@ type ViewState = {
 
 type SelectedPoint = {
   accession: string;
-  countries: string[];
   x: number;
   y: number;
 };
@@ -674,7 +673,6 @@ export default function MapGraph() {
 
           setSelectedPoint({
             accession: info.object.accession,
-            countries: info.object.countries,
             x: clickX,
             y: clickY,
           });
@@ -1031,12 +1029,6 @@ export default function MapGraph() {
                   <Cross1Icon />
                 </IconButton>
               </Flex>
-
-              <Text size={{ initial: "1", md: "2" }} color="gray">
-                {selectedPoint.countries.length > 0
-                  ? truncateText(selectedPoint.countries.join(", "), 120)
-                  : "No country data"}
-              </Text>
 
               {metadataQuery.isLoading && (
                 <Text size={{ initial: "2", md: "3" }} color="gray">
