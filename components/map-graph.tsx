@@ -8,13 +8,16 @@ import {
   CornersIcon,
   Cross1Icon,
   MagnifyingGlassIcon,
+  SwitchIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons";
 import {
+  Button,
   Box,
   Card,
   Checkbox,
+  DropdownMenu,
   Flex,
   IconButton,
   Link,
@@ -26,14 +29,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type DecodedPoint = {
+type MapPoint = {
   accession: string;
+  countries: string[];
   x: number;
   y: number;
 };
 
-type RenderPoint = DecodedPoint & {
+type RenderPoint = MapPoint & {
   fillColor: [number, number, number, number];
+};
+
+type AccessionsRecord = {
+  accession: string;
+  countries: string[];
 };
 
 type ClusterRaw = {
@@ -60,12 +69,22 @@ type ViewState = {
   zoom: number;
 };
 
+type SelectedPoint = {
+  accession: string;
+  countries: string[];
+  x: number;
+  y: number;
+};
+
 const POINT_COLOR_DARK: [number, number, number, number] = [97, 207, 196, 210];
 const POINT_COLOR_LIGHT: [number, number, number, number] = [72, 136, 245, 210];
 const CLUSTER_TEXT_COLOR_DARK: [number, number, number, number] = [
   255, 255, 255, 235,
 ];
 const CLUSTER_TEXT_COLOR_LIGHT: [number, number, number, number] = [34, 41, 51, 235];
+const MUTED_POINT_DARK: [number, number, number, number] = [111, 124, 139, 80];
+const MUTED_POINT_LIGHT: [number, number, number, number] = [168, 176, 187, 90];
+
 const MIN_ZOOM = -8;
 const MAX_ZOOM = 22;
 const CLUSTER_LABEL_MIN_ZOOM = 0.9;
@@ -95,33 +114,76 @@ function decodePoints(buffer: ArrayBuffer): Array<{ x: number; y: number }> {
   return points;
 }
 
-function decodeAccessions(buffer: ArrayBuffer): string[] {
+function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
   const view = new DataView(buffer);
   const decoder = new TextDecoder();
-  const accessions: string[] = [];
+  const records: AccessionsRecord[] = [];
   let offset = 0;
 
   while (offset < buffer.byteLength) {
     if (offset + 4 > buffer.byteLength) {
-      throw new Error("Invalid accessions.bin record header.");
+      throw new Error("Invalid accessions.bin accession header.");
     }
 
-    const length = view.getUint32(offset, true);
+    const accessionLen = view.getUint32(offset, true);
     offset += 4;
 
-    if (offset + length > buffer.byteLength) {
-      throw new Error("Invalid accessions.bin record payload.");
+    if (offset + accessionLen > buffer.byteLength) {
+      throw new Error("Invalid accessions.bin accession payload.");
     }
 
-    const bytes = new Uint8Array(buffer, offset, length);
-    accessions.push(decoder.decode(bytes));
-    offset += length;
+    const accession = decoder.decode(new Uint8Array(buffer, offset, accessionLen));
+    offset += accessionLen;
+
+    let countries: string[] = [];
+
+    if (offset + 4 <= buffer.byteLength) {
+      const countryCount = view.getUint32(offset, true);
+      offset += 4;
+
+      const parsedCountries: string[] = [];
+      let complete = true;
+
+      for (let i = 0; i < countryCount; i += 1) {
+        if (offset + 4 > buffer.byteLength) {
+          complete = false;
+          break;
+        }
+
+        const countryLen = view.getUint32(offset, true);
+        offset += 4;
+
+        if (offset + countryLen > buffer.byteLength) {
+          complete = false;
+          break;
+        }
+
+        const country = decoder
+          .decode(new Uint8Array(buffer, offset, countryLen))
+          .trim();
+        offset += countryLen;
+
+        if (country.length > 0) {
+          parsedCountries.push(country);
+        }
+      }
+
+      countries = complete ? parsedCountries : [];
+      if (!complete) {
+        offset = buffer.byteLength;
+      }
+    }
+
+    records.push({
+      accession,
+      countries,
+    });
   }
 
-  return accessions;
+  return records;
 }
 
-async function fetchMapData(): Promise<DecodedPoint[]> {
+async function fetchMapData(): Promise<MapPoint[]> {
   const [pointsRes, accessionsRes] = await Promise.all([
     fetch(`${SERVER_URL}/points.bin`),
     fetch(`${SERVER_URL}/accessions.bin`),
@@ -137,16 +199,17 @@ async function fetchMapData(): Promise<DecodedPoint[]> {
   ]);
 
   const points = decodePoints(pointsBuffer);
-  const accessions = decodeAccessions(accessionsBuffer);
+  const accessionRecords = decodeAccessions(accessionsBuffer);
 
-  if (points.length !== accessions.length) {
+  if (points.length !== accessionRecords.length) {
     throw new Error(
-      `Data mismatch: points=${points.length}, accessions=${accessions.length}`,
+      `Data mismatch: points=${points.length}, accessions=${accessionRecords.length}`,
     );
   }
 
   return points.map((point, index) => ({
-    accession: accessions[index],
+    accession: accessionRecords[index].accession,
+    countries: accessionRecords[index].countries,
     x: point.x,
     y: point.y,
   }));
@@ -193,6 +256,39 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   ];
 }
 
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.trim().toLowerCase();
+  const fullHex =
+    normalized.length === 4
+      ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
+      : normalized;
+
+  if (!/^#[0-9a-f]{6}$/.test(fullHex)) {
+    return [0, 0, 0];
+  }
+
+  return [
+    parseInt(fullHex.slice(1, 3), 16),
+    parseInt(fullHex.slice(3, 5), 16),
+    parseInt(fullHex.slice(5, 7), 16),
+  ];
+}
+
+function deterministicCountryColor(country: string): string {
+  let hash = 0;
+  for (let i = 0; i < country.length; i += 1) {
+    hash = (hash * 31 + country.charCodeAt(i)) | 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  const [r, g, b] = hslToRgb(hue, 0.78, 0.56);
+  return rgbToHex(r, g, b);
+}
+
 async function fetchProjectMetadata(
   accession: string,
 ): Promise<ProjectMetadata> {
@@ -212,17 +308,16 @@ export default function MapGraph() {
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
   const [searchInput, setSearchInput] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [countrySearchInput, setCountrySearchInput] = useState("");
   const [colorByClusters, setColorByClusters] = useState(false);
-  const [highlightedPoint, setHighlightedPoint] = useState<DecodedPoint | null>(
-    null,
-  );
-  const [selectedPoint, setSelectedPoint] = useState<{
-    accession: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [countryColors, setCountryColors] = useState<Record<string, string>>({});
+
+  const [highlightedPoint, setHighlightedPoint] = useState<MapPoint | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -306,7 +401,7 @@ export default function MapGraph() {
     };
   }, [dataQuery.data]);
 
-  const points = useMemo<DecodedPoint[]>(() => {
+  const points = useMemo<MapPoint[]>(() => {
     const raw = dataQuery.data;
     if (!raw || !normalization) {
       return [];
@@ -315,6 +410,7 @@ export default function MapGraph() {
     const extent = 2200;
     return raw.map((point) => ({
       accession: point.accession,
+      countries: point.countries,
       x: ((point.x - normalization.minX) / normalization.xSpan - 0.5) * extent,
       y: ((point.y - normalization.minY) / normalization.ySpan - 0.5) * extent,
     }));
@@ -387,7 +483,6 @@ export default function MapGraph() {
     const cellSize = clamp(baseCellSize - viewState.zoom * 6, 48, 170);
     const chosenByCell = new Map<string, ClusterPoint>();
 
-    // candidates are pre-sorted by descending num_points, so first in each cell wins
     for (const cluster of candidates) {
       const sx =
         (cluster.x - viewState.target[0]) * scale + viewportSize.width / 2;
@@ -417,8 +512,42 @@ export default function MapGraph() {
     viewportSize.height,
   ]);
 
+  const countryStats = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const point of points) {
+      const uniqueCountries = new Set(
+        point.countries.map((country) => country.trim()).filter(Boolean),
+      );
+
+      for (const country of uniqueCountries) {
+        counts.set(country, (counts.get(country) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([country, count]) => ({ country, count }));
+  }, [points]);
+
+  const defaultCountryColors = useMemo(() => {
+    const colorMap: Record<string, string> = {};
+    for (const option of countryStats) {
+      colorMap[option.country] = deterministicCountryColor(option.country);
+    }
+    return colorMap;
+  }, [countryStats]);
+
+  const filteredCountryStats = useMemo(() => {
+    const query = countrySearchInput.trim().toLowerCase();
+    if (!query) return countryStats;
+    return countryStats.filter(({ country }) =>
+      country.toLowerCase().includes(query),
+    );
+  }, [countryStats, countrySearchInput]);
+
   const pointsByAccession = useMemo(() => {
-    const lookup = new Map<string, DecodedPoint>();
+    const lookup = new Map<string, MapPoint>();
     for (const point of points) {
       lookup.set(point.accession.toLowerCase(), point);
     }
@@ -427,10 +556,30 @@ export default function MapGraph() {
 
   const pointColor =
     resolvedTheme === "light" ? POINT_COLOR_LIGHT : POINT_COLOR_DARK;
+  const mutedPointColor =
+    resolvedTheme === "light" ? MUTED_POINT_LIGHT : MUTED_POINT_DARK;
   const clusterTextColor =
     resolvedTheme === "light" ? CLUSTER_TEXT_COLOR_LIGHT : CLUSTER_TEXT_COLOR_DARK;
 
   const renderPoints = useMemo<RenderPoint[]>(() => {
+    if (selectedCountries.length > 0) {
+      return points.map((point) => {
+        const matchedCountry = selectedCountries.find((country) =>
+          point.countries.includes(country),
+        );
+
+        if (!matchedCountry) {
+          return { ...point, fillColor: mutedPointColor };
+        }
+
+        const [r, g, b] = hexToRgb(
+          countryColors[matchedCountry] ?? defaultCountryColors[matchedCountry],
+        );
+
+        return { ...point, fillColor: [r, g, b, 235] };
+      });
+    }
+
     if (!colorByClusters || clusters.length === 0) {
       return points.map((point) => ({ ...point, fillColor: pointColor }));
     }
@@ -470,17 +619,26 @@ export default function MapGraph() {
       }
 
       const blend = clamp(bestScore * 0.9, 0.2, 0.9);
-      const base = pointColor;
       const color: [number, number, number, number] = [
-        Math.round(base[0] * (1 - blend) + bestColor[0] * blend),
-        Math.round(base[1] * (1 - blend) + bestColor[1] * blend),
-        Math.round(base[2] * (1 - blend) + bestColor[2] * blend),
-        base[3],
+        Math.round(pointColor[0] * (1 - blend) + bestColor[0] * blend),
+        Math.round(pointColor[1] * (1 - blend) + bestColor[1] * blend),
+        Math.round(pointColor[2] * (1 - blend) + bestColor[2] * blend),
+        pointColor[3],
       ];
 
       return { ...point, fillColor: color };
     });
-  }, [colorByClusters, clusters, points, pointColor, resolvedTheme]);
+  }, [
+    selectedCountries,
+    points,
+    mutedPointColor,
+    countryColors,
+    defaultCountryColors,
+    colorByClusters,
+    clusters,
+    pointColor,
+    resolvedTheme,
+  ]);
 
   const layers = useMemo(
     () => [
@@ -495,13 +653,12 @@ export default function MapGraph() {
         radiusMinPixels: 0.2,
         radiusMaxPixels: 1.4,
         stroked: false,
-        onClick: (info: PickingInfo<DecodedPoint>) => {
+        onClick: (info: PickingInfo<RenderPoint>) => {
           if (!info.object) {
             return;
           }
-          const srcEvent = (
-            info as PickingInfo<DecodedPoint> & { srcEvent?: Event }
-          ).srcEvent;
+          const srcEvent = (info as PickingInfo<RenderPoint> & { srcEvent?: Event })
+            .srcEvent;
           const clickX =
             srcEvent && "clientX" in srcEvent
               ? (srcEvent as MouseEvent).clientX
@@ -517,13 +674,14 @@ export default function MapGraph() {
 
           setSelectedPoint({
             accession: info.object.accession,
+            countries: info.object.countries,
             x: clickX,
             y: clickY,
           });
           setHighlightedPoint(info.object);
         },
       }),
-      new ScatterplotLayer<DecodedPoint>({
+      new ScatterplotLayer<MapPoint>({
         id: "map-highlight-point",
         data: highlightedPoint ? [highlightedPoint] : [],
         pickable: false,
@@ -569,7 +727,7 @@ export default function MapGraph() {
     }
 
     const cardWidth = 360;
-    const cardHeight = 220;
+    const cardHeight = 240;
     const margin = 12;
     const maxLeft = Math.max(margin, windowSize.width - cardWidth - margin);
     const maxTop = Math.max(margin, windowSize.height - cardHeight - margin);
@@ -621,6 +779,16 @@ export default function MapGraph() {
     }));
   };
 
+  const toggleCountrySelection = (country: string, checked: boolean) => {
+    setSelectedCountries((prev) => {
+      if (checked) {
+        if (prev.includes(country)) return prev;
+        return [...prev, country];
+      }
+      return prev.filter((item) => item !== country);
+    });
+  };
+
   return (
     <Box ref={containerRef} style={{ height: "100%", position: "relative" }}>
       <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
@@ -655,25 +823,137 @@ export default function MapGraph() {
           </form>
         </Card>
       </Box>
-      <Box style={{ position: "absolute", top: 12, right: 12, zIndex: 22 }}>
-        <Card size={{ initial: "1", md: "2" }}>
-          <Flex align="center" gap="2">
-            <Checkbox
-              id="cluster-color-toggle"
-              size={{ initial: "1", md: "2" }}
-              checked={colorByClusters}
-              onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
-            />
-            <Text
-              as="label"
-              htmlFor="cluster-color-toggle"
-              size={{ initial: "1", md: "2" }}
-            >
-              Color by clusters
-            </Text>
-          </Flex>
-        </Card>
+
+      <Box
+        style={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          zIndex: 23,
+        }}
+      >
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <Button variant="solid" size={{ initial: "2", md: "2" }}>
+              <SwitchIcon />
+              Configure
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content
+            align="end"
+            sideOffset={8}
+            style={{ width: "min(92vw, 340px)", maxHeight: "72vh" }}
+          >
+            <Flex direction="column" gap="2">
+              <Flex align="center" gap="2">
+                <Checkbox
+                  id="cluster-color-toggle"
+                  size={{ initial: "1", md: "2" }}
+                  checked={colorByClusters}
+                  onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
+                />
+                <Text
+                  as="label"
+                  htmlFor="cluster-color-toggle"
+                  size={{ initial: "1", md: "2" }}
+                >
+                  Color by clusters
+                </Text>
+              </Flex>
+
+              <Box style={{ height: 1, backgroundColor: "var(--gray-a4)" }} />
+
+              <TextField.Root
+                placeholder="Search countries"
+                size={{ initial: "1", md: "2" }}
+                value={countrySearchInput}
+                onChange={(event) => setCountrySearchInput(event.target.value)}
+              />
+
+              <Box style={{ maxHeight: "34vh", overflowY: "auto", paddingRight: 4 }}>
+                <Flex direction="column" gap="1">
+                  {countryStats.length === 0 && (
+                    <Text size={{ initial: "1", md: "2" }} color="gray">
+                      No country metadata available.
+                    </Text>
+                  )}
+                  {countryStats.length > 0 && filteredCountryStats.length === 0 && (
+                    <Text size={{ initial: "1", md: "2" }} color="gray">
+                      No countries match your search.
+                    </Text>
+                  )}
+
+                  {filteredCountryStats.map(({ country }, index) => {
+                    const checked = selectedCountries.includes(country);
+                    const checkboxId = `country-filter-${index}`;
+                    const colorValue =
+                      countryColors[country] ?? defaultCountryColors[country];
+
+                    return (
+                      <Flex key={country} align="center" justify="between" gap="2">
+                        <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
+                          <Checkbox
+                            id={checkboxId}
+                            checked={checked}
+                            onCheckedChange={(value) =>
+                              toggleCountrySelection(country, Boolean(value))
+                            }
+                          />
+                          <Text
+                            as="label"
+                            htmlFor={checkboxId}
+                            size={{ initial: "1", md: "2" }}
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              cursor: "pointer",
+                              flex: 1,
+                            }}
+                          >
+                            {country}
+                          </Text>
+                        </Flex>
+                        <input
+                          type="color"
+                          aria-label={`Color for ${country}`}
+                          value={colorValue}
+                          onChange={(event) =>
+                            setCountryColors((prev) => ({
+                              ...prev,
+                              [country]: event.target.value,
+                            }))
+                          }
+                          style={{
+                            width: 26,
+                            height: 18,
+                            border: "none",
+                            background: "transparent",
+                            padding: 0,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </Flex>
+                    );
+                  })}
+                </Flex>
+              </Box>
+
+              {selectedCountries.length > 0 && (
+                <Text
+                  size="1"
+                  color="gray"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setSelectedCountries([])}
+                >
+                  Clear selected countries
+                </Text>
+              )}
+            </Flex>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </Box>
+
       <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
         <Card size={{ initial: "1", md: "2" }}>
           <Flex gap="2" direction="column" align="center">
@@ -720,6 +1000,7 @@ export default function MapGraph() {
           </Flex>
         </Card>
       </Box>
+
       {selectedPoint && metadataCardPosition && (
         <Box
           style={{
@@ -750,6 +1031,12 @@ export default function MapGraph() {
                   <Cross1Icon />
                 </IconButton>
               </Flex>
+
+              <Text size={{ initial: "1", md: "2" }} color="gray">
+                {selectedPoint.countries.length > 0
+                  ? truncateText(selectedPoint.countries.join(", "), 120)
+                  : "No country data"}
+              </Text>
 
               {metadataQuery.isLoading && (
                 <Text size={{ initial: "2", md: "3" }} color="gray">
@@ -791,7 +1078,12 @@ export default function MapGraph() {
 
       <DeckGL
         views={new OrthographicView({ id: "ortho" })}
-        controller={{ dragPan: true, scrollZoom: true, touchZoom: true }}
+        controller={{
+          dragPan: true,
+          scrollZoom: true,
+          touchZoom: true,
+          inertia: false,
+        }}
         pickingRadius={8}
         viewState={{
           ...viewState,
