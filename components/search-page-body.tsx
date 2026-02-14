@@ -268,7 +268,7 @@ export default function SearchPageBody() {
           {!query ? (
             <Text>Start by typing a search query above.</Text>
           ) : isLoading ? (
-            <Flex gap="3" align="start" justify="start" direction={"column"}>
+            <>
               <Flex gap="2" align="center">
                 <Spinner size="1" />
                 <Text color="gray" weight="light">Fetching results...</Text>
@@ -278,7 +278,7 @@ export default function SearchPageBody() {
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
-            </Flex>
+            </>
           ) : isError ? (
             <Flex
               gap="2"
