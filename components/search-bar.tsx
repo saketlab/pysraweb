@@ -1,5 +1,6 @@
 "use client";
 import GitHubButton from "@/components/github-button";
+import Logo from "@/components/logo";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
 import { useSearchQuery } from "@/context/search_query";
@@ -16,7 +17,6 @@ import {
   Link,
   TextField,
 } from "@radix-ui/themes";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -152,11 +152,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
       >
         <Link href="/" style={{ textDecoration: "none" }}>
           <Box width={{ initial: "6rem", md: "11rem" }}>
-            <Image
-              src="/pysraweb_logo.png"
-              alt="pysraweb"
-              width={1293}
-              height={235}
+            <Logo
               style={{ width: "100%", height: "auto" }}
               priority
             />
