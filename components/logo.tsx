@@ -12,7 +12,7 @@ export default function Logo({
   className,
 }: LogoProps) {
   return (
-    <span className={className} style={{ display: "inline-block", ...style }}>
+    <span className={className} style={{ display: "block", position: "relative", ...style }}>
       <Image
         src="/logo-light.svg"
         alt="pysraweb"
@@ -20,7 +20,7 @@ export default function Logo({
         height={103}
         priority={priority}
         className="logo-light"
-        style={{ width: "100%", height: "auto" }}
+        style={{ width: "100%", height: "auto", display: "block" }}
       />
       <Image
         src="/logo-dark.svg"
@@ -29,7 +29,7 @@ export default function Logo({
         height={103}
         priority={priority}
         className="logo-dark"
-        style={{ width: "100%", height: "auto" }}
+        style={{ width: "100%", height: "auto", position: "absolute", top: 0, left: 0 }}
       />
     </span>
   );
