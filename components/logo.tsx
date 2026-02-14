@@ -12,7 +12,7 @@ export default function Logo({
   className,
 }: LogoProps) {
   return (
-    <span className={className} style={{ display: "block", position: "relative", ...style }}>
+    <span className={className} style={{ display: "block", position: "relative", overflow: "visible", ...style }}>
       <Image
         src="/logo-light.svg"
         alt="pysraweb"
