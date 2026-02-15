@@ -2,7 +2,9 @@ import SearchPageBody from "@/components/search-page-body";
 import SearchPageSkeleton from "@/components/search-page-skeleton";
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+
+const API_BASE_URL =
+  process.env.PYSRAWEB_API_BASE ?? "https://pysraweb.saketlab.org/api";
 
 type SearchParams = Promise<{ q?: string; db?: string }>;
 
@@ -26,10 +28,7 @@ export async function generateMetadata({
 
   let total: number | null = null;
   try {
-    const headersList = await headers();
-    const host = headersList.get("host") ?? "localhost:3000";
-    const protocol = headersList.get("x-forwarded-proto") ?? "http";
-    let url = `${protocol}://${host}/api/search?q=${encodeURIComponent(q)}`;
+    let url = `${API_BASE_URL}/search?q=${encodeURIComponent(q)}`;
     if (db === "sra" || db === "geo") {
       url += `&db=${encodeURIComponent(db)}`;
     }
