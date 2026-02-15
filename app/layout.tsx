@@ -85,6 +85,13 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="en">
       <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          .logo-light { display: block; }
+          .logo-dark { display: none; }
+          .dark .logo-light { display: none; }
+          .dark .logo-dark { display: block; }
+        `}} />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
           strategy="afterInteractive"

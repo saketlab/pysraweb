@@ -21,6 +21,7 @@ import {
   Flex,
   IconButton,
   Link,
+  Spinner,
   Text,
   TextField,
   Tooltip,
@@ -948,8 +949,9 @@ export default function MapGraph() {
 
   if (dataQuery.isLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Text size={{ initial: "2", md: "3" }}>Loading map data...</Text>
+      <Flex align="center" justify="center" gap="3" direction="column" style={{ height: "100%" }}>
+        <Spinner size="3" />
+        <Text size={{ initial: "2", md: "3" }} color="gray">Loading map...</Text>
       </Flex>
     );
   }

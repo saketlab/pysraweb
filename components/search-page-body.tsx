@@ -268,13 +268,17 @@ export default function SearchPageBody() {
           {!query ? (
             <Text>Start by typing a search query above.</Text>
           ) : isLoading ? (
-            <Flex gap="3" align="start" justify="start" direction={"column"}>
+            <>
+              <Flex gap="2" align="center">
+                <Spinner size="1" />
+                <Text color="gray" weight="light">Fetching results...</Text>
+              </Flex>
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
-            </Flex>
+            </>
           ) : isError ? (
             <Flex
               gap="2"
@@ -362,13 +366,19 @@ export default function SearchPageBody() {
           )}
         </Flex>
 
-        {!isLoading && !isError && searchResults.length > 0 && (
+        {isLoading ? (
+          <Flex
+            display={{ initial: "none", md: "flex" }}
+            direction="column"
+            width={{ md: "220px", lg: "280px" }}
+          />
+        ) : !isError && searchResults.length > 0 ? (
           <SearchOrganismRail
             results={searchResults}
             selectedOrganism={selectedOrganism}
             setSelectedOrganism={setSelectedOrganism}
           />
-        )}
+        ) : null}
 
 
         {organismFilteredResults.length > 0 && (
@@ -377,7 +387,7 @@ export default function SearchPageBody() {
             direction="column"
             align={"end"}
             gap="2"
-            style={{ right: "2rem", bottom: "1.5rem", zIndex: 999 }}
+            style={{ right: "1rem", bottom: "1rem", zIndex: 999 }}
           >
             {showTopButton && (
               <Tooltip content="Go back to top">
