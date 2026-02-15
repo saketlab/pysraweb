@@ -5,6 +5,9 @@ import SearchBar from "@/components/search-bar";
 import SimilarProjectsGraph, {
   SimilarNeighbor,
 } from "@/components/similar-projects-graph";
+import SubmittingOrgPanel, {
+  CenterInfo,
+} from "@/components/submitting-org-panel";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -83,6 +86,7 @@ type Project = {
   supplementary_data: string | null;
   published_at: Date | null;
   updated_at: Date | null;
+  center?: CenterInfo[] | null;
 };
 
 // type SimilarProject = {
@@ -996,6 +1000,7 @@ function SortMenu({
               coords3d={project.coords_3d}
               neighbors={project.neighbors}
             />
+            <SubmittingOrgPanel center={project.center} />
           </Flex>
         </>
       )}

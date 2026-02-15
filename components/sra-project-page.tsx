@@ -7,6 +7,9 @@ import SearchBar from "@/components/search-bar";
 import SimilarProjectsGraph, {
   SimilarNeighbor,
 } from "@/components/similar-projects-graph";
+import SubmittingOrgPanel, {
+  CenterInfo,
+} from "@/components/submitting-org-panel";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -43,6 +46,7 @@ type Project = {
   updated_at: Date;
   external_id?: Record<string, string> | string | null;
   links?: unknown;
+  center?: CenterInfo | null;
 };
 
 type GeoNeighborsPayload = {
@@ -1077,6 +1081,7 @@ export default function ProjectPage()
               coords3d={project.coords_3d}
               neighbors={project.neighbors}
             />
+            <SubmittingOrgPanel center={project.center} />
           </Flex>
         </>
       )}

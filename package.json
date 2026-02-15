@@ -14,13 +14,16 @@
     "@tanstack/react-query": "^5.90.11",
     "3d-force-graph": "^1.79.1",
     "deck.gl": "^9.2.6",
+    "leaflet": "^1.9.4",
     "next": "^16.0.10",
     "next-themes": "^0.4.6",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
