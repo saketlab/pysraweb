@@ -1,5 +1,7 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
+import { CaretDownIcon, ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons";
+import { DropdownMenu, IconButton } from "@radix-ui/themes";
 import PublicationCard, { PubMedArticle } from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
 import SimilarProjectsGraph, {
@@ -351,7 +353,33 @@ const fetchSamplesForExperiments = async (
 
 const ABSTRACT_CHAR_LIMIT = 350;
 
-export default function ProjectPage() {
+
+type SortDirection = "asc" | "desc";
+type SortState = { key: string; direction: SortDirection } | null;
+
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function normalize(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+function stableSort<T>(arr: T[], cmp: (a: T, b: T) => number): T[] {
+  return arr
+    .map((item, index) => ({ item, index }))
+    .sort((x, y) => {
+      const res = cmp(x.item, y.item);
+      return res !== 0 ? res : x.index - y.index;
+    })
+    .map((x) => x.item);
+}
+
+
+export default function ProjectPage() 
+{
   const params = useParams();
   const accession = params.accession as string | undefined;
   // abstract expansion handled by ProjectSummary component
@@ -364,6 +392,8 @@ export default function ProjectPage() {
     queryFn: () => fetchProject(accession ?? null),
     enabled: !!accession,
   });
+
+  const [sort, setSort] = React.useState<SortState>(null);
 
   const {
     data: experiments,
@@ -416,6 +446,133 @@ export default function ProjectPage() {
   //   queryFn: () => fetchSimilarProjects(project!.abstract, project!.accession),
   //   enabled: !!project?.abstract,
   // });
+
+
+  const getCellValue = React.useCallback(
+  (e: Experiment, sample: Sample | null, key: string): unknown => {
+        switch (key) {
+          case "Accession":
+            return e.accession;
+          case "Title":
+            return e.title ?? "-";
+          case "Library":
+            return e.library_name ?? e.library_strategy ?? "-";
+          case "Layout":
+            return e.library_layout ?? "-";
+          case "Platform":
+            return e.platform ?? "-";
+          case "Instrument":
+            return e.instrument_model ?? "-";
+          case "Sample":
+            return e.samples?.[0] ?? "-";
+          case "Sample Alias":
+            return sample?.alias ?? "-";
+          case "Sample Title":
+            return sample?.title ?? "-";
+          case "Description":
+            return sample?.description ?? "-";
+          case "Scientific Name":
+            return sample?.scientific_name ?? "-";
+          case "Taxon ID":
+            return sample?.taxon_id ?? "-";
+          default:
+            // dynamic attribute columns (attributeKeys)
+            return sample?.attributes_json?.[key] ?? "-";
+        }
+      },
+    [],
+  );
+
+
+     const columns = React.useMemo(() => {
+       const base = [
+         "Accession",
+         "Title",
+         "Library",
+         "Layout",
+         "Platform",
+         "Instrument",
+         "Sample",
+         "Sample Alias",
+         "Sample Title",
+         "Description",
+         "Scientific Name",
+         "Taxon ID",
+       ];
+       return base.concat(attributeKeys);
+     }, [attributeKeys]);
+
+
+
+  const sortedExperiments = React.useMemo(() => {
+    if (!experiments) return [];
+    if (!sort) return experiments;
+  
+    const { key, direction } = sort;
+  
+    return stableSort(experiments, (a, b) => {
+      const sampleAccA = a.samples?.[0];
+      const sampleA =
+        sampleAccA && samplesMap ? samplesMap.get(sampleAccA) ?? null : null;
+    
+      const sampleAccB = b.samples?.[0];
+      const sampleB =
+        sampleAccB && samplesMap ? samplesMap.get(sampleAccB) ?? null : null;
+    
+      const va = normalize(getCellValue(a, sampleA, key));
+      const vb = normalize(getCellValue(b, sampleB, key));
+    
+      const base = collator.compare(va, vb);
+      return direction === "asc" ? base : -base;
+    });
+  }, [experiments, sort, samplesMap, getCellValue]);
+
+
+
+    function SortMenu({
+      label,
+      sort,
+      onSortChange,
+    }: {
+      label: string;
+      sort: SortState;
+      onSortChange: (next: SortState) => void;
+      }) {
+    const isActive = sort?.key === label;
+    const dir = isActive ? sort!.direction : null;
+
+    return (
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+        <IconButton variant="ghost" size="1" aria-label={`Sort ${label}`}>
+          <CaretDownIcon />
+        </IconButton>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content>
+        <DropdownMenu.Item
+          onSelect={() => onSortChange({ key: label, direction: "asc" })}
+        >
+          <ArrowUpIcon /> Sort Ascending
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Item
+          onSelect={() => onSortChange({ key: label, direction: "desc" })}
+        >
+          <ArrowDownIcon /> Sort Descending
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Separator />
+
+        <DropdownMenu.Item disabled={!isActive} onSelect={() => onSortChange(null)}>
+          Clear sort
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+    );
+  }
+
+
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -750,55 +907,50 @@ export default function ProjectPage() {
                       }}
                       variant="surface"
                     >
-                    <Table.Header
-                      style={{
-                        overflow: "scroll",
-                        maxHeight: "30rem",
-                      }}
-                    >
-                      <Table.Row>
-                        <Table.ColumnHeaderCell>
-                          Accession
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Title
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Library</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Layout</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Platform
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Instrument
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Sample Alias
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Sample Title
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Description
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Scientific Name
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Taxon ID
-                        </Table.ColumnHeaderCell>
-                        {attributeKeys.map((key) => (
-                          <Table.ColumnHeaderCell
-                            style={{ minWidth: "150px" }}
-                            key={key}
-                          >
-                            {key}
-                          </Table.ColumnHeaderCell>
-                        ))}
-                      </Table.Row>
-                    </Table.Header>
+
+                    
+                        <Table.Header
+                          style={{
+                            overflow: "scroll",
+                            maxHeight: "30rem",
+                          }}
+                        >
+                          <Table.Row>
+                            {columns.map((label) => {
+                              const isActive = sort?.key === label;
+                              const dir = isActive ? sort!.direction : null;
+                            
+                              // give a few columns larger min widths like you had before
+                              const minWidth =
+                                label === "Title" || label === "Sample Title" || label === "Scientific Name"
+                                  ? "200px"
+                                  : label.startsWith("Description")
+                                    ? "220px"
+                                    : "150px";
+                            
+                              return (
+                                <Table.ColumnHeaderCell key={label} style={{ minWidth }}>
+                                  <Flex align="center" justify="between" gap="2">
+                                    <Flex align="center" gap="1">
+                                      <span>{label}</span>
+                                      {dir === "asc" ? (
+                                        <ArrowUpIcon />
+                                      ) : dir === "desc" ? (
+                                        <ArrowDownIcon />
+                                      ) : null}
+                                    </Flex>
+                                    
+                                    <SortMenu label={label} sort={sort} onSortChange={setSort} />
+                                  </Flex>
+                                </Table.ColumnHeaderCell>
+                              );
+                            })}
+                          </Table.Row>
+                        </Table.Header>
+                          
+                          
                     <Table.Body>
-                      {experiments.map((e) => {
+                      {sortedExperiments.map((e) => {
                         const sampleAcc = e.samples[0];
                         const sample =
                           sampleAcc && samplesMap

@@ -12,6 +12,9 @@ import {
   ExternalLinkIcon,
   HomeIcon,
   InfoCircledIcon,
+  CaretDownIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from "@radix-ui/react-icons";
 import {
   Badge,
@@ -21,11 +24,14 @@ import {
   Spinner,
   Table,
   Text,
+  DropdownMenu,
+  IconButton
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
+
 
 // Component to truncate text in table cells with more/less toggle
 function TruncatedCell({
@@ -116,6 +122,13 @@ type GeoSample = {
   hybridization_protocol: string | null;
   scan_protocol: string | null;
 };
+
+type GeoRow = {
+  sample: GeoSample;
+  channel: Channel | null;
+  channelIdx: number;
+};
+
 
 const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
   const res = await fetch(`${SERVER_URL}/geo/series/${accession}/samples`);
@@ -221,9 +234,35 @@ const fetchProject = async (
 
 const SUMMARY_CHAR_LIMIT = 350;
 
+type SortDirection = "asc" | "desc";
+type SortState = { key: string; direction: SortDirection } | null;
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function normalize(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+function stableSort<T>(arr: T[], cmp: (a: T, b: T) => number): T[] {
+  return arr
+    .map((item, index) => ({ item, index }))
+    .sort((x, y) => {
+      const res = cmp(x.item, y.item);
+      return res !== 0 ? res : x.index - y.index;
+    })
+    .map((x) => x.item);
+}
+
+
 export default function GeoProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
+
+  const [sort, setSort] = React.useState<SortState>(null);
+
   const isArrayExpress = accession?.toUpperCase().startsWith("E-") ?? false;
 
   const {
@@ -276,6 +315,164 @@ export default function GeoProjectPage() {
     });
     return Array.from(tags);
   }, [samples]);
+
+
+  const columns = React.useMemo(() => {
+  const base = [
+    "Sample",
+    "Title",
+    "Description",
+    "Channel Count",
+    "Sample Type",
+    "Platform",
+    "Channel Position",
+    "Label",
+    "Source",
+    "Molecule",
+    "Organism",
+    "Label Protocol",
+    "Extract Protocol",
+    ...characteristicTags,
+    "Hybridization Protocol",
+    "Scan Protocol",
+  ];
+  return base;
+}, [characteristicTags]);
+
+const getCellValue = React.useCallback((row: GeoRow, key: string): unknown => {
+  const { sample, channel, channelIdx } = row;
+
+  switch (key) {
+    case "Sample":
+      return sample.accession;
+    case "Title":
+      return sample.title ?? "-";
+    case "Description":
+      return sample.description ?? "-";
+    case "Channel Count":
+      return sample.channel_count ?? "-";
+    case "Sample Type":
+      return sample.sample_type ?? "-";
+    case "Platform":
+      return sample.platform_ref ?? "-";
+    case "Channel Position":
+      return channel?.["@position"] ?? channelIdx + 1;
+    case "Label":
+      return channel?.Label ?? "-";
+    case "Source":
+      return channel?.Source ?? "-";
+    case "Molecule":
+      return channel?.Molecule ?? "-";
+    case "Organism":
+      return channel?.Organism?.["#text"] ?? "-";
+    case "Label Protocol":
+      return channel?.["Label-Protocol"] ?? "-";
+    case "Extract Protocol":
+      return channel?.["Extract-Protocol"] ?? "-";
+    case "Hybridization Protocol":
+      return sample.hybridization_protocol ?? "-";
+    case "Scan Protocol":
+      return sample.scan_protocol ?? "-";
+    default: {
+      const characteristics = channel?.Characteristics;
+
+      if (!characteristics) return "-";
+
+      if (Array.isArray(characteristics)) {
+        const hit = characteristics.find((c) => c["@tag"] === key);
+        return hit?.["#text"] ?? "-";
+      }
+
+      const one = characteristics as unknown as {
+        ["@tag"]?: string;
+        ["#text"]?: string;
+      };
+
+      return one["@tag"] === key ? one["#text"] ?? "-" : "-";
+    }
+  }
+}, []);
+
+
+const flatRows = React.useMemo<GeoRow[]>(() => {
+  if (!samples) return [];
+
+  return samples.flatMap((sample): GeoRow[] => {
+    const channels = sample.channels ?? [];
+
+    if (channels.length === 0) {
+      return [{ sample, channel: null, channelIdx: 0 }];
+    }
+
+    return channels.map((channel, channelIdx): GeoRow => ({
+      sample,
+      channel,
+      channelIdx,
+    }));
+  });
+}, [samples]);
+
+
+const sortedRows = React.useMemo(() => {
+  if (!sort) return flatRows;
+
+  const { key, direction } = sort;
+
+  return stableSort(flatRows, (a, b) => {
+    const va = normalize(getCellValue(a, key));
+    const vb = normalize(getCellValue(b, key));
+    const base = collator.compare(va, vb);
+    return direction === "asc" ? base : -base;
+  });
+}, [flatRows, sort, getCellValue]);
+
+
+function SortMenu({
+  label,
+  sort,
+  onSortChange,
+}: {
+  label: string;
+  sort: SortState;
+  onSortChange: (next: SortState) => void;
+}) {
+  const isActive = sort?.key === label;
+  const dir = isActive ? sort!.direction : null;
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <IconButton variant="ghost" size="1" aria-label={`Sort ${label}`}>
+          <CaretDownIcon />
+        </IconButton>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content>
+        <DropdownMenu.Item
+          onSelect={() => onSortChange({ key: label, direction: "asc" })}
+        >
+          <ArrowUpIcon /> Sort Ascending
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Item
+          onSelect={() => onSortChange({ key: label, direction: "desc" })}
+        >
+          <ArrowDownIcon /> Sort Descending
+        </DropdownMenu.Item>
+
+        <DropdownMenu.Separator />
+
+        <DropdownMenu.Item
+          disabled={!isActive}
+          onSelect={() => onSortChange(null)}
+        >
+          Clear sort
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  );
+}
+
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -659,215 +856,99 @@ export default function GeoProjectPage() {
                   variant="surface"
                   size={"1"}
                 >
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Sample
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                        Title
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "250px" }}>
-                        Description
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Channel Count
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Sample Type
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Platform
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "130px" }}>
-                        Channel Position
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "80px" }}>
-                        Label
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                        Source
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Molecule
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Organism
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Label Protocol
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Extract Protocol
-                      </Table.ColumnHeaderCell>
-                      {characteristicTags.map((tag) => (
-                        <Table.ColumnHeaderCell
-                          key={tag}
-                          style={{ minWidth: "120px" }}
-                        >
-                          {tag}
+                <Table.Header>
+                  <Table.Row>
+                    {columns.map((label) => {
+                      const isActive = sort?.key === label;
+                      const dir = isActive ? sort!.direction : null;
+                    
+                      const minWidth =
+                        label === "Title" || label === "Description" ? "250px"
+                        : label === "Label Protocol" || label === "Extract Protocol" ? "300px"
+                        : label === "Hybridization Protocol" || label === "Scan Protocol" ? "300px"
+                        : "120px";
+                    
+                      return (
+                        <Table.ColumnHeaderCell key={label} style={{ minWidth }}>
+                          <Flex align="center" justify="between" gap="2">
+                            <Flex align="center" gap="1">
+                              <span>{label}</span>
+                              {dir === "asc" ? <ArrowUpIcon /> : dir === "desc" ? <ArrowDownIcon /> : null}
+                            </Flex>
+                      
+                            <SortMenu label={label} sort={sort} onSortChange={setSort} />
+                          </Flex>
                         </Table.ColumnHeaderCell>
-                      ))}
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Hybridization Protocol
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Scan Protocol
-                      </Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {samples.flatMap((sample) => {
-                      const channels = sample.channels ?? [];
-                      if (channels.length === 0) {
-                        // Show sample with no channel data
-                        return (
-                          <Table.Row key={sample.accession}>
-                            <Table.RowHeaderCell>
-                              <Link
-                                href={
-                                  isArrayExpress
-                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
-                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.accession}
-                              </Link>
-                            </Table.RowHeaderCell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.title} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.description} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample.channel_count ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.platform_ref}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.platform_ref ?? "-"}
-                              </Link>
-                            </Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            {characteristicTags.map((tag) => (
-                              <Table.Cell key={tag}>-</Table.Cell>
-                            ))}
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={sample.hybridization_protocol}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.scan_protocol} />
-                            </Table.Cell>
-                          </Table.Row>
-                        );
-                      }
-                      return channels.map((channel, channelIdx) => {
-                        // Build a map of characteristic tag -> value for this channel
-                        const charMap = new Map<string, string>();
-
-                        if (Array.isArray(channel.Characteristics)) {
-                          channel.Characteristics.forEach((char) => {
-                            if (char["@tag"])
-                              charMap.set(char["@tag"], char["#text"] ?? "-");
-                          });
-                        } else if (
-                          channel.Characteristics &&
-                          typeof channel.Characteristics === "object"
-                        ) {
-                          if (channel.Characteristics["@tag"])
-                            charMap.set(
-                              channel.Characteristics["@tag"],
-                              channel.Characteristics["#text"] ?? "-",
-                            );
-                        }
-                        return (
-                          <Table.Row
-                            key={`${sample.accession}-ch${channelIdx}`}
-                          >
-                            <Table.RowHeaderCell>
-                              <Link
-                                href={
-                                  isArrayExpress
-                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
-                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.accession}
-                              </Link>
-                            </Table.RowHeaderCell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.title} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.description} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample.channel_count ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.platform_ref}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.platform_ref ?? "-"}
-                              </Link>
-                            </Table.Cell>
-                            <Table.Cell>
-                              {channel["@position"] ?? channelIdx + 1}
-                            </Table.Cell>
-                            <Table.Cell>{channel.Label ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={channel.Source} />
-                            </Table.Cell>
-                            <Table.Cell>{channel.Molecule ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              {channel.Organism?.["#text"] ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={channel["Label-Protocol"]} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={channel["Extract-Protocol"]}
-                              />
-                            </Table.Cell>
-                            {characteristicTags.map((tag) => (
-                              <Table.Cell key={tag}>
-                                {charMap.get(tag) ?? "-"}
-                              </Table.Cell>
-                            ))}
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={sample.hybridization_protocol}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.scan_protocol} />
-                            </Table.Cell>
-                          </Table.Row>
-                        );
-                      });
+                      );
                     })}
-                  </Table.Body>
+                  </Table.Row>
+                </Table.Header>
+                  
+                    <Table.Body>
+  {sortedRows.map((row) => {
+    const { sample, channel, channelIdx } = row;
+
+    const charMap = new Map<string, string>();
+    if (Array.isArray(channel?.Characteristics)) {
+      channel.Characteristics.forEach((char) => {
+        if (char["@tag"]) charMap.set(char["@tag"], char["#text"] ?? "-");
+      });
+    } else if (channel?.Characteristics && typeof channel.Characteristics === "object") {
+      // (kept safe; in case API sends single object)
+      const c = channel.Characteristics as unknown as { ["@tag"]?: string; ["#text"]?: string };
+      if (c["@tag"]) charMap.set(c["@tag"], c["#text"] ?? "-");
+    }
+
+    return (
+      <Table.Row key={`${sample.accession}-ch${channelIdx}`}>
+        <Table.RowHeaderCell>
+          <Link
+            href={
+              isArrayExpress
+                ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
+                : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {sample.accession}
+          </Link>
+        </Table.RowHeaderCell>
+
+        <Table.Cell><TruncatedCell text={sample.title} /></Table.Cell>
+        <Table.Cell><TruncatedCell text={sample.description} /></Table.Cell>
+        <Table.Cell>{sample.channel_count ?? "-"}</Table.Cell>
+        <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
+
+        <Table.Cell>
+          <Link
+            href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.platform_ref}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {sample.platform_ref ?? "-"}
+          </Link>
+        </Table.Cell>
+
+        <Table.Cell>{channel?.["@position"] ?? channelIdx + 1}</Table.Cell>
+        <Table.Cell>{channel?.Label ?? "-"}</Table.Cell>
+        <Table.Cell><TruncatedCell text={channel?.Source ?? "-"} /></Table.Cell>
+        <Table.Cell>{channel?.Molecule ?? "-"}</Table.Cell>
+        <Table.Cell>{channel?.Organism?.["#text"] ?? "-"}</Table.Cell>
+        <Table.Cell><TruncatedCell text={channel?.["Label-Protocol"] ?? "-"} /></Table.Cell>
+        <Table.Cell><TruncatedCell text={channel?.["Extract-Protocol"] ?? "-"} /></Table.Cell>
+
+        {characteristicTags.map((tag) => (
+          <Table.Cell key={tag}>{charMap.get(tag) ?? "-"}</Table.Cell>
+        ))}
+
+        <Table.Cell><TruncatedCell text={sample.hybridization_protocol ?? "-"} /></Table.Cell>
+        <Table.Cell><TruncatedCell text={sample.scan_protocol ?? "-"} /></Table.Cell>
+      </Table.Row>
+    );
+  })}
+</Table.Body>
+
                 </Table.Root>
               )}
             </Flex>
