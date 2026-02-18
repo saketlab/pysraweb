@@ -113,6 +113,7 @@ type Channel = {
 };
 
 type GeoSample = {
+  id?: string | number | null;
   accession: string;
   channel_count: number | null;
   channels: Channel[] | null;
@@ -738,11 +739,12 @@ export default function GeoProjectPage() {
                   </Table.Header>
                   <Table.Body>
                     {samples.flatMap((sample) => {
+                      const sampleRowKey = sample.id ?? sample.accession;
                       const channels = sample.channels ?? [];
                       if (channels.length === 0) {
                         // Show sample with no channel data
                         return (
-                          <Table.Row key={sample.accession}>
+                          <Table.Row key={`${sampleRowKey}-ch0`}>
                             <Table.RowHeaderCell>
                               <Link
                                 href={
@@ -817,7 +819,7 @@ export default function GeoProjectPage() {
                         }
                         return (
                           <Table.Row
-                            key={`${sample.accession}-ch${channelIdx}`}
+                            key={`${sampleRowKey}-ch${channelIdx}`}
                           >
                             <Table.RowHeaderCell>
                               <Link

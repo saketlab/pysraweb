@@ -39,7 +39,7 @@ export async function generateMetadata({
   let total: number | null = null;
   try {
     let url = `${API_BASE_URL}/search?q=${encodeURIComponent(q)}`;
-    if (db === "sra" || db === "geo") {
+    if (db === "sra" || db === "geo" || db === "arrayexpress") {
       url += `&db=${encodeURIComponent(db)}`;
     }
     const res = await fetch(url, { next: { revalidate: 60 } });

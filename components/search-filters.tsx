@@ -21,7 +21,9 @@ type SearchFiltersProps = {
   timeFilter: TimeFilter;
   customYearRange: { from: string; to: string };
   setCustomYearRange: (value: { from: string; to: string }) => void;
-  onDatabaseChange: (value: "geo" | "sra" | "both") => void;
+  onDatabaseChange: (
+    value: "geo" | "sra" | "arrayexpress" | "both",
+  ) => void;
 };
 
 export function SearchFilters({
@@ -82,16 +84,19 @@ export function SearchFilters({
           defaultValue={db ? db : "both"}
           onValueChange={(value) => {
             if (!query) return;
-            onDatabaseChange(value as "geo" | "sra" | "both");
+            onDatabaseChange(
+              value as "geo" | "sra" | "arrayexpress" | "both",
+            );
           }}
           size={"1"}
         >
           <Select.Trigger />
           <Select.Content>
             <Select.Group>
-              <Select.Item value="geo">From GEO</Select.Item>
-              <Select.Item value="sra">From SRA</Select.Item>
-              <Select.Item value="both">From GEO & SRA</Select.Item>
+              <Select.Item value="geo">Only GEO</Select.Item>
+              <Select.Item value="sra">Only SRA</Select.Item>
+              <Select.Item value="arrayexpress">Only ArrayExpress</Select.Item>
+              <Select.Item value="both">From all sources</Select.Item>
             </Select.Group>
           </Select.Content>
         </Select.Root>
@@ -110,12 +115,17 @@ export function SearchFilters({
           name="dataset"
           onValueChange={(value) => {
             if (!query) return;
-            onDatabaseChange(value as "geo" | "sra" | "both");
+            onDatabaseChange(
+              value as "geo" | "sra" | "arrayexpress" | "both",
+            );
           }}
         >
-          <RadioGroup.Item value="geo">From GEO</RadioGroup.Item>
-          <RadioGroup.Item value="sra">From SRA</RadioGroup.Item>
-          <RadioGroup.Item value="both">From GEO & SRA</RadioGroup.Item>
+          <RadioGroup.Item value="geo">Only GEO</RadioGroup.Item>
+          <RadioGroup.Item value="sra">Only SRA</RadioGroup.Item>
+          <RadioGroup.Item value="arrayexpress">
+            Only ArrayExpress
+          </RadioGroup.Item>
+          <RadioGroup.Item value="both">From all sources</RadioGroup.Item>
         </RadioGroup.Root>
 
         <Separator orientation={"horizontal"} size={"4"} />

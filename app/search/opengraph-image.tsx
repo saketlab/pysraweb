@@ -23,7 +23,7 @@ export default async function OpengraphImage({ searchParams }: Props) {
   if (query) {
     try {
       let url = `${API_BASE_URL}/search?q=${encodeURIComponent(query)}`;
-      if (db === "sra" || db === "geo") {
+      if (db === "sra" || db === "geo" || db === "arrayexpress") {
         url += `&db=${encodeURIComponent(db)}`;
       }
       const res = await fetch(url, { next: { revalidate: 60 } });

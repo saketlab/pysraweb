@@ -39,7 +39,7 @@ const getSearchResults = async (
   if (!query) return null;
 
   let url = `${SERVER_URL}/search?q=${encodeURIComponent(query)}`;
-  if (db === "sra" || db === "geo") {
+  if (db === "sra" || db === "geo" || db === "arrayexpress") {
     url += `&db=${encodeURIComponent(db)}`;
   }
   if (cursor) {
@@ -176,7 +176,7 @@ export default function SearchPageBody() {
     try {
       const params = new URLSearchParams();
       params.set("q", query);
-      if (db === "sra" || db === "geo") {
+      if (db === "sra" || db === "geo" || db === "arrayexpress") {
         params.set("db", db);
       }
 
@@ -222,11 +222,13 @@ export default function SearchPageBody() {
     }
   };
 
-  const handleDatabaseChange = (value: "geo" | "sra" | "both") => {
+  const handleDatabaseChange = (
+    value: "geo" | "sra" | "arrayexpress" | "both",
+  ) => {
     if (!query) return;
 
     let url = `/search?q=${encodeURIComponent(query)}`;
-    if (value === "sra" || value === "geo") {
+    if (value === "sra" || value === "geo" || value === "arrayexpress") {
       url += `&db=${encodeURIComponent(value)}`;
     }
 
