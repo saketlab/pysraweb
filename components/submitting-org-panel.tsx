@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Flex, Table, Text } from "@radix-ui/themes";
+import { Flex, Table, Text } from "@radix-ui/themes";
 import dynamic from "next/dynamic";
 import React from "react";
 
@@ -56,6 +56,10 @@ function buildDetails(c: CenterInfo): DetailRow[] {
   if (c.country_code && c.country_code !== c.country)
     rows.push({ label: "Country code", value: c.country_code });
   if (c.postcode) rows.push({ label: "Postal code", value: c.postcode });
+  if (c.latitude != null)
+    rows.push({ label: "Latitude", value: c.latitude.toFixed(6) });
+  if (c.longitude != null)
+    rows.push({ label: "Longitude", value: c.longitude.toFixed(6) });
   if (c.formatted_address)
     rows.push({ label: "Address", value: c.formatted_address });
   return rows;
@@ -83,7 +87,6 @@ export default function SubmittingOrgPanel({ center }: Props) {
       <Flex direction="column" gap="4">
         {entries.map((c, i) => {
           const details = buildDetails(c);
-          const hasCoords = c.latitude != null && c.longitude != null;
           return (
             <Flex key={i} direction="column" gap="2">
               <Table.Root variant="surface" size="1">
@@ -104,11 +107,6 @@ export default function SubmittingOrgPanel({ center }: Props) {
                   ))}
                 </Table.Body>
               </Table.Root>
-              {hasCoords && (
-                <Badge size="2" color="cyan" variant="soft">
-                  {c.latitude!.toFixed(6)}, {c.longitude!.toFixed(6)}
-                </Badge>
-              )}
             </Flex>
           );
         })}
