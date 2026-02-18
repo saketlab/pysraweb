@@ -1,14 +1,10 @@
 "use client";
 import GitHubButton from "@/components/github-button";
-import Logo from "@/components/logo";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
 import { useSearchQuery } from "@/context/search_query";
 import { useSearchHistory } from "@/utils/useSearchHistory";
-import {
-  HamburgerMenuIcon,
-  MagnifyingGlassIcon,
-} from "@radix-ui/react-icons";
+import { HamburgerMenuIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import {
   Box,
   DropdownMenu,
@@ -17,6 +13,8 @@ import {
   Link,
   TextField,
 } from "@radix-ui/themes";
+import { useTheme } from "next-themes";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -41,6 +39,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
   const { lastSearchQuery, setLastSearchQuery } = useSearchQuery();
   const resolvedQuery = (initialQuery ?? "") || lastSearchQuery;
   const [searchQuery, setSearchQuery] = useState(resolvedQuery);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setSearchQuery(resolvedQuery);
@@ -127,7 +126,11 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
       >
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            <IconButton variant="ghost" size="3" aria-label="Open navigation menu">
+            <IconButton
+              variant="ghost"
+              size="3"
+              aria-label="Open navigation menu"
+            >
               <HamburgerMenuIcon width={20} height={20} />
             </IconButton>
           </DropdownMenu.Trigger>
@@ -151,10 +154,17 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
         pt={"2"}
       >
         <Link href="/" style={{ textDecoration: "none" }}>
-          <Box width={{ initial: "6rem", md: "11rem" }}>
-            <Logo
-              style={{ width: "100%", height: "auto" }}
-              priority
+          <Box
+            width={{ initial: "10rem", md: "11rem" }}
+            style={{ position: "relative", aspectRatio: "619/103" }}
+          >
+            <Image
+              src={
+                resolvedTheme === "light" ? "/logo-light.svg" : "/logo-dark.svg"
+              }
+              alt="pysraweb"
+              fill
+              style={{ objectFit: "contain" }}
             />
           </Box>
         </Link>
@@ -182,8 +192,10 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
                   e.preventDefault();
                   setActiveIndex((prev) => {
                     if (prev === -1) return filteredHistory.length - 1;
-                    return (prev - 1 + filteredHistory.length) %
-                      filteredHistory.length;
+                    return (
+                      (prev - 1 + filteredHistory.length) %
+                      filteredHistory.length
+                    );
                   });
                 } else if (e.key === "Enter") {
                   if (activeIndex >= 0) {
@@ -209,9 +221,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
             filteredHistory={filteredHistory}
             onHistoryClick={handleHistoryClick}
             onRemoveItem={removeItem}
-            activeItem={
-              activeIndex >= 0 ? filteredHistory[activeIndex] : null
-            }
+            activeItem={activeIndex >= 0 ? filteredHistory[activeIndex] : null}
             position="absolute"
           />
         </Box>

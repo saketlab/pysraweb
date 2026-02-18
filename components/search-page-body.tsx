@@ -1,7 +1,7 @@
 "use client";
 import ResultCard from "@/components/result-card";
-import { SearchFilters, SearchOrganismRail } from "@/components/search-filters";
 import SearchBar from "@/components/search-bar";
+import { SearchFilters, SearchOrganismRail } from "@/components/search-filters";
 import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResult } from "@/utils/types";
@@ -74,7 +74,6 @@ export default function SearchPageBody() {
     from: string;
     to: string;
   }>({ from: "", to: "" });
-
 
   const [selectedOrganism, setSelectedOrganism] = useState<string | null>(null);
 
@@ -163,11 +162,10 @@ export default function SearchPageBody() {
   });
 
   const organismFilteredResults = selectedOrganism
-  ? timeFilteredResults.filter((result) =>
-      (result.organisms ?? []).includes(selectedOrganism)
-    )
-  : timeFilteredResults;
-
+    ? timeFilteredResults.filter((result) =>
+        (result.organisms ?? []).includes(selectedOrganism),
+      )
+    : timeFilteredResults;
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -240,10 +238,10 @@ export default function SearchPageBody() {
       {/* Navbar and search */}
       <SearchBar initialQuery={query} />
 
-      {/* Search results and filters */} 
+      {/* Search results and filters */}
       {/* Parent Flex */}
       <Flex
-        gap={{ initial: "4", md: "8" }}
+        gap={"4"}
         p={"4"}
         justify={{ initial: "start", md: "between" }}
         direction={{ initial: "column", md: "row" }}
@@ -259,11 +257,11 @@ export default function SearchPageBody() {
           onDatabaseChange={handleDatabaseChange}
         />
 
-          {/* Child Flex-3 : handles middle col */}
+        {/* Child Flex-3 : handles middle col */}
         <Flex
           gap="4"
           direction="column"
-          width={{ initial: "100%", md: "58%", lg: "60%" }}
+          width={{ initial: "100%", md: "58%", lg: "65%", xl: "73%" }}
         >
           {!query ? (
             <Text>Start by typing a search query above.</Text>
@@ -271,7 +269,9 @@ export default function SearchPageBody() {
             <>
               <Flex gap="2" align="center">
                 <Spinner size="1" />
-                <Text color="gray" weight="light">Fetching results...</Text>
+                <Text color="gray" weight="light">
+                  Fetching results...
+                </Text>
               </Flex>
               <Skeleton width={"100%"} height={"6rem"} />
               <Skeleton width={"100%"} height={"6rem"} />
@@ -300,7 +300,7 @@ export default function SearchPageBody() {
                 Check your network connection
               </Text>
             </Flex>
-              ) : searchResults.length > 0 ? (
+          ) : searchResults.length > 0 ? (
             <>
               <Text color="gray" weight={"light"}>
                 Fetched {total} result{total == 1 ? "" : "s"} in{" "}
@@ -379,7 +379,6 @@ export default function SearchPageBody() {
             setSelectedOrganism={setSelectedOrganism}
           />
         ) : null}
-
 
         {organismFilteredResults.length > 0 && (
           <Flex

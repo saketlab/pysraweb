@@ -102,7 +102,7 @@ export function SearchFilters({
         gap={"4"}
         display={{ initial: "none", md: "flex" }}
         position={"sticky"}
-        style={{ top: "7rem" }}
+        style={{ top: "9rem" }}
         height={"fit-content"}
       >
         <RadioGroup.Root
