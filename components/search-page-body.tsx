@@ -129,6 +129,10 @@ export default function SearchPageBody() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
 
+  const shouldShowOrganismRail = !isLoading && !isError && searchResults.length > 0;
+  const shouldReserveRailSpace =
+    isLoading || (!!query && (isError || searchResults.length === 0));
+
   useEffect(() => {
     const onScroll = () => {
       setShowTopButton(window.scrollY > 200);
@@ -368,13 +372,13 @@ export default function SearchPageBody() {
           )}
         </Flex>
 
-        {isLoading ? (
+        {shouldReserveRailSpace ? (
           <Flex
             display={{ initial: "none", md: "flex" }}
             direction="column"
             width={{ md: "220px", lg: "280px" }}
           />
-        ) : !isError && searchResults.length > 0 ? (
+        ) : shouldShowOrganismRail ? (
           <SearchOrganismRail
             results={searchResults}
             selectedOrganism={selectedOrganism}
