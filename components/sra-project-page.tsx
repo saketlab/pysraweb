@@ -11,6 +11,8 @@ import SubmittingOrgPanel, {
 import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { SERVER_URL } from "@/utils/constants";
 import {
+  CheckIcon,
+  CopyIcon,
   DownloadIcon,
   EnterIcon,
   ExternalLinkIcon,
@@ -25,11 +27,12 @@ import {
   Spinner,
   Table,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import React from "react";
+import React, { useState } from "react";
 
 type Project = {
   accession: string;
@@ -360,6 +363,7 @@ export default function ProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
   const isArrayExpressAccession = accession?.toUpperCase().startsWith("E-") ?? false;
+  const [isAccessionCopied, setIsAccessionCopied] = useState(false);
   // abstract expansion handled by ProjectSummary component
   const {
     data: project,
@@ -402,6 +406,17 @@ export default function ProjectPage() {
     queryFn: () => fetchPubMedData(pubmedIds),
     enabled: pubmedIds.length > 0,
   });
+
+  const handleCopyAccession = async () => {
+    if (!accession) return;
+    try {
+      await navigator.clipboard.writeText(accession);
+      setIsAccessionCopied(true);
+      window.setTimeout(() => setIsAccessionCopied(false), 1500);
+    } catch (error) {
+      console.error("Failed to copy accession:", error);
+    }
+  };
 
   // Compute unique attribute keys from all samples
   const attributeKeys = React.useMemo(() => {
@@ -510,7 +525,28 @@ export default function ProjectPage() {
                 color={isArrayExpressAccession ? "iris" : "brown"}
                 variant={isArrayExpressAccession ? "solid" : undefined}
               >
-                {accession}
+                <Flex align="center" gap="1">
+                  <Text>{accession}</Text>
+                  <Tooltip content="Copy accession">
+                    <button
+                      type="button"
+                      onClick={handleCopyAccession}
+                      aria-label="Copy accession"
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        padding: 0,
+                        margin: 0,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isAccessionCopied ? <CheckIcon /> : <CopyIcon />}
+                    </button>
+                  </Tooltip>
+                </Flex>
               </Badge>
               <Badge size={{ initial: "1", md: "3" }} color="gray">
                 {isExperimentsLoading

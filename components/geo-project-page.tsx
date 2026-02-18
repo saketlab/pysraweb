@@ -13,6 +13,8 @@ import TextWithLineBreaks, {
 } from "@/components/text-with-line-breaks";
 import { SERVER_URL } from "@/utils/constants";
 import {
+  CheckIcon,
+  CopyIcon,
   DownloadIcon,
   EnterIcon,
   ExternalLinkIcon,
@@ -27,6 +29,7 @@ import {
   Spinner,
   Table,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
@@ -237,6 +240,7 @@ export default function GeoProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
   const isArrayExpress = accession?.toUpperCase().startsWith("E-") ?? false;
+  const [isAccessionCopied, setIsAccessionCopied] = useState(false);
 
   const {
     data: project,
@@ -266,6 +270,17 @@ export default function GeoProjectPage() {
     queryFn: () => fetchSamples(accession!),
     enabled: !!accession,
   });
+
+  const handleCopyAccession = async () => {
+    if (!accession) return;
+    try {
+      await navigator.clipboard.writeText(accession);
+      setIsAccessionCopied(true);
+      window.setTimeout(() => setIsAccessionCopied(false), 1500);
+    } catch (error) {
+      console.error("Failed to copy accession:", error);
+    }
+  };
 
   // Collect all unique characteristic tags across all samples and channels
   const characteristicTags = React.useMemo(() => {
@@ -376,7 +391,28 @@ export default function GeoProjectPage() {
                 color={isArrayExpress ? "iris" : undefined}
                 variant={isArrayExpress ? "solid" : undefined}
               >
-                {accession}
+                <Flex align="center" gap="1">
+                  <Text>{accession}</Text>
+                  <Tooltip content="Copy accession">
+                    <button
+                      type="button"
+                      onClick={handleCopyAccession}
+                      aria-label="Copy accession"
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        padding: 0,
+                        margin: 0,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isAccessionCopied ? <CheckIcon /> : <CopyIcon />}
+                    </button>
+                  </Tooltip>
+                </Flex>
               </Badge>
               {samples && samples.length > 0 && (
                 <Badge size={{ initial: "1", md: "3" }} color="gray">
