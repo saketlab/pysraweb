@@ -28,7 +28,12 @@ export default function SubmittingOrgMap({ markers }: Props) {
     <MapContainer
       center={center}
       zoom={3}
-      style={{ height: "300px", width: "100%", borderRadius: "8px" }}
+      style={{
+        height: "100%",
+        minHeight: "300px",
+        width: "100%",
+        borderRadius: "8px",
+      }}
       scrollWheelZoom={false}
     >
       <TileLayer

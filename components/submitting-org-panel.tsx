@@ -1,6 +1,6 @@
 "use client";
 
-import { Flex, Table, Text } from "@radix-ui/themes";
+import { Box, Flex, Table, Text } from "@radix-ui/themes";
 import dynamic from "next/dynamic";
 import React from "react";
 
@@ -27,7 +27,8 @@ const LeafletMap = dynamic(() => import("./submitting-org-map"), {
   loading: () => (
     <div
       style={{
-        height: "300px",
+        height: "100%",
+        minHeight: "300px",
         width: "100%",
         borderRadius: "8px",
         background: "var(--gray-3)",
@@ -84,34 +85,56 @@ export default function SubmittingOrgPanel({ center }: Props) {
       <Text weight="medium" size="6">
         Submitting organization
       </Text>
-      <Flex direction="column" gap="4">
-        {entries.map((c, i) => {
-          const details = buildDetails(c);
-          return (
-            <Flex key={i} direction="column" gap="2">
-              <Table.Root variant="surface" size="1">
-                <Table.Body>
-                  {details.map((row) => (
-                    <Table.Row key={row.label}>
-                      <Table.RowHeaderCell
-                        style={{ width: "140px", whiteSpace: "nowrap" }}
-                      >
-                        <Text size="2" weight="medium">
-                          {row.label}
-                        </Text>
-                      </Table.RowHeaderCell>
-                      <Table.Cell>
-                        <Text size="2">{row.value}</Text>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Root>
-            </Flex>
-          );
-        })}
+      <Flex
+        direction={{ initial: "column", md: "row" }}
+        gap="4"
+        align="stretch"
+      >
+        <Flex
+          direction="column"
+          gap="4"
+          style={{ flex: "1 1 0", minWidth: 0, width: "100%" }}
+        >
+          {entries.map((c, i) => {
+            const details = buildDetails(c);
+            return (
+              <Flex key={i} direction="column" gap="2">
+                <Table.Root variant="surface" size="1">
+                  <Table.Body>
+                    {details.map((row) => (
+                      <Table.Row key={row.label}>
+                        <Table.RowHeaderCell
+                          style={{ width: "140px", whiteSpace: "nowrap" }}
+                        >
+                          <Text size="2" weight="medium">
+                            {row.label}
+                          </Text>
+                        </Table.RowHeaderCell>
+                        <Table.Cell>
+                          <Text size="2">{row.value}</Text>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Root>
+              </Flex>
+            );
+          })}
+        </Flex>
         {markersWithCoords.length > 0 && (
-          <LeafletMap markers={markersWithCoords} />
+          <Box
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              alignSelf: "stretch",
+              display: "flex",
+              minHeight: "300px",
+            }}
+          >
+            <Box style={{ flex: 1, minHeight: "300px" }}>
+              <LeafletMap markers={markersWithCoords} />
+            </Box>
+          </Box>
         )}
       </Flex>
     </>
