@@ -52,7 +52,10 @@ export function useSearchHistory() {
       "PRJ",
     ];
 
-    if (isSingleTerm && normalized.startsWith("GSE")) {
+    if (
+      isSingleTerm &&
+      (normalized.startsWith("GSE") || normalized.startsWith("E-"))
+    ) {
       navigate(getProjectShortUrl(normalized));
     } else if (
       isSingleTerm &&
