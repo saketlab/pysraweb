@@ -359,6 +359,7 @@ const ABSTRACT_CHAR_LIMIT = 350;
 export default function ProjectPage() {
   const params = useParams();
   const accession = params.accession as string | undefined;
+  const isArrayExpressAccession = accession?.toUpperCase().startsWith("E-") ?? false;
   // abstract expansion handled by ProjectSummary component
   const {
     data: project,
@@ -504,7 +505,11 @@ export default function ProjectPage() {
               </Text>
             </Flex>
             <Flex justify="start" align={"center"} gap="2" wrap={"wrap"}>
-              <Badge size={{ initial: "1", md: "3" }} color="brown">
+              <Badge
+                size={{ initial: "1", md: "3" }}
+                color={isArrayExpressAccession ? "iris" : "brown"}
+                variant={isArrayExpressAccession ? "solid" : undefined}
+              >
                 {accession}
               </Badge>
               <Badge size={{ initial: "1", md: "3" }} color="gray">

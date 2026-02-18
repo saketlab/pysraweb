@@ -16,6 +16,7 @@ export default function ResultCard({
   updated_at,
 }: ResultCardProps) {
   const router = useRouter();
+  const isArrayExpressAccession = accesssion.toUpperCase().startsWith("E-");
 
   const handleClick = () => {
     router.push(getProjectShortUrl(accesssion));
@@ -38,7 +39,14 @@ export default function ResultCard({
         <Flex gap={"2"} align={"center"}>
           <Badge
             size={"2"}
-            color={accesssion.startsWith("G") ? undefined : "brown"}
+            color={
+              isArrayExpressAccession
+                ? "iris"
+                : accesssion.startsWith("G")
+                  ? undefined
+                  : "brown"
+            }
+            variant={isArrayExpressAccession ? "solid" : undefined}
           >
             {accesssion}
           </Badge>

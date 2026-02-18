@@ -370,7 +370,13 @@ export default function GeoProjectPage() {
               </Text>
             </Flex>
             <Flex justify={"start"} align="center" gap="2" wrap="wrap">
-              <Badge size={{ initial: "1", md: "3" }}>{accession}</Badge>
+              <Badge
+                size={{ initial: "1", md: "3" }}
+                color={isArrayExpress ? "iris" : undefined}
+                variant={isArrayExpress ? "solid" : undefined}
+              >
+                {accession}
+              </Badge>
               {samples && samples.length > 0 && (
                 <Badge size={{ initial: "1", md: "3" }} color="gray">
                   {samples.length} {samples.length === 1 ? "Sample" : "Samples"}
