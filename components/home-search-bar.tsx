@@ -1,20 +1,31 @@
+"use client";
+
 import { Box, Flex, Text } from "@radix-ui/themes";
+import { useTheme } from "next-themes";
+import Image from "next/image";
 import HeroSearchBar from "./hero-search-bar";
-import Logo from "./logo";
 
 export default function HomeSearchBar() {
+  const { resolvedTheme } = useTheme();
+
   return (
     <Flex
       justify="center"
       align="center"
       direction="column"
       gap="4"
-      mt={{ initial: "4rem" }}
+      mt={{ initial: "8rem" }}
     >
-      <Box pb={"3"}>
-        <Logo
-          style={{ width: "min(22rem, 80vw)", height: "auto" }}
-          priority
+      <Box
+        pb={"3"}
+        width={{ initial: "16rem", md: "20rem", lg: "28rem" }}
+        style={{ position: "relative", aspectRatio: "619/103" }}
+      >
+        <Image
+          src={resolvedTheme === "light" ? "/logo-light.svg" : "/logo-dark.svg"}
+          alt="pysraweb"
+          fill
+          style={{ objectFit: "contain" }}
         />
       </Box>
       <Text
@@ -23,7 +34,7 @@ export default function HomeSearchBar() {
         size={{ initial: "1", md: "3" }}
         style={{ userSelect: "none" }}
       >
-        Discover GEO & SRA datasets
+        Explore sequence datasets
       </Text>
       <HeroSearchBar />
     </Flex>
