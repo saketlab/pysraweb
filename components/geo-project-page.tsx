@@ -224,6 +224,7 @@ const fetchProject = async (
 // };
 
 const SUMMARY_CHAR_LIMIT = 350;
+const OVERALL_DESIGN_CHAR_LIMIT = 350;
 
 export default function GeoProjectPage() {
   const params = useParams();
@@ -520,7 +521,10 @@ export default function GeoProjectPage() {
             <Text weight="medium" size="6">
               Overall design
             </Text>
-            <Text>{project.overall_design}</Text>
+            <ProjectSummary
+              text={project.overall_design}
+              charLimit={OVERALL_DESIGN_CHAR_LIMIT}
+            />
 
             {/* Samples table */}
             <Flex justify={"between"} align={"center"}>
