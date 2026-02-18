@@ -9,7 +9,14 @@ import SubmittingOrgPanel, {
   CenterInfo,
 } from "@/components/submitting-org-panel";
 import TextWithLineBreaks from "@/components/text-with-line-breaks";
+import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import {
   CheckIcon,
   CopyIcon,
@@ -25,14 +32,16 @@ import {
   Flex,
   Link,
   Spinner,
-  Table,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
+
+ensureAgGridModules();
 
 type Project = {
   accession: string;
@@ -100,6 +109,28 @@ type Sample = {
   scientific_name: string | null;
   taxon_id: string | null;
   attributes_json: Record<string, string> | null;
+};
+
+type ExperimentGridRow = {
+  rowKey: string;
+  accession: string;
+  title: string | null;
+  library: string | null;
+  layout: string | null;
+  platform: string | null;
+  instrument: string | null;
+  sample: string | null;
+  sampleAlias: string | null;
+  sampleTitle: string | null;
+  description: string | null;
+  scientificName: string | null;
+  taxonId: string | null;
+  attributes: Record<string, string>;
+};
+
+const toDisplayText = (value: unknown): string => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
 };
 
 const fetchProject = async (
@@ -361,9 +392,12 @@ const ABSTRACT_CHAR_LIMIT = 350;
 
 export default function ProjectPage() {
   const params = useParams();
+  const { resolvedTheme } = useTheme();
   const accession = params.accession as string | undefined;
   const isArrayExpressAccession = accession?.toUpperCase().startsWith("E-") ?? false;
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
+  const agGridThemeClassName =
+    resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
   // abstract expansion handled by ProjectSummary component
   const {
     data: project,
@@ -431,6 +465,190 @@ export default function ProjectPage() {
 
     return Array.from(keys);
   }, [samplesMap]);
+
+  const experimentRows = React.useMemo<ExperimentGridRow[]>(() => {
+    if (!experiments) return [];
+
+    return experiments.map((experiment) => {
+      const sampleAccession = experiment.samples[0] ?? null;
+      const sample =
+        sampleAccession && samplesMap ? samplesMap.get(sampleAccession) : null;
+
+      return {
+        rowKey: experiment.accession,
+        accession: experiment.accession,
+        title: experiment.title,
+        library: experiment.library_name ?? experiment.library_strategy,
+        layout: experiment.library_layout,
+        platform: experiment.platform,
+        instrument: experiment.instrument_model,
+        sample: sampleAccession,
+        sampleAlias: sample?.alias ?? null,
+        sampleTitle: sample?.title ?? null,
+        description: sample?.description ?? null,
+        scientificName: sample?.scientific_name ?? null,
+        taxonId: sample?.taxon_id ?? null,
+        attributes: sample?.attributes_json ?? {},
+      };
+    });
+  }, [experiments, samplesMap]);
+
+  const experimentsGridDefaultColDef = React.useMemo<ColDef<ExperimentGridRow>>(
+    () => ({
+      filter: true,
+      resizable: true,
+      sortable: true,
+    }),
+    [],
+  );
+
+  const experimentColumnDefs = React.useMemo<ColDef<ExperimentGridRow>[]>(
+    () => [
+      {
+        headerName: "Accession",
+        field: "accession",
+        minWidth: 140,
+        pinned: "left",
+        cellRenderer: (params: ICellRendererParams<ExperimentGridRow>) => {
+          const experimentAccession = toDisplayText(params.value);
+          if (experimentAccession === "-") return "-";
+          return (
+            <Link
+              href={`https://www.ncbi.nlm.nih.gov/sra/${experimentAccession}[accn]`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {experimentAccession}
+            </Link>
+          );
+        },
+      },
+      {
+        headerName: "Title",
+        field: "title",
+        minWidth: 220,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Library",
+        field: "library",
+        minWidth: 140,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Layout",
+        field: "layout",
+        minWidth: 120,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Platform",
+        field: "platform",
+        minWidth: 130,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Instrument",
+        field: "instrument",
+        minWidth: 150,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Sample",
+        field: "sample",
+        minWidth: 130,
+        cellRenderer: (params: ICellRendererParams<ExperimentGridRow>) => {
+          const sampleAccession = toDisplayText(params.value);
+          if (sampleAccession === "-") return "-";
+          if (
+            sampleAccession.startsWith("SRS") ||
+            sampleAccession.startsWith("ERS") ||
+            sampleAccession.startsWith("DRS")
+          ) {
+            return (
+              <Link
+                href={`https://www.ncbi.nlm.nih.gov/sra/${sampleAccession}[accn]`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {sampleAccession}
+              </Link>
+            );
+          }
+          return <span>{sampleAccession}</span>;
+        },
+      },
+      {
+        headerName: "Sample Alias",
+        field: "sampleAlias",
+        minWidth: 150,
+        cellRenderer: (params: ICellRendererParams<ExperimentGridRow>) => {
+          const sampleAlias = toDisplayText(params.value);
+          if (sampleAlias === "-") return "-";
+          if (sampleAlias.startsWith("GSM")) {
+            return (
+              <Link
+                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sampleAlias}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {sampleAlias}
+              </Link>
+            );
+          }
+          if (sampleAlias.startsWith("SAM")) {
+            return (
+              <Link
+                href={`https://www.ncbi.nlm.nih.gov/biosample/${sampleAlias}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {sampleAlias}
+              </Link>
+            );
+          }
+          return <span>{sampleAlias}</span>;
+        },
+      },
+      {
+        headerName: "Sample Title",
+        field: "sampleTitle",
+        minWidth: 220,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Description",
+        field: "description",
+        minWidth: 240,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<ExperimentGridRow>) => {
+          const value = toDisplayText(params.value);
+          if (value === "-") return "-";
+          return <TextWithLineBreaks text={value} />;
+        },
+      },
+      {
+        headerName: "Scientific Name",
+        field: "scientificName",
+        minWidth: 200,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Taxon ID",
+        field: "taxonId",
+        minWidth: 120,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      ...attributeKeys.map((key): ColDef<ExperimentGridRow> => ({
+        headerName: key,
+        minWidth: 170,
+        valueGetter: (params: ValueGetterParams<ExperimentGridRow>) =>
+          params.data?.attributes[key] ?? "-",
+      })),
+    ],
+    [attributeKeys],
+  );
 
   // const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
   //   queryKey: ["similarProjects", project?.abstract],
@@ -781,154 +999,19 @@ export default function ProjectPage() {
                 experiments &&
                 experiments.length > 0 && (
                   <div
+                    className={agGridThemeClassName}
                     style={{
                       width: "100%",
-                      overflowX: "auto",
-                      WebkitOverflowScrolling: "touch",
-                      maxHeight: "500px",
-                      overflowY: "auto",
+                      height: "500px",
                     }}
                   >
-                    <Table.Root
-                      style={{
-                        width: "100%",
-                        minWidth: "800px",
-                      }}
-                      variant="surface"
-                    >
-                    <Table.Header
-                      style={{
-                        overflow: "scroll",
-                        maxHeight: "30rem",
-                      }}
-                    >
-                      <Table.Row>
-                        <Table.ColumnHeaderCell>
-                          Accession
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Title
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Library</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Layout</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Platform
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Instrument
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>Sample</Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Sample Alias
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Sample Title
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Description
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                          Scientific Name
-                        </Table.ColumnHeaderCell>
-                        <Table.ColumnHeaderCell>
-                          Taxon ID
-                        </Table.ColumnHeaderCell>
-                        {attributeKeys.map((key) => (
-                          <Table.ColumnHeaderCell
-                            style={{ minWidth: "150px" }}
-                            key={key}
-                          >
-                            {key}
-                          </Table.ColumnHeaderCell>
-                        ))}
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {experiments.map((e) => {
-                        const sampleAcc = e.samples[0];
-                        const sample =
-                          sampleAcc && samplesMap
-                            ? samplesMap.get(sampleAcc)
-                            : null;
-                        return (
-                          <Table.Row key={e.accession}>
-                            <Table.RowHeaderCell>
-                              <Link
-                                href={`https://www.ncbi.nlm.nih.gov/sra/${e.accession}[accn]`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {e.accession}
-                              </Link>
-                            </Table.RowHeaderCell>
-                            <Table.Cell>{e.title ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              {e.library_name ?? e.library_strategy ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{e.library_layout ?? "-"}</Table.Cell>
-                            <Table.Cell>{e.platform ?? "-"}</Table.Cell>
-                            <Table.Cell>{e.instrument_model ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              {(sampleAcc &&
-                                (sampleAcc.startsWith("SRS") ||
-                                  sampleAcc.startsWith("ERS"))) ||
-                              sampleAcc.startsWith("DRS") ? (
-                                <Link
-                                  href={`https://www.ncbi.nlm.nih.gov/sra/${sampleAcc}[accn]`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  {sampleAcc}
-                                </Link>
-                              ) : (
-                                <span>{sampleAcc ?? "-"}</span>
-                              )}
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample?.alias &&
-                              sample.alias.startsWith("GSM") ? (
-                                <Link
-                                  href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.alias}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  {sample.alias}
-                                </Link>
-                              ) : sample?.alias &&
-                                sample.alias.startsWith("SAM") ? (
-                                <Link
-                                  href={`https://www.ncbi.nlm.nih.gov/biosample/${sample.alias}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  {sample.alias}
-                                </Link>
-                              ) : (
-                                <span>{sample?.alias ?? "-"}</span>
-                              )}
-                            </Table.Cell>
-                            <Table.Cell>{sample?.title ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              {sample?.description ? (
-                                <TextWithLineBreaks text={sample.description} />
-                              ) : (
-                                "-"
-                              )}
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample?.scientific_name ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{sample?.taxon_id ?? "-"}</Table.Cell>
-                            {attributeKeys.map((key) => (
-                              <Table.Cell key={key}>
-                                {sample?.attributes_json?.[key] ?? "-"}
-                              </Table.Cell>
-                            ))}
-                          </Table.Row>
-                        );
-                      })}
-                    </Table.Body>
-                  </Table.Root>
+                    <AgGridReact<ExperimentGridRow>
+                      columnDefs={experimentColumnDefs}
+                      defaultColDef={experimentsGridDefaultColDef}
+                      getRowId={(params) => params.data.rowKey}
+                      rowData={experimentRows}
+                      theme="legacy"
+                    />
                   </div>
                 )}
             </Flex>

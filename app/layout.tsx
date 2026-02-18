@@ -1,4 +1,6 @@
 import Wrapper from "@/components/wrapper";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-quartz.css";
 import "@radix-ui/themes/styles.css";
 import type { Metadata } from "next";
 import Script from "next/script";

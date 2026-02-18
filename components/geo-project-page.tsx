@@ -11,7 +11,14 @@ import SubmittingOrgPanel, {
 import TextWithLineBreaks, {
   normalizeLineBreakText,
 } from "@/components/text-with-line-breaks";
+import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import {
   CheckIcon,
   CopyIcon,
@@ -27,14 +34,16 @@ import {
   Flex,
   Link,
   Spinner,
-  Table,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
+
+ensureAgGridModules();
 
 // Component to truncate text in table cells with more/less toggle
 function TruncatedCell({
@@ -129,6 +138,31 @@ type GeoSample = {
   sample_type: string | null;
   hybridization_protocol: string | null;
   scan_protocol: string | null;
+};
+
+type GeoSampleGridRow = {
+  rowKey: string;
+  sample: string | null;
+  title: string | null;
+  description: string | null;
+  channelCount: number | null;
+  sampleType: string | null;
+  platform: string | null;
+  channelPosition: string | number | null;
+  label: string | null;
+  source: string | null;
+  molecule: string | null;
+  organism: string | null;
+  labelProtocol: string | null;
+  extractProtocol: string | null;
+  hybridizationProtocol: string | null;
+  scanProtocol: string | null;
+  characteristics: Record<string, string>;
+};
+
+const toDisplayText = (value: unknown): string => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value);
 };
 
 const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
@@ -238,9 +272,12 @@ const OVERALL_DESIGN_CHAR_LIMIT = 350;
 
 export default function GeoProjectPage() {
   const params = useParams();
+  const { resolvedTheme } = useTheme();
   const accession = params.accession as string | undefined;
   const isArrayExpress = accession?.toUpperCase().startsWith("E-") ?? false;
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
+  const agGridThemeClassName =
+    resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
   const {
     data: project,
@@ -303,6 +340,242 @@ export default function GeoProjectPage() {
     });
     return Array.from(tags);
   }, [samples]);
+
+  const sampleRows = React.useMemo<GeoSampleGridRow[]>(() => {
+    if (!samples) return [];
+
+    return samples.flatMap((sample) => {
+      const sampleRowKey = String(sample.id ?? sample.accession);
+      const channels = sample.channels ?? [];
+
+      if (channels.length === 0) {
+        return [
+          {
+            rowKey: `${sampleRowKey}-ch0`,
+            sample: sample.accession,
+            title: sample.title,
+            description: sample.description,
+            channelCount: sample.channel_count,
+            sampleType: sample.sample_type,
+            platform: sample.platform_ref,
+            channelPosition: "-",
+            label: "-",
+            source: "-",
+            molecule: "-",
+            organism: "-",
+            labelProtocol: "-",
+            extractProtocol: "-",
+            hybridizationProtocol: sample.hybridization_protocol,
+            scanProtocol: sample.scan_protocol,
+            characteristics: {},
+          },
+        ];
+      }
+
+      return channels.map((channel, channelIdx) => {
+        const characteristics: Record<string, string> = {};
+
+        if (Array.isArray(channel.Characteristics)) {
+          channel.Characteristics.forEach((char) => {
+            if (char["@tag"]) {
+              characteristics[char["@tag"]] = char["#text"] ?? "-";
+            }
+          });
+        } else if (
+          channel.Characteristics &&
+          typeof channel.Characteristics === "object" &&
+          channel.Characteristics["@tag"]
+        ) {
+          characteristics[channel.Characteristics["@tag"]] =
+            channel.Characteristics["#text"] ?? "-";
+        }
+
+        return {
+          rowKey: `${sampleRowKey}-ch${channelIdx}`,
+          sample: sample.accession,
+          title: sample.title,
+          description: sample.description,
+          channelCount: sample.channel_count,
+          sampleType: sample.sample_type,
+          platform: sample.platform_ref,
+          channelPosition: channel["@position"] ?? channelIdx + 1,
+          label: channel.Label,
+          source: channel.Source,
+          molecule: channel.Molecule,
+          organism: channel.Organism?.["#text"] ?? "-",
+          labelProtocol: channel["Label-Protocol"],
+          extractProtocol: channel["Extract-Protocol"],
+          hybridizationProtocol: sample.hybridization_protocol,
+          scanProtocol: sample.scan_protocol,
+          characteristics,
+        };
+      });
+    });
+  }, [samples]);
+
+  const sampleGridDefaultColDef = React.useMemo<ColDef<GeoSampleGridRow>>(
+    () => ({
+      filter: true,
+      resizable: true,
+      sortable: true,
+    }),
+    [],
+  );
+
+  const sampleColumnDefs = React.useMemo<ColDef<GeoSampleGridRow>[]>(
+    () => [
+      {
+        headerName: "Sample",
+        field: "sample",
+        minWidth: 140,
+        pinned: "left",
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => {
+          const sampleAccession = toDisplayText(params.value);
+          if (sampleAccession === "-") return "-";
+          const href = isArrayExpress
+            ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
+            : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sampleAccession}`;
+          return (
+            <Link href={href} target="_blank" rel="noopener noreferrer">
+              {sampleAccession}
+            </Link>
+          );
+        },
+      },
+      {
+        headerName: "Title",
+        field: "title",
+        minWidth: 220,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      {
+        headerName: "Description",
+        field: "description",
+        minWidth: 260,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      {
+        headerName: "Channel Count",
+        field: "channelCount",
+        minWidth: 140,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Sample Type",
+        field: "sampleType",
+        minWidth: 140,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Platform",
+        field: "platform",
+        minWidth: 140,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => {
+          const platform = toDisplayText(params.value);
+          if (platform === "-") return "-";
+          return (
+            <Link
+              href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${platform}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {platform}
+            </Link>
+          );
+        },
+      },
+      {
+        headerName: "Channel Position",
+        field: "channelPosition",
+        minWidth: 150,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Label",
+        field: "label",
+        minWidth: 120,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Source",
+        field: "source",
+        minWidth: 220,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      {
+        headerName: "Molecule",
+        field: "molecule",
+        minWidth: 140,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Organism",
+        field: "organism",
+        minWidth: 160,
+        valueFormatter: (params) => toDisplayText(params.value),
+      },
+      {
+        headerName: "Label Protocol",
+        field: "labelProtocol",
+        minWidth: 300,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      {
+        headerName: "Extract Protocol",
+        field: "extractProtocol",
+        minWidth: 300,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      ...characteristicTags.map((tag): ColDef<GeoSampleGridRow> => ({
+        headerName: tag,
+        minWidth: 140,
+        valueGetter: (params: ValueGetterParams<GeoSampleGridRow>) =>
+          params.data?.characteristics[tag] ?? "-",
+      })),
+      {
+        headerName: "Hybridization Protocol",
+        field: "hybridizationProtocol",
+        minWidth: 300,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+      {
+        headerName: "Scan Protocol",
+        field: "scanProtocol",
+        minWidth: 300,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<GeoSampleGridRow>) => (
+          <TruncatedCell text={toDisplayText(params.value)} />
+        ),
+      },
+    ],
+    [accession, characteristicTags, isArrayExpress],
+  );
+
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -706,227 +979,21 @@ export default function GeoProjectPage() {
                 </Text>
               )}
               {!isSamplesLoading && samples && samples.length > 0 && (
-                <Table.Root
+                <div
+                  className={agGridThemeClassName}
                   style={{
+                    height: "500px",
                     width: "100%",
-                    tableLayout: "fixed",
-                    overflowX: "auto",
-                    overflowY: "auto",
                   }}
-                  variant="surface"
-                  size={"1"}
                 >
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Sample
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                        Title
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "250px" }}>
-                        Description
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Channel Count
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Sample Type
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Platform
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "130px" }}>
-                        Channel Position
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "80px" }}>
-                        Label
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "200px" }}>
-                        Source
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Molecule
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "120px" }}>
-                        Organism
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Label Protocol
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Extract Protocol
-                      </Table.ColumnHeaderCell>
-                      {characteristicTags.map((tag) => (
-                        <Table.ColumnHeaderCell
-                          key={tag}
-                          style={{ minWidth: "120px" }}
-                        >
-                          {tag}
-                        </Table.ColumnHeaderCell>
-                      ))}
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Hybridization Protocol
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell style={{ minWidth: "300px" }}>
-                        Scan Protocol
-                      </Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {samples.flatMap((sample) => {
-                      const sampleRowKey = sample.id ?? sample.accession;
-                      const channels = sample.channels ?? [];
-                      if (channels.length === 0) {
-                        // Show sample with no channel data
-                        return (
-                          <Table.Row key={`${sampleRowKey}-ch0`}>
-                            <Table.RowHeaderCell>
-                              <Link
-                                href={
-                                  isArrayExpress
-                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
-                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.accession}
-                              </Link>
-                            </Table.RowHeaderCell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.title} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.description} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample.channel_count ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.platform_ref}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.platform_ref ?? "-"}
-                              </Link>
-                            </Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            <Table.Cell>-</Table.Cell>
-                            {characteristicTags.map((tag) => (
-                              <Table.Cell key={tag}>-</Table.Cell>
-                            ))}
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={sample.hybridization_protocol}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.scan_protocol} />
-                            </Table.Cell>
-                          </Table.Row>
-                        );
-                      }
-                      return channels.map((channel, channelIdx) => {
-                        // Build a map of characteristic tag -> value for this channel
-                        const charMap = new Map<string, string>();
-
-                        if (Array.isArray(channel.Characteristics)) {
-                          channel.Characteristics.forEach((char) => {
-                            if (char["@tag"])
-                              charMap.set(char["@tag"], char["#text"] ?? "-");
-                          });
-                        } else if (
-                          channel.Characteristics &&
-                          typeof channel.Characteristics === "object"
-                        ) {
-                          if (channel.Characteristics["@tag"])
-                            charMap.set(
-                              channel.Characteristics["@tag"],
-                              channel.Characteristics["#text"] ?? "-",
-                            );
-                        }
-                        return (
-                          <Table.Row
-                            key={`${sampleRowKey}-ch${channelIdx}`}
-                          >
-                            <Table.RowHeaderCell>
-                              <Link
-                                href={
-                                  isArrayExpress
-                                    ? `https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/${accession}/sdrf`
-                                    : `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.accession}`
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.accession}
-                              </Link>
-                            </Table.RowHeaderCell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.title} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.description} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              {sample.channel_count ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>{sample.sample_type ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <Link
-                                href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${sample.platform_ref}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {sample.platform_ref ?? "-"}
-                              </Link>
-                            </Table.Cell>
-                            <Table.Cell>
-                              {channel["@position"] ?? channelIdx + 1}
-                            </Table.Cell>
-                            <Table.Cell>{channel.Label ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={channel.Source} />
-                            </Table.Cell>
-                            <Table.Cell>{channel.Molecule ?? "-"}</Table.Cell>
-                            <Table.Cell>
-                              {channel.Organism?.["#text"] ?? "-"}
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={channel["Label-Protocol"]} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={channel["Extract-Protocol"]}
-                              />
-                            </Table.Cell>
-                            {characteristicTags.map((tag) => (
-                              <Table.Cell key={tag}>
-                                {charMap.get(tag) ?? "-"}
-                              </Table.Cell>
-                            ))}
-                            <Table.Cell>
-                              <TruncatedCell
-                                text={sample.hybridization_protocol}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <TruncatedCell text={sample.scan_protocol} />
-                            </Table.Cell>
-                          </Table.Row>
-                        );
-                      });
-                    })}
-                  </Table.Body>
-                </Table.Root>
+                  <AgGridReact<GeoSampleGridRow>
+                    columnDefs={sampleColumnDefs}
+                    defaultColDef={sampleGridDefaultColDef}
+                    getRowId={(params) => params.data.rowKey}
+                    rowData={sampleRows}
+                    theme="legacy"
+                  />
+                </div>
               )}
             </Flex>
 

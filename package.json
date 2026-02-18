@@ -13,6 +13,7 @@
     "@radix-ui/themes": "^3.2.1",
     "@tanstack/react-query": "^5.90.11",
     "3d-force-graph": "^1.79.1",
+    "ag-grid-react": "^35.1.0",
     "deck.gl": "^9.2.6",
     "leaflet": "^1.9.4",
     "next": "^16.0.10",
