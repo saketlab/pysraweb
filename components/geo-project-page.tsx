@@ -8,6 +8,9 @@ import SimilarProjectsGraph, {
 import SubmittingOrgPanel, {
   CenterInfo,
 } from "@/components/submitting-org-panel";
+import TextWithLineBreaks, {
+  normalizeLineBreakText,
+} from "@/components/text-with-line-breaks";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -41,17 +44,20 @@ function TruncatedCell({
   const [expanded, setExpanded] = useState(false);
 
   if (!text || text === "-") return <>{text ?? "-"}</>;
+  const normalizedText = normalizeLineBreakText(text);
 
-  const words = text.split(/\s+/);
+  const words = normalizedText.split(/\s+/);
   const shouldTruncate = words.length > wordLimit;
 
-  if (!shouldTruncate) return <>{text}</>;
+  if (!shouldTruncate) return <TextWithLineBreaks text={normalizedText} />;
 
-  const display = expanded ? text : words.slice(0, wordLimit).join(" ") + "...";
+  const display = expanded
+    ? normalizedText
+    : words.slice(0, wordLimit).join(" ") + "...";
 
   return (
     <>
-      {display}
+      <TextWithLineBreaks text={display} />
       <Link
         ml="1"
         style={{ cursor: "pointer" }}

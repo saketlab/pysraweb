@@ -1,6 +1,9 @@
 "use client";
 import { Link, Text } from "@radix-ui/themes";
 import { useState } from "react";
+import TextWithLineBreaks, {
+  normalizeLineBreakText,
+} from "@/components/text-with-line-breaks";
 
 type ProjectSummaryProps = {
   text?: string | null;
@@ -14,14 +17,17 @@ export default function ProjectSummary({
   const [expanded, setExpanded] = useState(false);
 
   if (!text) return null;
+  const normalizedText = normalizeLineBreakText(text);
 
-  const shouldTruncate = text.length > charLimit;
+  const shouldTruncate = normalizedText.length > charLimit;
   const display =
-    expanded || !shouldTruncate ? text : `${text.slice(0, charLimit)}...`;
+    expanded || !shouldTruncate
+      ? normalizedText
+      : `${normalizedText.slice(0, charLimit)}...`;
 
   return (
     <Text>
-      {display}
+      <TextWithLineBreaks text={display} />
       {shouldTruncate && (
         <Link
           ml="1"

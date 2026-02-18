@@ -8,6 +8,7 @@ import SimilarProjectsGraph, {
 import SubmittingOrgPanel, {
   CenterInfo,
 } from "@/components/submitting-org-panel";
+import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { SERVER_URL } from "@/utils/constants";
 import {
   DownloadIcon,
@@ -867,7 +868,11 @@ export default function ProjectPage() {
                             </Table.Cell>
                             <Table.Cell>{sample?.title ?? "-"}</Table.Cell>
                             <Table.Cell>
-                              {sample?.description ?? "-"}
+                              {sample?.description ? (
+                                <TextWithLineBreaks text={sample.description} />
+                              ) : (
+                                "-"
+                              )}
                             </Table.Cell>
                             <Table.Cell>
                               {sample?.scientific_name ?? "-"}
