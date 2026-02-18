@@ -5,7 +5,7 @@ import { useSearchHistory } from "@/utils/useSearchHistory";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { Box, Flex, TextField } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 
 export default function HeroSearchBar() {
   const { setLastSearchQuery } = useSearchQuery();
@@ -46,25 +46,27 @@ export default function HeroSearchBar() {
         .slice(0, 5)
     : [];
 
-  useEffect(() => {
-    if (!isFocused) {
-      setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex(-1);
-  }, [isFocused, filteredHistory.length, trimmedQuery]);
-
   return (
     <Box width={{ initial: "85%", md: "50%" }}>
       <Flex direction={"column"} gap={"4"}>
         <form onSubmit={handleSubmit}>
           <TextField.Root
             aria-label="main search bar"
+            data-global-search-target="true"
             size="3"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIndex(-1);
+            }}
+            onFocus={() => {
+              setIsFocused(true);
+              setActiveIndex(-1);
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              setActiveIndex(-1);
+            }}
             onKeyDown={(e) => {
               if (!isFocused || filteredHistory.length === 0) return;
 

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { ReactNode } from "react";
 import DynamicFavicon from "./dynamic-favicon";
+import GlobalSearchShortcut from "./global-search-shortcut";
 
 export default function Wrapper({
   children,
@@ -16,6 +17,7 @@ export default function Wrapper({
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute={"class"}>
         <DynamicFavicon />
+        <GlobalSearchShortcut />
         <SearchQueryProvider>
           <Theme accentColor="indigo">{children}</Theme>
         </SearchQueryProvider>
