@@ -1,6 +1,9 @@
 "use client";
 
-import { OrganismFilter } from "@/components/organism_filter";
+import {
+  OrganismFilter,
+  OrganismNameMode,
+} from "@/components/organism_filter";
 import { SearchResult } from "@/utils/types";
 import {
   Flex,
@@ -21,9 +24,7 @@ type SearchFiltersProps = {
   timeFilter: TimeFilter;
   customYearRange: { from: string; to: string };
   setCustomYearRange: (value: { from: string; to: string }) => void;
-  onDatabaseChange: (
-    value: "geo" | "sra" | "arrayexpress" | "both",
-  ) => void;
+  onDatabaseChange: (value: "geo" | "sra" | "arrayexpress" | "both") => void;
 };
 
 export function SearchFilters({
@@ -84,9 +85,7 @@ export function SearchFilters({
           defaultValue={db ? db : "both"}
           onValueChange={(value) => {
             if (!query) return;
-            onDatabaseChange(
-              value as "geo" | "sra" | "arrayexpress" | "both",
-            );
+            onDatabaseChange(value as "geo" | "sra" | "arrayexpress" | "both");
           }}
           size={"1"}
         >
@@ -115,16 +114,12 @@ export function SearchFilters({
           name="dataset"
           onValueChange={(value) => {
             if (!query) return;
-            onDatabaseChange(
-              value as "geo" | "sra" | "arrayexpress" | "both",
-            );
+            onDatabaseChange(value as "geo" | "sra" | "arrayexpress" | "both");
           }}
         >
           <RadioGroup.Item value="geo">Only GEO</RadioGroup.Item>
           <RadioGroup.Item value="sra">Only SRA</RadioGroup.Item>
-          <RadioGroup.Item value="arrayexpress">
-            Only ArrayExpress
-          </RadioGroup.Item>
+          <RadioGroup.Item value="arrayexpress">Only ArrayExpress</RadioGroup.Item>
           <RadioGroup.Item value="both">From all sources</RadioGroup.Item>
         </RadioGroup.Root>
 
@@ -193,12 +188,16 @@ export function SearchFilters({
 
 export function SearchOrganismRail({
   results,
-  selectedOrganism,
-  setSelectedOrganism,
+  organismNameMode,
+  setOrganismNameMode,
+  selectedOrganismKey,
+  setSelectedOrganismFilter,
 }: {
   results: SearchResult[];
-  selectedOrganism: string | null;
-  setSelectedOrganism: (value: string | null) => void;
+  organismNameMode: OrganismNameMode;
+  setOrganismNameMode: (value: OrganismNameMode) => void;
+  selectedOrganismKey: string | null;
+  setSelectedOrganismFilter: (value: string | null) => void;
 }) {
   return (
     <Flex
@@ -210,8 +209,10 @@ export function SearchOrganismRail({
     >
       <OrganismFilter
         results={results}
-        selected={selectedOrganism}
-        onChangeSelected={setSelectedOrganism}
+        mode={organismNameMode}
+        onChangeMode={setOrganismNameMode}
+        selectedKey={selectedOrganismKey}
+        onChangeSelection={setSelectedOrganismFilter}
       />
     </Flex>
   );

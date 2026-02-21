@@ -1,7 +1,11 @@
 "use client";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
-import { SearchFilters, SearchOrganismRail } from "@/components/search-filters";
+import {
+  SearchFilters,
+  SearchOrganismRail,
+} from "@/components/search-filters";
+import { OrganismNameMode } from "@/components/organism_filter";
 import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResult } from "@/utils/types";
@@ -75,7 +79,11 @@ export default function SearchPageBody() {
     to: string;
   }>({ from: "", to: "" });
 
-  const [selectedOrganism, setSelectedOrganism] = useState<string | null>(null);
+  const [organismNameMode, setOrganismNameMode] =
+    useState<OrganismNameMode>("common");
+  const [selectedOrganismKey, setSelectedOrganismKey] = useState<string | null>(
+    null,
+  );
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -165,9 +173,9 @@ export default function SearchPageBody() {
     return new Date(result.updated_at) >= cutoffDate;
   });
 
-  const organismFilteredResults = selectedOrganism
+  const organismFilteredResults = selectedOrganismKey
     ? timeFilteredResults.filter((result) =>
-        (result.organisms ?? []).includes(selectedOrganism),
+        (result.organisms ?? []).includes(selectedOrganismKey),
       )
     : timeFilteredResults;
 
@@ -381,8 +389,10 @@ export default function SearchPageBody() {
         ) : shouldShowOrganismRail ? (
           <SearchOrganismRail
             results={searchResults}
-            selectedOrganism={selectedOrganism}
-            setSelectedOrganism={setSelectedOrganism}
+            organismNameMode={organismNameMode}
+            setOrganismNameMode={setOrganismNameMode}
+            selectedOrganismKey={selectedOrganismKey}
+            setSelectedOrganismFilter={setSelectedOrganismKey}
           />
         ) : null}
 

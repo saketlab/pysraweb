@@ -1,11 +1,35 @@
 "use client";
 
+import { SERVER_URL } from "@/utils/constants";
+import {
+  Badge,
+  Button,
+  Card,
+  Flex,
+  Separator,
+  Switch,
+  Text,
+} from "@radix-ui/themes";
 import * as React from "react";
-import { Badge, Button, Card, Flex, Text } from "@radix-ui/themes";
 
-type OrganismFacet = { name: string; count: number };
+type ScientificFacet = { name: string; count: number };
 
-function buildOrganismFacets(results: Array<{ organisms: string[] | null }>): OrganismFacet[] {
+type OrganismDisplayFacet = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+export type OrganismNameMode = "scientific" | "common";
+
+function capitalizeFirstLetter(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildScientificFacets(
+  results: Array<{ organisms: string[] | null }>,
+): ScientificFacet[] {
   const counts = new Map<string, number>();
 
   for (const r of results) {
@@ -17,23 +41,89 @@ function buildOrganismFacets(results: Array<{ organisms: string[] | null }>): Or
     }
   }
 
-  // Convert to array + sort 
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
+function parseCommonName(payload: unknown): string | null {
+  if (typeof payload === "string") {
+    const value = payload.trim();
+    return value.length > 0 ? value : null;
+  }
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const parsed = parseCommonName(item);
+      if (parsed) return parsed;
+    }
+    return null;
+  }
+
+  if (payload && typeof payload === "object") {
+    const asRecord = payload as Record<string, unknown>;
+    const candidates = [
+      asRecord.common_name,
+      asRecord.commonName,
+      asRecord.name,
+      asRecord.common,
+      asRecord.value,
+      asRecord.result,
+      asRecord.data,
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = parseCommonName(candidate);
+      if (parsed) return parsed;
+    }
+  }
+
+  return null;
+}
+
+function buildCommonFacets(
+  scientificFacets: ScientificFacet[],
+  commonNamesByScientific: Map<string, string>,
+): OrganismDisplayFacet[] {
+  return scientificFacets
+    .map((facet) => ({
+      key: facet.name,
+      label:
+        capitalizeFirstLetter(
+          (commonNamesByScientific.get(facet.name) ?? facet.name).trim(),
+        ) || facet.name,
+      count: facet.count,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function buildDisplayFacets(
+  scientificFacets: ScientificFacet[],
+  mode: OrganismNameMode,
+  commonNamesByScientific: Map<string, string>,
+): OrganismDisplayFacet[] {
+  if (mode === "scientific") {
+    return scientificFacets.map((facet) => ({
+      key: facet.name,
+      label: facet.name,
+      count: facet.count,
+    }));
+  }
+
+  return buildCommonFacets(scientificFacets, commonNamesByScientific);
+}
+
 function FilterList({
   facets,
-  selected,
+  selectedKey,
   totalCount,
   onSelect,
   onClear,
 }: {
-  facets: OrganismFacet[];
-  selected: string | null;
+  facets: OrganismDisplayFacet[];
+  selectedKey: string | null;
   totalCount: number;
-  onSelect: (name: string) => void;
+  onSelect: (facetKey: string) => void;
   onClear: () => void;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -42,39 +132,46 @@ function FilterList({
 
   return (
     <Flex direction="column" gap="2">
-      {/* "All" options */}
       <Button
-        variant={selected === null ? "solid" : "soft"}
-        color={selected === null ? undefined : "gray"}
+        variant={selectedKey === null ? "solid" : "soft"}
+        color={selectedKey === null ? undefined : "gray"}
         onClick={onClear}
         style={{ justifyContent: "space-between" }}
       >
         <span>All organisms</span>
-        <Badge variant={selected === null ? "solid" : "soft"}>
+        <Badge variant={selectedKey === null ? "solid" : "soft"}>
           {totalCount}
         </Badge>
       </Button>
 
-      {/* Organisms list */}
       <div
         className={isExpanded ? "organism-list-scroll" : undefined}
-        style={{ maxHeight: isExpanded ? 360 : undefined, overflowY: isExpanded ? "auto" : "visible" }}
+        style={{
+          maxHeight: isExpanded ? 360 : undefined,
+          overflowY: isExpanded ? "auto" : "visible",
+        }}
       >
         <Flex direction="column" gap="2">
-          {visibleFacets.map((f) => {
-            const active = selected === f.name;
+          {visibleFacets.map((facet) => {
+            const active = selectedKey === facet.key;
             return (
               <Button
-                key={f.name}
+                key={facet.key}
                 variant={active ? "solid" : "soft"}
                 color={active ? undefined : "gray"}
-                onClick={() => onSelect(f.name)}
+                onClick={() => onSelect(facet.key)}
                 style={{ justifyContent: "space-between", textAlign: "left" }}
               >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {f.name}
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {facet.label}
                 </span>
-                <Badge variant={active ? "solid" : "soft"}>{f.count}</Badge>
+                <Badge variant={active ? "solid" : "soft"}>{facet.count}</Badge>
               </Button>
             );
           })}
@@ -112,29 +209,114 @@ function FilterList({
 
 export function OrganismFilter({
   results,
-  selected,
-  onChangeSelected,
+  mode,
+  onChangeMode,
+  selectedKey,
+  onChangeSelection,
 }: {
   results: Array<{ organisms: string[] | null }>;
-  selected: string | null;
-  onChangeSelected: (next: string | null) => void;
+  mode: OrganismNameMode;
+  onChangeMode: (mode: OrganismNameMode) => void;
+  selectedKey: string | null;
+  onChangeSelection: (next: string | null) => void;
 }) {
-  const facets = React.useMemo(() => buildOrganismFacets(results), [results]);
+  const scientificFacets = React.useMemo(
+    () => buildScientificFacets(results),
+    [results],
+  );
+  const [commonNamesByScientific, setCommonNamesByScientific] = React.useState(
+    new Map<string, string>(),
+  );
+  const cacheRef = React.useRef(new Map<string, string>());
+
+  React.useEffect(() => {
+    if (mode !== "common" || scientificFacets.length === 0) return;
+
+    const scientificNames = scientificFacets.map((facet) => facet.name);
+    const missing = scientificNames.filter(
+      (name) => !cacheRef.current.has(name),
+    );
+    if (missing.length === 0) {
+      setCommonNamesByScientific(new Map(cacheRef.current));
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchMissing = async () => {
+      await Promise.all(
+        missing.map(async (scientificName) => {
+          try {
+            const url = `${SERVER_URL}/common-name?scientific_name=${encodeURIComponent(
+              scientificName,
+            )}`;
+            const res = await fetch(url);
+            if (!res.ok) return;
+
+            const raw = (await res.text()).trim();
+            if (!raw) return;
+
+            let payload: unknown = raw;
+            try {
+              payload = JSON.parse(raw);
+            } catch {
+              // Non-JSON responses are valid; treat as plain text.
+            }
+
+            const commonName =
+              parseCommonName(payload) ??
+              (payload !== raw ? parseCommonName(raw) : null);
+            if (!commonName) return;
+            cacheRef.current.set(scientificName, commonName);
+          } catch {
+            // Best-effort only: leave unresolved values as scientific names.
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        setCommonNamesByScientific(new Map(cacheRef.current));
+      }
+    };
+
+    fetchMissing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, scientificFacets]);
+
+  const facets = React.useMemo(
+    () => buildDisplayFacets(scientificFacets, mode, commonNamesByScientific),
+    [scientificFacets, mode, commonNamesByScientific],
+  );
 
   const totalCount = results.length;
 
-  const onClear = () => onChangeSelected(null);
-  const onSelect = (name: string) => onChangeSelected(name);
+  const onClear = () => onChangeSelection(null);
+  const onSelect = (facetKey: string) => onChangeSelection(facetKey);
 
   return (
     <Card>
-      <FilterList
-        facets={facets}
-        selected={selected}
-        totalCount={totalCount}
-        onSelect={onSelect}
-        onClear={onClear}
-      />
+      <Flex direction="column" gap="3">
+        <Flex align="center" justify="between">
+          <Text size="2">Display scientific names</Text>
+          <Switch
+            checked={mode === "scientific"}
+            onCheckedChange={(checked) =>
+              onChangeMode(checked ? "scientific" : "common")
+            }
+          />
+        </Flex>
+        <Separator size="4" />
+        <FilterList
+          facets={facets}
+          selectedKey={selectedKey}
+          totalCount={totalCount}
+          onSelect={onSelect}
+          onClear={onClear}
+        />
+      </Flex>
     </Card>
   );
 }
