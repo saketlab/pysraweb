@@ -13,12 +13,6 @@ import TextWithLineBreaks, {
 } from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
-import type {
-  ColDef,
-  ICellRendererParams,
-  ValueGetterParams,
-} from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
 import {
   CheckIcon,
   CopyIcon,
@@ -34,12 +28,19 @@ import {
   Flex,
   Link,
   Spinner,
+  Tabs,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
 
@@ -95,7 +96,7 @@ type Project = {
   samples_ref: string | null;
   series_type: string | null;
   relation: string | null;
-  supplementary_data: string | null;
+  supplementary_data?: unknown;
   published_at: Date | null;
   updated_at: Date | null;
   center?: CenterInfo[] | null;
@@ -160,10 +161,192 @@ type GeoSampleGridRow = {
   characteristics: Record<string, string>;
 };
 
+type SupplementaryDataRecord = {
+  "#text": string;
+  "@type": string | null;
+};
+
+type SupplementaryDataItem = {
+  id: string;
+  url: string;
+  fileName: string;
+  curlCommand: string;
+  browserDownloadUrl: string;
+};
+
 const toDisplayText = (value: unknown): string => {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
 };
+
+const parsePostgresTextArray = (value: string): string[] => {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return [];
+  }
+
+  const content = trimmed.slice(1, -1);
+  if (!content) {
+    return [];
+  }
+
+  const items: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let escaped = false;
+
+  for (const char of content) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      if (inQuotes) {
+        escaped = true;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      if (current.trim()) {
+        items.push(current.trim());
+      }
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) {
+    items.push(current.trim());
+  }
+
+  return items;
+};
+
+const normalizeSupplementaryRecord = (
+  value: unknown,
+): SupplementaryDataRecord | null => {
+  if (!value) return null;
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const text = record["#text"];
+    if (typeof text !== "string" || text.trim().length === 0) {
+      return null;
+    }
+    const rawType = record["@type"];
+    return {
+      "#text": text.trim(),
+      "@type": typeof rawType === "string" && rawType.trim() ? rawType.trim() : null,
+    };
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      trimmed.startsWith("ftp://")
+    ) {
+      return { "#text": trimmed, "@type": null };
+    }
+
+    try {
+      return normalizeSupplementaryRecord(JSON.parse(trimmed) as unknown);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+const parseSupplementaryData = (rawValue: unknown): SupplementaryDataRecord[] => {
+  if (!rawValue) {
+    return [];
+  }
+
+  if (Array.isArray(rawValue)) {
+    return rawValue
+      .map((entry) => normalizeSupplementaryRecord(entry))
+      .filter((entry): entry is SupplementaryDataRecord => entry !== null);
+  }
+
+  if (typeof rawValue === "string") {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((entry) => normalizeSupplementaryRecord(entry))
+          .filter((entry): entry is SupplementaryDataRecord => entry !== null);
+      }
+      const normalized = normalizeSupplementaryRecord(parsed);
+      return normalized ? [normalized] : [];
+    } catch {
+      const postgresArrayItems = parsePostgresTextArray(trimmed);
+      if (postgresArrayItems.length > 0) {
+        return postgresArrayItems
+          .map((entry) => normalizeSupplementaryRecord(entry))
+          .filter((entry): entry is SupplementaryDataRecord => entry !== null);
+      }
+      const normalized = normalizeSupplementaryRecord(trimmed);
+      return normalized ? [normalized] : [];
+    }
+  }
+
+  const normalized = normalizeSupplementaryRecord(rawValue);
+  return normalized ? [normalized] : [];
+};
+
+const shellEscapeSingleQuotes = (value: string): string =>
+  `'${value.replace(/'/g, `'\"'\"'`)}'`;
+
+const getFileNameFromUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    const fileName = parsed.pathname.split("/").filter(Boolean).pop();
+    return fileName ?? "supplementary_file";
+  } catch {
+    const fileName = url.split("/").filter(Boolean).pop();
+    return fileName ?? "supplementary_file";
+  }
+};
+
+const getBrowserDownloadUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "ftp:") {
+      parsed.protocol = "https:";
+      return parsed.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+};
+
+const buildCurlCommand = (url: string): string =>
+  `curl -O ${shellEscapeSingleQuotes(url)}`;
 
 const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
   const res = await fetch(`${SERVER_URL}/geo/series/${accession}/samples`);
@@ -276,6 +459,9 @@ export default function GeoProjectPage() {
   const accession = params.accession as string | undefined;
   const isArrayExpress = accession?.toUpperCase().startsWith("E-") ?? false;
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
+  const [copiedSupplementaryId, setCopiedSupplementaryId] = useState<
+    string | null
+  >(null);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
@@ -316,6 +502,23 @@ export default function GeoProjectPage() {
       window.setTimeout(() => setIsAccessionCopied(false), 1500);
     } catch (error) {
       console.error("Failed to copy accession:", error);
+    }
+  };
+
+  const handleCopySupplementaryCommand = async (
+    itemId: string,
+    command: string,
+  ) => {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopiedSupplementaryId(itemId);
+      window.setTimeout(() => {
+        setCopiedSupplementaryId((current) =>
+          current === itemId ? null : current,
+        );
+      }, 1500);
+    } catch (error) {
+      console.error("Failed to copy supplementary command:", error);
     }
   };
 
@@ -575,6 +778,26 @@ export default function GeoProjectPage() {
     ],
     [accession, characteristicTags, isArrayExpress],
   );
+
+  const supplementaryDataItems = React.useMemo(() => {
+    return parseSupplementaryData(project?.supplementary_data)
+      .map((entry, index): SupplementaryDataItem | null => {
+        const url = entry["#text"]?.trim();
+        if (!url) {
+          return null;
+        }
+        const browserDownloadUrl = getBrowserDownloadUrl(url);
+        const fileName = getFileNameFromUrl(url);
+        return {
+          id: `supplementary-${index}`,
+          url: browserDownloadUrl,
+          fileName,
+          curlCommand: buildCurlCommand(browserDownloadUrl),
+          browserDownloadUrl,
+        };
+      })
+      .filter((entry): entry is SupplementaryDataItem => entry !== null);
+  }, [project?.supplementary_data]);
 
   return (
     <>
@@ -1041,6 +1264,138 @@ export default function GeoProjectPage() {
               neighbors={project.neighbors}
             />
             <SubmittingOrgPanel center={project.center} />
+            <Text weight="medium" size="6">
+              Supplementary Data
+            </Text>
+            {supplementaryDataItems.length === 0 && (
+              <Text size="2" color="gray">
+                No supplementary files found
+              </Text>
+            )}
+            {supplementaryDataItems.length > 0 && (
+              <Tabs.Root
+                defaultValue={supplementaryDataItems[0].id}
+                style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
+              >
+                <Tabs.List
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    flexWrap: "nowrap",
+                  }}
+                >
+                  {supplementaryDataItems.map((item) => (
+                    <Tabs.Trigger
+                      key={item.id}
+                      value={item.id}
+                      style={{ flexShrink: 0, fontFamily: "monospace" }}
+                    >
+                      {item.fileName}
+                    </Tabs.Trigger>
+                  ))}
+                </Tabs.List>
+                {supplementaryDataItems.map((item) => (
+                  <Tabs.Content
+                    key={item.id}
+                    value={item.id}
+                    style={{ marginTop: "0.75rem", maxWidth: "100%" }}
+                  >
+                    <Flex direction="column" gap="2" style={{ maxWidth: "100%" }}>
+                      <div
+                        style={{
+                          width: "100%",
+                          maxWidth: "100%",
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          alignItems: "center",
+                          columnGap: "0.5rem",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            minWidth: 0,
+                            maxWidth: "100%",
+                            overflow: "hidden",
+                            display: "flex",
+                            alignItems: "center",
+                            background: "var(--gray-3)",
+                            border: "1px solid var(--gray-6)",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          <pre
+                            style={{
+                              margin: 0,
+                              width: "calc(100% - 2.5rem)",
+                              maxWidth: "calc(100% - 2.5rem)",
+                              minWidth: 0,
+                              boxSizing: "border-box",
+                              padding: "0.875rem",
+                              overflowX: "auto",
+                              overflowY: "hidden",
+                              fontSize: "12px",
+                              lineHeight: "1.5",
+                              fontFamily: "var(--default-mono-font-family)",
+                            }}
+                          >
+                            <code>{item.curlCommand}</code>
+                          </pre>
+                          <Tooltip content="Copy command">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopySupplementaryCommand(
+                                  item.id,
+                                  item.curlCommand,
+                                )
+                              }
+                              aria-label="Copy curl command"
+                              style={{
+                                width: "2.5rem",
+                                minWidth: "2.5rem",
+                                border: "none",
+                                background: "transparent",
+                                color: "inherit",
+                                padding: "0.5rem",
+                                margin: 0,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {copiedSupplementaryId === item.id ? (
+                                <CheckIcon />
+                              ) : (
+                                <CopyIcon />
+                              )}
+                            </button>
+                          </Tooltip>
+                        </div>
+                        <Tooltip content="Download file to device">
+                          <Button asChild size={"3"}>
+                            <a
+                              href={item.browserDownloadUrl}
+                              download={item.fileName}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Download ${item.fileName}`}
+                            >
+                              <DownloadIcon />
+                            </a>
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </Flex>
+                  </Tabs.Content>
+                ))}
+              </Tabs.Root>
+            )}
           </Flex>
         </>
       )}
