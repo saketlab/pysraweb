@@ -115,7 +115,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
         position: "sticky",
         top: 0,
         width: "100%",
-        zIndex: 50,
+        zIndex: 1100,
         boxShadow: "0 1px 0 rgba(0,0,0,0.06)",
         backgroundColor: "inherit",
       }}
