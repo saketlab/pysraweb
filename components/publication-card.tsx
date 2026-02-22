@@ -23,8 +23,12 @@ type PublicationCardProps = {
 };
 
 function cleanJournalName(name: string): string {
-  const parenIndex = name.indexOf("(");
-  return (parenIndex !== -1 ? name.slice(0, parenIndex) : name).trimEnd();
+  let cleaned = name;
+  const colonIndex = cleaned.indexOf(": ");
+  if (colonIndex !== -1) cleaned = cleaned.slice(0, colonIndex);
+  const parenIndex = cleaned.indexOf("(");
+  if (parenIndex !== -1) cleaned = cleaned.slice(0, parenIndex);
+  return cleaned.trimEnd();
 }
 
 function formatAuthors(authors: string | null): string {
@@ -92,12 +96,27 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
             </Text>
           )}
           {publication.journal && (
-            <Text weight={"light"} size={{ initial: "1", md: "2" }}>
-              {cleanJournalName(publication.journal)}
-              {citationCount != null &&
-                citationCount > 0 &&
-                ` [${citationCount}]`}
-            </Text>
+            doi ? (
+              <Link
+                href={`https://doi.org/${doi}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                size={{ initial: "1", md: "2" }}
+                weight={"light"}
+              >
+                {cleanJournalName(publication.journal)}
+                {citationCount != null &&
+                  citationCount > 0 &&
+                  ` (${citationCount})`}
+              </Link>
+            ) : (
+              <Text weight={"light"} size={{ initial: "1", md: "2" }}>
+                {cleanJournalName(publication.journal)}
+                {citationCount != null &&
+                  citationCount > 0 &&
+                  ` (${citationCount})`}
+              </Text>
+            )
           )}
         </Flex>
       </Flex>

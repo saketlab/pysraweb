@@ -13,8 +13,12 @@ type ResultCardProps = {
 };
 
 function cleanJournalName(name: string): string {
-  const parenIndex = name.indexOf("(");
-  return (parenIndex !== -1 ? name.slice(0, parenIndex) : name).trimEnd();
+  let cleaned = name;
+  const colonIndex = cleaned.indexOf(": ");
+  if (colonIndex !== -1) cleaned = cleaned.slice(0, colonIndex);
+  const parenIndex = cleaned.indexOf("(");
+  if (parenIndex !== -1) cleaned = cleaned.slice(0, parenIndex);
+  return cleaned.trimEnd();
 }
 
 export default function ResultCard({
@@ -85,7 +89,7 @@ export default function ResultCard({
               }
             >
               {cleanJournalName(journal)}
-              {citation_count != null && citation_count > 0 && ` [${citation_count}]`}
+              {citation_count != null && citation_count > 0 && ` (${citation_count})`}
             </Badge>
           )}
         </Flex>
