@@ -15,7 +15,7 @@ import {
 } from "@radix-ui/themes";
 import { useTheme } from "next-themes";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface SearchBarProps {
@@ -48,6 +48,8 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentDb = searchParams.get("db");
 
   const handleMenuSelect = (item: (typeof NAV_ITEMS)[number]) => {
     if (item.mailto) {
@@ -67,7 +69,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
     e.preventDefault();
     const trimmed = searchQuery.trim();
     if (trimmed) setLastSearchQuery(trimmed);
-    await performSearch(searchQuery, router.push);
+    await performSearch(searchQuery, router.push, currentDb);
   };
 
   const handleHistoryClick = async (item: string) => {
@@ -75,7 +77,7 @@ export default function SearchBar({ initialQuery }: SearchBarProps) {
     setIsFocused(false);
     const trimmed = item.trim();
     if (trimmed) setLastSearchQuery(trimmed);
-    await performSearch(item, router.push);
+    await performSearch(item, router.push, currentDb);
   };
 
   const removeItem = (item: string, e: React.MouseEvent) => {

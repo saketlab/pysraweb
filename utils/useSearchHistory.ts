@@ -4,6 +4,16 @@ import { getProjectShortUrl } from "./shortUrl";
 
 const HISTORY_KEY = "searchHistory";
 const MAX_HISTORY = 5;
+const VALID_DATABASES = new Set(["sra", "geo", "arrayexpress"]);
+
+const buildSearchUrl = (query: string, db?: string | null) => {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  if (db && VALID_DATABASES.has(db)) {
+    params.set("db", db);
+  }
+  return `/search?${params.toString()}`;
+};
 
 export function useSearchHistory() {
   const [history, setHistory] = useState<string[]>(() => {
@@ -29,6 +39,7 @@ export function useSearchHistory() {
   const performSearch = async (
     query: string,
     navigate: (url: string) => void,
+    db?: string | null,
   ) => {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -81,7 +92,7 @@ export function useSearchHistory() {
           return;
         }
         if (!res.ok) {
-          navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+          navigate(buildSearchUrl(trimmed, db));
           return;
         }
         const data = await res.json();
@@ -92,10 +103,10 @@ export function useSearchHistory() {
         navigate(getProjectShortUrl(projectAccession));
       } catch (error) {
         console.error("Error fetching project:", error);
-        navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+        navigate(buildSearchUrl(trimmed, db));
       }
     } else {
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+      navigate(buildSearchUrl(trimmed, db));
     }
   };
 
