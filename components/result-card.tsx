@@ -7,6 +7,8 @@ type ResultCardProps = {
   title: string | null;
   summary: string | null;
   updated_at: string | null;
+  journal: string | null;
+  doi: string | null;
 };
 
 export default function ResultCard({
@@ -14,6 +16,8 @@ export default function ResultCard({
   title,
   summary,
   updated_at,
+  journal,
+  doi,
 }: ResultCardProps) {
   const router = useRouter();
   const isArrayExpressAccession = accesssion.toUpperCase().startsWith("E-");
@@ -36,7 +40,7 @@ export default function ResultCard({
         <Text size={"2"} truncate>
           {summary}
         </Text>
-        <Flex gap={"2"} align={"center"}>
+        <Flex gap={"2"} align={"center"} wrap={"wrap"}>
           <Badge
             size={"2"}
             color={
@@ -60,6 +64,22 @@ export default function ResultCard({
                 })
               : null}
           </Badge>
+          {journal && (
+            <Badge
+              color="blue"
+              style={{ cursor: doi ? "pointer" : undefined }}
+              onClick={
+                doi
+                  ? (e) => {
+                      e.stopPropagation();
+                      window.open(`https://doi.org/${doi}`, "_blank");
+                    }
+                  : undefined
+              }
+            >
+              {journal}
+            </Badge>
+          )}
         </Flex>
       </Flex>
     </Card>

@@ -348,6 +348,8 @@ export default function SearchPageBody() {
                     title={searchResult.title}
                     summary={searchResult.summary}
                     updated_at={searchResult.updated_at}
+                    journal={searchResult.journal}
+                    doi={searchResult.doi}
                   />
                 ))
               )}
