@@ -1,6 +1,8 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
-import PublicationCard, { PubMedArticle } from "@/components/publication-card";
+import PublicationCard, {
+  StudyPublication,
+} from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
 import SimilarProjectsGraph, {
   SimilarNeighbor,
@@ -100,6 +102,7 @@ type Project = {
   published_at: Date | null;
   updated_at: Date | null;
   center?: CenterInfo[] | null;
+  publications?: StudyPublication[] | null;
 };
 
 // type SimilarProject = {
@@ -359,48 +362,6 @@ const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
   return res.json();
 };
 
-const fetchPubMedData = async (
-  pubmedIds: string[],
-): Promise<PubMedArticle[]> => {
-  if (!pubmedIds || pubmedIds.length === 0) {
-    return [];
-  }
-
-  const uniqueIds = Array.from(
-    new Set(pubmedIds.map((id) => id.trim()).filter(Boolean)),
-  );
-  const chunkSize = 100;
-  const articles: PubMedArticle[] = [];
-
-  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
-    const chunk = uniqueIds.slice(i, i + chunkSize);
-
-    try {
-      const res = await fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${encodeURIComponent(chunk.join(","))}&retmode=json`,
-      );
-      if (!res.ok) continue;
-
-      const data = (await res.json()) as {
-        result?: Record<string, PubMedArticle | string[]>;
-      };
-      const result = data.result;
-      if (!result) continue;
-
-      chunk.forEach((id) => {
-        const article = result[id];
-        if (article && typeof article === "object") {
-          articles.push(article as PubMedArticle);
-        }
-      });
-    } catch (error) {
-      console.error(`Failed to fetch PubMed data for chunk:`, error);
-    }
-  }
-
-  return articles;
-};
-
 const fetchProject = async (
   accession: string | null,
 ): Promise<Project | null> => {
@@ -485,11 +446,7 @@ export default function GeoProjectPage() {
   //   enabled: !!project?.overall_design,
   // });
 
-  const { data: publications, isLoading: isPublicationsLoading } = useQuery({
-    queryKey: ["publications", project?.pubmed_id],
-    queryFn: () => fetchPubMedData(project!.pubmed_id),
-    enabled: !!project?.pubmed_id && project.pubmed_id.length > 0,
-  });
+  const publications = project?.publications ?? null;
 
   const { data: samples, isLoading: isSamplesLoading } = useQuery({
     queryKey: ["samples", accession],
@@ -1225,27 +1182,20 @@ export default function GeoProjectPage() {
               Linked publications
             </Text>
 
-            {isPublicationsLoading && (
-              <Flex gap="2" align="center">
-                <Spinner size="2" />
-                <Text size="2">Loading publications...</Text>
-              </Flex>
-            )}
-
-            {publications && publications.length > 0 && (
+            {publications && publications.length > 0 ? (
               <Flex direction="column" gap="3">
                 {publications.map((pub) => (
-                  <PublicationCard key={pub.uid} publication={pub} />
+                  <PublicationCard
+                    key={pub.pmid ?? pub.doi ?? pub.title}
+                    publication={pub}
+                  />
                 ))}
               </Flex>
+            ) : (
+              <Text size="2" color="gray">
+                No linked publications found
+              </Text>
             )}
-
-            {!isPublicationsLoading &&
-              (!publications || publications.length === 0) && (
-                <Text size="2" color="gray">
-                  No linked publications found
-                </Text>
-              )}
             <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects

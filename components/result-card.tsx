@@ -85,7 +85,7 @@ export default function ResultCard({
               }
             >
               {cleanJournalName(journal)}
-              {citation_count != null && ` [${citation_count}]`}
+              {citation_count != null && citation_count > 0 && ` [${citation_count}]`}
             </Badge>
           )}
         </Flex>

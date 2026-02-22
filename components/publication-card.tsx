@@ -2,31 +2,24 @@ import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { Box, Card, Flex, Link, Text } from "@radix-ui/themes";
 import Image from "next/image";
 
-type PubMedAuthor = {
-  name: string;
-  authtype: string;
-  clusterid: string;
-};
-
-type PubMedArticleId = {
-  idtype: string;
-  idtypen: number;
-  value: string;
-};
-
-export type PubMedArticle = {
-  uid: string;
-  title: string;
-  authors: PubMedAuthor[];
-  fulljournalname: string;
-  pubdate: string;
-  source: string;
-  articleids: PubMedArticleId[];
-  pmcrefcount?: number | string;
+export type StudyPublication = {
+  pmid: string | null;
+  title: string | null;
+  journal: string | null;
+  doi: string | null;
+  pub_date: string | null;
+  authors: string | null;
+  issn: string | null;
+  citation_count: number | null;
+  journal_h_index: number | null;
+  journal_i10_index: number | null;
+  journal_2yr_mean_citedness: number | null;
+  journal_cited_by_count: number | null;
+  journal_works_count: number | null;
 };
 
 type PublicationCardProps = {
-  publication: PubMedArticle;
+  publication: StudyPublication;
 };
 
 function cleanJournalName(name: string): string {
@@ -34,11 +27,23 @@ function cleanJournalName(name: string): string {
   return (parenIndex !== -1 ? name.slice(0, parenIndex) : name).trimEnd();
 }
 
+function formatAuthors(authors: string | null): string {
+  if (!authors) return "";
+  const list = authors.split(",").map((a) => a.trim());
+  if (list.length > 4) {
+    return `${list.slice(0, 4).join(", ")} et al.`;
+  }
+  return list.join(", ");
+}
+
 export default function PublicationCard({ publication }: PublicationCardProps) {
-  const doi = publication.articleids.find((id) => id.idtype === "doi")?.value;
-  const citationCount = publication.pmcrefcount
-    ? Number(publication.pmcrefcount)
-    : null;
+  const doi = publication.doi;
+  const citationCount = publication.citation_count;
+  const titleLink = doi
+    ? `https://doi.org/${doi}`
+    : publication.pmid
+      ? `https://pubmed.ncbi.nlm.nih.gov/${publication.pmid}`
+      : null;
 
   return (
     <Card>
@@ -62,31 +67,38 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
           />
         </Box>
         <Flex direction={"column"}>
-          <Link
-            href={`https://doi.org/${doi}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            size={{ initial: "2", md: "3" }}
-            weight={"medium"}
-          >
-            {publication.title} <ExternalLinkIcon />
-          </Link>
+          {titleLink ? (
+            <Link
+              href={titleLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              size={{ initial: "2", md: "3" }}
+              weight={"medium"}
+            >
+              {publication.title} <ExternalLinkIcon />
+            </Link>
+          ) : (
+            <Text size={{ initial: "2", md: "3" }} weight={"medium"}>
+              {publication.title}
+            </Text>
+          )}
 
-          <Text
-            style={{ fontStyle: "italic" }}
-            size={{ initial: "1", md: "2" }}
-          >
-            {publication.authors.length > 4
-              ? `${publication.authors
-                  .slice(0, 4)
-                  .map((a) => a.name)
-                  .join(", ")} et al.`
-              : publication.authors.map((a) => a.name).join(", ")}
-          </Text>
-          <Text weight={"light"} size={{ initial: "1", md: "2" }}>
-            {cleanJournalName(publication.fulljournalname)}
-            {citationCount != null && citationCount > 0 && ` [${citationCount}]`}
-          </Text>
+          {publication.authors && (
+            <Text
+              style={{ fontStyle: "italic" }}
+              size={{ initial: "1", md: "2" }}
+            >
+              {formatAuthors(publication.authors)}
+            </Text>
+          )}
+          {publication.journal && (
+            <Text weight={"light"} size={{ initial: "1", md: "2" }}>
+              {cleanJournalName(publication.journal)}
+              {citationCount != null &&
+                citationCount > 0 &&
+                ` [${citationCount}]`}
+            </Text>
+          )}
         </Flex>
       </Flex>
     </Card>

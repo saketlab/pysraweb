@@ -1,6 +1,8 @@
 "use client";
 import ProjectSummary from "@/components/project-summary";
-import PublicationCard, { PubMedArticle } from "@/components/publication-card";
+import PublicationCard, {
+  StudyPublication,
+} from "@/components/publication-card";
 import SearchBar from "@/components/search-bar";
 import SimilarProjectsGraph, {
   SimilarNeighbor,
@@ -58,6 +60,7 @@ type Project = {
   external_id?: Record<string, string> | string | null;
   links?: unknown;
   center?: CenterInfo | null;
+  publications?: StudyPublication[] | null;
 };
 
 type GeoNeighborsPayload = {
@@ -219,48 +222,6 @@ const fetchProject = async (
   return data;
 };
 
-const fetchPubMedData = async (
-  pubmedIds: string[],
-): Promise<PubMedArticle[]> => {
-  if (!pubmedIds || pubmedIds.length === 0) {
-    return [];
-  }
-
-  const uniqueIds = Array.from(
-    new Set(pubmedIds.map((id) => id.trim()).filter(Boolean)),
-  );
-  const chunkSize = 100;
-  const articles: PubMedArticle[] = [];
-
-  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
-    const chunk = uniqueIds.slice(i, i + chunkSize);
-
-    try {
-      const res = await fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${encodeURIComponent(chunk.join(","))}&retmode=json`,
-      );
-      if (!res.ok) continue;
-
-      const data = (await res.json()) as {
-        result?: Record<string, PubMedArticle | string[]>;
-      };
-      const result = data.result;
-      if (!result) continue;
-
-      chunk.forEach((id) => {
-        const article = result[id];
-        if (article && typeof article === "object") {
-          articles.push(article as PubMedArticle);
-        }
-      });
-    } catch (error) {
-      console.error(`Failed to fetch PubMed data for chunk:`, error);
-    }
-  }
-
-  return articles;
-};
-
 const normalizeExternalIds = (
   externalId: unknown,
 ): { key: string; value: string }[] => {
@@ -290,42 +251,6 @@ const normalizeExternalIds = (
   }
 
   return entries;
-};
-
-const extractPubmedIds = (links: unknown): string[] => {
-  if (!links) return [];
-
-  let parsed = links;
-  if (typeof parsed === "string") {
-    try {
-      parsed = JSON.parse(parsed);
-    } catch {
-      return [];
-    }
-  }
-  if (!parsed || typeof parsed !== "object") return [];
-
-  const obj = parsed as Record<string, unknown>;
-  const ids = new Set<string>();
-
-  const addFrom = (item: unknown) => {
-    if (!item || typeof item !== "object") return;
-    const record = item as Record<string, unknown>;
-    const db = String(record.DB ?? record.db ?? "").toLowerCase();
-    if (db === "pubmed") {
-      const id = record.ID ?? record.Id ?? record.id;
-      if (id) ids.add(String(id));
-    }
-  };
-
-  const xref = obj.XREF_LINK ?? obj.xref_link ?? obj.XrefLink;
-  if (Array.isArray(xref)) {
-    xref.forEach(addFrom);
-  } else {
-    addFrom(xref);
-  }
-
-  return Array.from(ids);
 };
 
 // const fetchSimilarProjects = async (
@@ -430,16 +355,7 @@ export default function ProjectPage() {
     [project?.external_id],
   );
 
-  const pubmedIds = React.useMemo(
-    () => extractPubmedIds(project?.links),
-    [project?.links],
-  );
-
-  const { data: publications, isLoading: isPublicationsLoading } = useQuery({
-    queryKey: ["publications", pubmedIds.join(",")],
-    queryFn: () => fetchPubMedData(pubmedIds),
-    enabled: pubmedIds.length > 0,
-  });
+  const publications = project?.publications ?? null;
 
   const handleCopyAccession = async () => {
     if (!accession) return;
@@ -1018,27 +934,20 @@ export default function ProjectPage() {
               Linked publications
             </Text>
 
-            {isPublicationsLoading && (
-              <Flex gap="2" align="center">
-                <Spinner size="2" />
-                <Text size="2">Loading publications...</Text>
-              </Flex>
-            )}
-
-            {publications && publications.length > 0 && (
+            {publications && publications.length > 0 ? (
               <Flex direction="column" gap="3">
                 {publications.map((pub) => (
-                  <PublicationCard key={pub.uid} publication={pub} />
+                  <PublicationCard
+                    key={pub.pmid ?? pub.doi ?? pub.title}
+                    publication={pub}
+                  />
                 ))}
               </Flex>
+            ) : (
+              <Text size="2" color="gray">
+                No linked publications found
+              </Text>
             )}
-
-            {!isPublicationsLoading &&
-              (!publications || publications.length === 0) && (
-                <Text size="2" color="gray">
-                  No linked publications found
-                </Text>
-              )}
             <Flex align="center" gap="2">
               <Text weight="medium" size="6">
                 Similar projects
