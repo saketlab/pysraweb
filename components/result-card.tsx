@@ -9,7 +9,13 @@ type ResultCardProps = {
   updated_at: string | null;
   journal: string | null;
   doi: string | null;
+  citation_count: number | null;
 };
+
+function cleanJournalName(name: string): string {
+  const parenIndex = name.indexOf("(");
+  return (parenIndex !== -1 ? name.slice(0, parenIndex) : name).trimEnd();
+}
 
 export default function ResultCard({
   accesssion,
@@ -18,6 +24,7 @@ export default function ResultCard({
   updated_at,
   journal,
   doi,
+  citation_count,
 }: ResultCardProps) {
   const router = useRouter();
   const isArrayExpressAccession = accesssion.toUpperCase().startsWith("E-");
@@ -77,7 +84,8 @@ export default function ResultCard({
                   : undefined
               }
             >
-              {journal}
+              {cleanJournalName(journal)}
+              {citation_count != null && ` [${citation_count}]`}
             </Badge>
           )}
         </Flex>

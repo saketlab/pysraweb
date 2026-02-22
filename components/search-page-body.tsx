@@ -350,6 +350,7 @@ export default function SearchPageBody() {
                     updated_at={searchResult.updated_at}
                     journal={searchResult.journal}
                     doi={searchResult.doi}
+                    citation_count={searchResult.citation_count}
                   />
                 ))
               )}

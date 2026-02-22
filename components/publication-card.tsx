@@ -22,14 +22,23 @@ export type PubMedArticle = {
   pubdate: string;
   source: string;
   articleids: PubMedArticleId[];
+  pmcrefcount?: number | string;
 };
 
 type PublicationCardProps = {
   publication: PubMedArticle;
 };
 
+function cleanJournalName(name: string): string {
+  const parenIndex = name.indexOf("(");
+  return (parenIndex !== -1 ? name.slice(0, parenIndex) : name).trimEnd();
+}
+
 export default function PublicationCard({ publication }: PublicationCardProps) {
   const doi = publication.articleids.find((id) => id.idtype === "doi")?.value;
+  const citationCount = publication.pmcrefcount
+    ? Number(publication.pmcrefcount)
+    : null;
 
   return (
     <Card>
@@ -75,7 +84,8 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
               : publication.authors.map((a) => a.name).join(", ")}
           </Text>
           <Text weight={"light"} size={{ initial: "1", md: "2" }}>
-            {publication.fulljournalname}
+            {cleanJournalName(publication.fulljournalname)}
+            {citationCount != null && citationCount > 0 && ` [${citationCount}]`}
           </Text>
         </Flex>
       </Flex>
