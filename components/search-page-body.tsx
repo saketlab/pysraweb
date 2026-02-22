@@ -107,8 +107,14 @@ export default function SearchPageBody() {
   const tookMs = data?.pages?.[0]?.took_ms ?? 0;
 
   // Flatten all pages into a single array of results
-  const searchResults =
-    data?.pages.flatMap((page) => page?.results ?? []) ?? [];
+  const flattenedResults = data?.pages.flatMap((page) => page?.results ?? []) ?? [];
+  const seenResultIds = new Set<string>();
+  const searchResults = flattenedResults.filter((result) => {
+    const resultId = `${result.source}:${result.accession}`;
+    if (seenResultIds.has(resultId)) return false;
+    seenResultIds.add(resultId);
+    return true;
+  });
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -337,7 +343,7 @@ export default function SearchPageBody() {
               ) : (
                 organismFilteredResults.map((searchResult) => (
                   <ResultCard
-                    key={searchResult.accession}
+                    key={`${searchResult.source}:${searchResult.accession}`}
                     accesssion={searchResult.accession}
                     title={searchResult.title}
                     summary={searchResult.summary}
