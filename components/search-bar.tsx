@@ -16,7 +16,7 @@ import {
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 interface SearchBarProps {
   initialQuery?: string | null;
@@ -36,6 +36,14 @@ const NAV_ITEMS = [
 ];
 
 export default function SearchBar({ initialQuery }: SearchBarProps) {
+  return (
+    <Suspense fallback={null}>
+      <SearchBarContent initialQuery={initialQuery} />
+    </Suspense>
+  );
+}
+
+function SearchBarContent({ initialQuery }: SearchBarProps) {
   const { lastSearchQuery, setLastSearchQuery } = useSearchQuery();
   const resolvedQuery = (initialQuery ?? "") || lastSearchQuery;
   const [searchQuery, setSearchQuery] = useState(resolvedQuery);
