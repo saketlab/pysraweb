@@ -11,12 +11,6 @@ import SubmittingOrgPanel, {
 import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
-import type {
-  ColDef,
-  ICellRendererParams,
-  ValueGetterParams,
-} from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
 import {
   CheckIcon,
   CopyIcon,
@@ -36,8 +30,14 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueGetterParams,
+} from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import React, { useState } from "react";
 
@@ -196,16 +196,15 @@ const fetchProject = async (
         const geoData = (await geoRes.json()) as GeoNeighborsPayload;
         if (typeof geoData.neighbors === "string") {
           try {
-            geoData.neighbors = JSON.parse(geoData.neighbors) as SimilarNeighbor[];
+            geoData.neighbors = JSON.parse(
+              geoData.neighbors,
+            ) as SimilarNeighbor[];
           } catch {
             geoData.neighbors = null;
           }
         }
         const parsedCoords3d = normalizeCoords3d(geoData.coords_3d);
-        if (
-          Array.isArray(geoData.neighbors) &&
-          geoData.neighbors.length > 0
-        ) {
+        if (Array.isArray(geoData.neighbors) && geoData.neighbors.length > 0) {
           data.neighbors = geoData.neighbors;
         }
         if (parsedCoords3d) {
@@ -394,7 +393,8 @@ export default function ProjectPage() {
   const params = useParams();
   const { resolvedTheme } = useTheme();
   const accession = params.accession as string | undefined;
-  const isArrayExpressAccession = accession?.toUpperCase().startsWith("E-") ?? false;
+  const isArrayExpressAccession =
+    accession?.toUpperCase().startsWith("E-") ?? false;
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
@@ -640,12 +640,14 @@ export default function ProjectPage() {
         minWidth: 120,
         valueFormatter: (params) => toDisplayText(params.value),
       },
-      ...attributeKeys.map((key): ColDef<ExperimentGridRow> => ({
-        headerName: key,
-        minWidth: 170,
-        valueGetter: (params: ValueGetterParams<ExperimentGridRow>) =>
-          params.data?.attributes[key] ?? "-",
-      })),
+      ...attributeKeys.map(
+        (key): ColDef<ExperimentGridRow> => ({
+          headerName: key,
+          minWidth: 170,
+          valueGetter: (params: ValueGetterParams<ExperimentGridRow>) =>
+            params.data?.attributes[key] ?? "-",
+        }),
+      ),
     ],
     [attributeKeys],
   );
@@ -740,7 +742,7 @@ export default function ProjectPage() {
             <Flex justify="start" align={"center"} gap="2" wrap={"wrap"}>
               <Badge
                 size={{ initial: "1", md: "3" }}
-                color={isArrayExpressAccession ? "iris" : "brown"}
+                color={isArrayExpressAccession ? "gold" : "brown"}
                 variant={isArrayExpressAccession ? "solid" : undefined}
               >
                 <Flex align="center" gap="1">
@@ -845,10 +847,7 @@ export default function ProjectPage() {
                   }
                   if (keyLower === "geo" || value.startsWith("GSE")) {
                     return (
-                      <a
-                        key={`${entry.key}:${value}`}
-                        href={`/p/${value}`}
-                      >
+                      <a key={`${entry.key}:${value}`} href={`/p/${value}`}>
                         <Badge
                           size={{ initial: "1", md: "3" }}
                           style={{ cursor: "pointer" }}

@@ -248,7 +248,8 @@ const normalizeSupplementaryRecord = (
     const rawType = record["@type"];
     return {
       "#text": text.trim(),
-      "@type": typeof rawType === "string" && rawType.trim() ? rawType.trim() : null,
+      "@type":
+        typeof rawType === "string" && rawType.trim() ? rawType.trim() : null,
     };
   }
 
@@ -276,7 +277,9 @@ const normalizeSupplementaryRecord = (
   return null;
 };
 
-const parseSupplementaryData = (rawValue: unknown): SupplementaryDataRecord[] => {
+const parseSupplementaryData = (
+  rawValue: unknown,
+): SupplementaryDataRecord[] => {
   if (!rawValue) {
     return [];
   }
@@ -749,12 +752,14 @@ export default function GeoProjectPage() {
           <TruncatedCell text={toDisplayText(params.value)} />
         ),
       },
-      ...characteristicTags.map((tag): ColDef<GeoSampleGridRow> => ({
-        headerName: tag,
-        minWidth: 140,
-        valueGetter: (params: ValueGetterParams<GeoSampleGridRow>) =>
-          params.data?.characteristics[tag] ?? "-",
-      })),
+      ...characteristicTags.map(
+        (tag): ColDef<GeoSampleGridRow> => ({
+          headerName: tag,
+          minWidth: 140,
+          valueGetter: (params: ValueGetterParams<GeoSampleGridRow>) =>
+            params.data?.characteristics[tag] ?? "-",
+        }),
+      ),
       {
         headerName: "Hybridization Protocol",
         field: "hybridizationProtocol",
@@ -884,7 +889,7 @@ export default function GeoProjectPage() {
             <Flex justify={"start"} align="center" gap="2" wrap="wrap">
               <Badge
                 size={{ initial: "1", md: "3" }}
-                color={isArrayExpress ? "iris" : undefined}
+                color={isArrayExpress ? "gold" : undefined}
                 variant={isArrayExpress ? "solid" : undefined}
               >
                 <Flex align="center" gap="1">
@@ -980,7 +985,9 @@ export default function GeoProjectPage() {
                 rel="noopener noreferrer"
               >
                 <Badge size={{ initial: "1", md: "3" }} color="sky">
-                  {isArrayExpress ? "Visit ArrayExpress page" : "Visit GEO page"}{" "}
+                  {isArrayExpress
+                    ? "Visit ArrayExpress page"
+                    : "Visit GEO page"}{" "}
                   <ExternalLinkIcon />
                 </Badge>
               </a>
@@ -1026,10 +1033,7 @@ export default function GeoProjectPage() {
                           SuperSeries of:
                         </Text>
                         {superSeries.map((s) => (
-                          <a
-                            key={s["@target"]}
-                            href={`/p/${s["@target"]}`}
-                          >
+                          <a key={s["@target"]} href={`/p/${s["@target"]}`}>
                             <Badge
                               size={{ initial: "1", md: "2" }}
                               style={{ cursor: "pointer" }}
@@ -1046,10 +1050,7 @@ export default function GeoProjectPage() {
                           SubSeries of:
                         </Text>
                         {subSeries.map((s) => (
-                          <a
-                            key={s["@target"]}
-                            href={`/p/${s["@target"]}`}
-                          >
+                          <a key={s["@target"]} href={`/p/${s["@target"]}`}>
                             <Badge
                               size={{ initial: "1", md: "2" }}
                               style={{ cursor: "pointer" }}
@@ -1304,7 +1305,11 @@ export default function GeoProjectPage() {
                     value={item.id}
                     style={{ marginTop: "0.75rem", maxWidth: "100%" }}
                   >
-                    <Flex direction="column" gap="2" style={{ maxWidth: "100%" }}>
+                    <Flex
+                      direction="column"
+                      gap="2"
+                      style={{ maxWidth: "100%" }}
+                    >
                       <div
                         style={{
                           width: "100%",

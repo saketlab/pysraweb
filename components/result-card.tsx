@@ -1,6 +1,6 @@
+import { getProjectShortUrl } from "@/utils/shortUrl";
 import { Badge, Card, Flex, Text } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { getProjectShortUrl } from "@/utils/shortUrl";
 
 type ResultCardProps = {
   accesssion: string;
@@ -41,7 +41,7 @@ export default function ResultCard({
             size={"2"}
             color={
               isArrayExpressAccession
-                ? "iris"
+                ? "gold"
                 : accesssion.startsWith("G")
                   ? undefined
                   : "brown"
