@@ -13,14 +13,18 @@ import {
   ZoomOutIcon,
 } from "@radix-ui/react-icons";
 import {
+  Badge,
   Button,
   Box,
   Card,
   Checkbox,
   DropdownMenu,
   Flex,
+  Heading,
   IconButton,
   Link,
+  Progress,
+  Separator,
   Spinner,
   Text,
   TextField,
@@ -38,6 +42,12 @@ type MapPoint = {
 };
 
 type RenderPoint = MapPoint & {
+  fillColor: [number, number, number, number];
+};
+
+type LoadingRenderPoint = {
+  x: number;
+  y: number;
   fillColor: [number, number, number, number];
 };
 
@@ -76,6 +86,19 @@ type SelectedPoint = {
   y: number;
 };
 
+type PointsChunkInfo = {
+  loadedPoints: number;
+  totalPoints: number | null;
+};
+
+type FetchMapDataOptions = {
+  signal?: AbortSignal;
+  onPointsChunk?: (
+    points: Array<{ x: number; y: number }>,
+    info: PointsChunkInfo,
+  ) => void;
+};
+
 const POINT_COLOR_DARK: [number, number, number, number] = [97, 207, 196, 210];
 const POINT_COLOR_LIGHT: [number, number, number, number] = [72, 136, 245, 210];
 const CLUSTER_TEXT_COLOR_DARK: [number, number, number, number] = [
@@ -89,6 +112,9 @@ const MIN_ZOOM = -8;
 const MAX_ZOOM = 22;
 const CLUSTER_LABEL_MIN_ZOOM = 0.9;
 const ZOOM_STEP = 0.45;
+const LOADING_PREVIEW_MAX_POINTS = 140000;
+const LOADING_PREVIEW_CHUNK_TARGET = 2200;
+const LOADING_PREVIEW_FLUSH_MS = 120;
 const INITIAL_VIEW_STATE: ViewState = {
   target: [0, 0, 0],
   zoom: 0,
@@ -322,6 +348,42 @@ function decodePoints(buffer: ArrayBuffer): Array<{ x: number; y: number }> {
   return points;
 }
 
+function decodePointsChunk(bytes: Uint8Array): Array<{ x: number; y: number }> {
+  if (bytes.byteLength % 8 !== 0) {
+    throw new Error("Invalid points.bin chunk size. Expected 8 bytes per point.");
+  }
+
+  const count = bytes.byteLength / 8;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const points = new Array<{ x: number; y: number }>(count);
+
+  for (let i = 0; i < count; i += 1) {
+    const offset = i * 8;
+    points[i] = {
+      x: view.getFloat32(offset, true),
+      y: view.getFloat32(offset + 4, true),
+    };
+  }
+
+  return points;
+}
+
+function sampleEvenly<T>(items: T[], targetCount: number): T[] {
+  if (targetCount <= 0 || items.length === 0) {
+    return [];
+  }
+  if (items.length <= targetCount) {
+    return items;
+  }
+
+  const sampled = new Array<T>(targetCount);
+  const step = items.length / targetCount;
+  for (let i = 0; i < targetCount; i += 1) {
+    sampled[i] = items[Math.floor(i * step)];
+  }
+  return sampled;
+}
+
 function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
   const view = new DataView(buffer);
   const decoder = new TextDecoder();
@@ -394,18 +456,97 @@ function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
   return records;
 }
 
-async function fetchMapData(): Promise<MapPoint[]> {
+async function fetchMapData(options: FetchMapDataOptions = {}): Promise<MapPoint[]> {
+  const { signal, onPointsChunk } = options;
   const [pointsRes, accessionsRes] = await Promise.all([
-    fetch(`${SERVER_URL}/points.bin`),
-    fetch(`${SERVER_URL}/accessions.bin`),
+    fetch(`${SERVER_URL}/points.bin`, { signal }),
+    fetch(`${SERVER_URL}/accessions.bin`, { signal }),
   ]);
 
   if (!pointsRes.ok || !accessionsRes.ok) {
     throw new Error("Failed to fetch map binaries.");
   }
 
+  const pointsBufferPromise = (async (): Promise<ArrayBuffer> => {
+    const totalBytesHeader = pointsRes.headers.get("content-length");
+    const parsedTotalBytes = totalBytesHeader
+      ? Number.parseInt(totalBytesHeader, 10)
+      : Number.NaN;
+    const totalPoints =
+      Number.isFinite(parsedTotalBytes) &&
+      parsedTotalBytes > 0 &&
+      parsedTotalBytes % 8 === 0
+        ? parsedTotalBytes / 8
+        : null;
+
+    const streamReader = pointsRes.body?.getReader();
+    if (!streamReader) {
+      const fallbackBuffer = await pointsRes.arrayBuffer();
+      const fallbackPoints = decodePoints(fallbackBuffer);
+      onPointsChunk?.(fallbackPoints, {
+        loadedPoints: fallbackPoints.length,
+        totalPoints,
+      });
+      return fallbackBuffer;
+    }
+
+    const chunks: Uint8Array[] = [];
+    let loadedBytes = 0;
+    let loadedPoints = 0;
+    let remainder = new Uint8Array(0);
+
+    while (true) {
+      const { done, value } = await streamReader.read();
+      if (done) {
+        break;
+      }
+
+      if (!value || value.byteLength === 0) {
+        continue;
+      }
+
+      chunks.push(value);
+      loadedBytes += value.byteLength;
+
+      const merged = new Uint8Array(remainder.byteLength + value.byteLength);
+      merged.set(remainder, 0);
+      merged.set(value, remainder.byteLength);
+
+      const completeByteLength = merged.byteLength - (merged.byteLength % 8);
+      if (completeByteLength > 0) {
+        const completeSlice = merged.subarray(0, completeByteLength);
+        const chunkPoints = decodePointsChunk(completeSlice);
+        loadedPoints += chunkPoints.length;
+        onPointsChunk?.(chunkPoints, { loadedPoints, totalPoints });
+      }
+
+      remainder = merged.subarray(completeByteLength);
+    }
+
+    if (remainder.byteLength !== 0) {
+      throw new Error("Invalid points.bin size. Expected 8 bytes per point.");
+    }
+
+    const reconstructed = new Uint8Array(loadedBytes);
+    let writeOffset = 0;
+    for (const chunk of chunks) {
+      reconstructed.set(chunk, writeOffset);
+      writeOffset += chunk.byteLength;
+    }
+
+    if (writeOffset !== loadedBytes) {
+      throw new Error("Failed to reconstruct points.bin stream.");
+    }
+
+    if (reconstructed.byteLength % 8 !== 0) {
+      throw new Error("Invalid points.bin size. Expected 8 bytes per point.");
+    }
+
+    return reconstructed.buffer;
+  })();
+
   const [pointsBuffer, accessionsBuffer] = await Promise.all([
-    pointsRes.arrayBuffer(),
+    pointsBufferPromise,
     accessionsRes.arrayBuffer(),
   ]);
 
@@ -516,6 +657,8 @@ async function fetchProjectMetadata(
 export default function MapGraph() {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const loadingPreviewBufferRef = useRef<Array<{ x: number; y: number }>>([]);
+  const loadingPreviewFlushRef = useRef(0);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
@@ -529,6 +672,13 @@ export default function MapGraph() {
 
   const [highlightedPoint, setHighlightedPoint] = useState<MapPoint | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null);
+  const [loadingPreviewPoints, setLoadingPreviewPoints] = useState<
+    Array<{ x: number; y: number }>
+  >([]);
+  const [loadingProgress, setLoadingProgress] = useState<PointsChunkInfo>({
+    loadedPoints: 0,
+    totalPoints: null,
+  });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -556,7 +706,55 @@ export default function MapGraph() {
 
   const dataQuery = useQuery({
     queryKey: ["map-binaries"],
-    queryFn: fetchMapData,
+    queryFn: ({ signal }) => {
+      loadingPreviewBufferRef.current = [];
+      loadingPreviewFlushRef.current = 0;
+      setLoadingPreviewPoints([]);
+      setLoadingProgress({
+        loadedPoints: 0,
+        totalPoints: null,
+      });
+
+      return fetchMapData({
+        signal,
+        onPointsChunk: (chunkPoints, info) => {
+          const previewBuffer = loadingPreviewBufferRef.current;
+          const remainingCapacity = LOADING_PREVIEW_MAX_POINTS - previewBuffer.length;
+
+          if (chunkPoints.length > 0 && remainingCapacity > 0) {
+            const sampleTarget = Math.min(
+              remainingCapacity,
+              LOADING_PREVIEW_CHUNK_TARGET,
+            );
+            const sampledChunk = sampleEvenly(chunkPoints, sampleTarget);
+            for (const point of sampledChunk) {
+              previewBuffer.push(point);
+            }
+          }
+
+          setLoadingProgress((previous) => {
+            if (
+              previous.loadedPoints === info.loadedPoints &&
+              previous.totalPoints === info.totalPoints
+            ) {
+              return previous;
+            }
+            return info;
+          });
+
+          const now = performance.now();
+          const reachedTotal =
+            info.totalPoints !== null && info.loadedPoints >= info.totalPoints;
+          if (
+            now - loadingPreviewFlushRef.current >= LOADING_PREVIEW_FLUSH_MS ||
+            reachedTotal
+          ) {
+            loadingPreviewFlushRef.current = now;
+            setLoadingPreviewPoints([...previewBuffer]);
+          }
+        },
+      });
+    },
     retry: 2,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
@@ -769,6 +967,35 @@ export default function MapGraph() {
     resolvedTheme === "light" ? MUTED_POINT_LIGHT : MUTED_POINT_DARK;
   const clusterTextColor =
     resolvedTheme === "light" ? CLUSTER_TEXT_COLOR_LIGHT : CLUSTER_TEXT_COLOR_DARK;
+  const loadingPointAlpha = resolvedTheme === "light" ? 95 : 120;
+
+  const loadingRenderPoints = useMemo<LoadingRenderPoint[]>(() => {
+    if (loadingPreviewPoints.length === 0) {
+      return [];
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const point of loadingPreviewPoints) {
+      if (point.x < minX) minX = point.x;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.y > maxY) maxY = point.y;
+    }
+
+    const xSpan = maxX - minX || 1;
+    const ySpan = maxY - minY || 1;
+    const extent = 2200;
+
+    return loadingPreviewPoints.map((point) => ({
+      x: ((point.x - minX) / xSpan - 0.5) * extent,
+      y: ((point.y - minY) / ySpan - 0.5) * extent,
+      fillColor: [pointColor[0], pointColor[1], pointColor[2], loadingPointAlpha],
+    }));
+  }, [loadingPreviewPoints, pointColor, loadingPointAlpha]);
 
   const renderPoints = useMemo<RenderPoint[]>(() => {
     if (selectedCountries.length > 0) {
@@ -849,46 +1076,66 @@ export default function MapGraph() {
     resolvedTheme,
   ]);
 
-  const layers = useMemo(
-    () => [
-      new ScatterplotLayer<RenderPoint>({
-        id: "map-points",
-        data: renderPoints,
-        pickable: true,
-        getPosition: (d) => [d.x, d.y],
-        getFillColor: (d) => d.fillColor,
-        getRadius: 0.4,
-        radiusUnits: "pixels",
-        radiusMinPixels: 0.2,
-        radiusMaxPixels: 1.4,
-        stroked: false,
-        onClick: (info: PickingInfo<RenderPoint>) => {
-          if (!info.object) {
-            return;
-          }
-          const srcEvent = (info as PickingInfo<RenderPoint> & { srcEvent?: Event })
-            .srcEvent;
-          const clickX =
-            srcEvent && "clientX" in srcEvent
-              ? (srcEvent as MouseEvent).clientX
-              : Number.isFinite(info.x)
-                ? info.x
-                : windowSize.width / 2;
-          const clickY =
-            srcEvent && "clientY" in srcEvent
-              ? (srcEvent as MouseEvent).clientY
-              : Number.isFinite(info.y)
-                ? info.y
-                : windowSize.height / 2;
+  const layers = useMemo(() => {
+    const pointLayer = new ScatterplotLayer<RenderPoint | LoadingRenderPoint>({
+      id: "map-points",
+      data: dataQuery.isLoading ? loadingRenderPoints : renderPoints,
+      pickable: !dataQuery.isLoading,
+      getPosition: (d) => [d.x, d.y],
+      getFillColor: (d) => d.fillColor,
+      getRadius: 0.4,
+      radiusUnits: "pixels",
+      radiusMinPixels: 0.2,
+      radiusMaxPixels: 1.4,
+      stroked: false,
+      onClick: (info: PickingInfo<RenderPoint | LoadingRenderPoint>) => {
+        if (dataQuery.isLoading || !info.object) {
+          return;
+        }
 
-          setSelectedPoint({
-            accession: info.object.accession,
-            x: clickX,
-            y: clickY,
-          });
-          setHighlightedPoint(info.object);
-        },
-      }),
+        if (!("accession" in info.object) || !Array.isArray(info.object.countries)) {
+          return;
+        }
+
+        const srcEvent = (
+          info as PickingInfo<RenderPoint | LoadingRenderPoint> & {
+            srcEvent?: Event;
+          }
+        ).srcEvent;
+        const clickX =
+          srcEvent && "clientX" in srcEvent
+            ? (srcEvent as MouseEvent).clientX
+            : Number.isFinite(info.x)
+              ? info.x
+              : windowSize.width / 2;
+        const clickY =
+          srcEvent && "clientY" in srcEvent
+            ? (srcEvent as MouseEvent).clientY
+            : Number.isFinite(info.y)
+              ? info.y
+              : windowSize.height / 2;
+
+        const clickedPoint = info.object as RenderPoint;
+        setSelectedPoint({
+          accession: clickedPoint.accession,
+          x: clickX,
+          y: clickY,
+        });
+        setHighlightedPoint({
+          accession: clickedPoint.accession,
+          countries: clickedPoint.countries,
+          x: clickedPoint.x,
+          y: clickedPoint.y,
+        });
+      },
+    });
+
+    if (dataQuery.isLoading) {
+      return [pointLayer];
+    }
+
+    return [
+      pointLayer,
       new ScatterplotLayer<MapPoint>({
         id: "map-highlight-point",
         data: highlightedPoint ? [highlightedPoint] : [],
@@ -918,16 +1165,17 @@ export default function MapGraph() {
         getAlignmentBaseline: "bottom",
         getPixelOffset: [0, -8],
       }),
-    ],
-    [
-      renderPoints,
-      highlightedPoint,
-      visibleClusters,
-      windowSize.width,
-      windowSize.height,
-      clusterTextColor,
-    ],
-  );
+    ];
+  }, [
+    dataQuery.isLoading,
+    loadingRenderPoints,
+    renderPoints,
+    windowSize.width,
+    windowSize.height,
+    highlightedPoint,
+    visibleClusters,
+    clusterTextColor,
+  ]);
 
   const metadataCardPosition = useMemo(() => {
     if (!selectedPoint) {
@@ -947,15 +1195,6 @@ export default function MapGraph() {
     };
   }, [selectedPoint, windowSize.width, windowSize.height]);
 
-  if (dataQuery.isLoading) {
-    return (
-      <Flex align="center" justify="center" gap="3" direction="column" style={{ height: "100%" }}>
-        <Spinner size="3" />
-        <Text size={{ initial: "2", md: "3" }} color="gray">Loading map...</Text>
-      </Flex>
-    );
-  }
-
   if (dataQuery.isError) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
@@ -965,6 +1204,23 @@ export default function MapGraph() {
       </Flex>
     );
   }
+
+  const isMapLoading = dataQuery.isLoading;
+  const progressPercent =
+    loadingProgress.totalPoints && loadingProgress.totalPoints > 0
+      ? Math.round(
+          clamp(
+            loadingProgress.loadedPoints / loadingProgress.totalPoints,
+            0,
+            1,
+          ) * 100,
+        )
+      : null;
+  const loadingStatus = `${loadingProgress.loadedPoints.toLocaleString()}${
+    loadingProgress.totalPoints
+      ? ` / ${loadingProgress.totalPoints.toLocaleString()}`
+      : ""
+  } points`;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1000,217 +1256,223 @@ export default function MapGraph() {
 
   return (
     <Box ref={containerRef} style={{ height: "100%", position: "relative" }}>
-      <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
-        <Card size={{ initial: "1", md: "2" }}>
-          <form onSubmit={handleSearchSubmit}>
-            <Flex direction="column" gap="2">
-              <Flex gap="2" align="center">
+      {!isMapLoading && (
+        <Box style={{ position: "absolute", top: 12, left: 12, zIndex: 22 }}>
+          <Card size={{ initial: "1", md: "2" }}>
+            <form onSubmit={handleSearchSubmit}>
+              <Flex direction="column" gap="2">
+                <Flex gap="2" align="center">
+                  <TextField.Root
+                    placeholder="Search accession"
+                    value={searchInput}
+                    size={{ initial: "1", md: "2" }}
+                    onChange={(event) => {
+                      setSearchInput(event.target.value);
+                      if (searchError) setSearchError(null);
+                    }}
+                  />
+                  <IconButton
+                    type="submit"
+                    variant="soft"
+                    size={{ initial: "2", md: "2" }}
+                    aria-label="Search accession"
+                  >
+                    <MagnifyingGlassIcon />
+                  </IconButton>
+                </Flex>
+                {searchError && (
+                  <Text size={{ initial: "1", md: "2" }} color="red">
+                    {searchError}
+                  </Text>
+                )}
+              </Flex>
+            </form>
+          </Card>
+        </Box>
+      )}
+
+      {!isMapLoading && (
+        <Box
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            zIndex: 23,
+          }}
+        >
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <Button variant="solid" size={{ initial: "2", md: "2" }}>
+                <SwitchIcon />
+                Configure
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={8}
+              style={{ width: "min(92vw, 340px)", maxHeight: "72vh" }}
+            >
+              <Flex direction="column" gap="2">
+                <Flex align="center" gap="2">
+                  <Checkbox
+                    id="cluster-color-toggle"
+                    size={{ initial: "1", md: "2" }}
+                    checked={colorByClusters}
+                    onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
+                  />
+                  <Text
+                    as="label"
+                    htmlFor="cluster-color-toggle"
+                    size={{ initial: "1", md: "2" }}
+                  >
+                    Color by clusters
+                  </Text>
+                </Flex>
+
+                <Box style={{ height: 1, backgroundColor: "var(--gray-a4)" }} />
+
                 <TextField.Root
-                  placeholder="Search accession"
-                  value={searchInput}
+                  placeholder="Search countries"
                   size={{ initial: "1", md: "2" }}
-                  onChange={(event) => {
-                    setSearchInput(event.target.value);
-                    if (searchError) setSearchError(null);
-                  }}
+                  value={countrySearchInput}
+                  onChange={(event) => setCountrySearchInput(event.target.value)}
                 />
+
+                <Box style={{ maxHeight: "34vh", overflowY: "auto", paddingRight: 4 }}>
+                  <Flex direction="column" gap="1">
+                    {countryStats.length === 0 && (
+                      <Text size={{ initial: "1", md: "2" }} color="gray">
+                        No country metadata available.
+                      </Text>
+                    )}
+                    {countryStats.length > 0 && filteredCountryStats.length === 0 && (
+                      <Text size={{ initial: "1", md: "2" }} color="gray">
+                        No countries match your search.
+                      </Text>
+                    )}
+
+                    {filteredCountryStats.map(({ country }, index) => {
+                      const checked = selectedCountries.includes(country);
+                      const checkboxId = `country-filter-${index}`;
+                      const colorValue =
+                        countryColors[country] ?? defaultCountryColors[country];
+
+                      return (
+                        <Flex key={country} align="center" justify="between" gap="2">
+                          <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
+                            <Checkbox
+                              id={checkboxId}
+                              checked={checked}
+                              onCheckedChange={(value) =>
+                                toggleCountrySelection(country, Boolean(value))
+                              }
+                            />
+                            <Text
+                              as="label"
+                              htmlFor={checkboxId}
+                              size={{ initial: "1", md: "2" }}
+                              style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                cursor: "pointer",
+                                flex: 1,
+                              }}
+                            >
+                              {country}
+                            </Text>
+                          </Flex>
+                          <input
+                            type="color"
+                            aria-label={`Color for ${country}`}
+                            value={colorValue}
+                            onChange={(event) =>
+                              setCountryColors((prev) => ({
+                                ...prev,
+                                [country]: event.target.value,
+                              }))
+                            }
+                            style={{
+                              width: 26,
+                              height: 18,
+                              border: "none",
+                              background: "transparent",
+                              padding: 0,
+                              cursor: "pointer",
+                            }}
+                          />
+                        </Flex>
+                      );
+                    })}
+                  </Flex>
+                </Box>
+
+                {selectedCountries.length > 0 && (
+                  <Text
+                    size="1"
+                    color="gray"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setSelectedCountries([])}
+                  >
+                    Clear selected countries
+                  </Text>
+                )}
+              </Flex>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </Box>
+      )}
+
+      {!isMapLoading && (
+        <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
+          <Card size={{ initial: "1", md: "2" }}>
+            <Flex gap="2" direction="column" align="center">
+              <Tooltip content="Zoom in" side="left">
                 <IconButton
-                  type="submit"
                   variant="soft"
                   size={{ initial: "2", md: "2" }}
-                  aria-label="Search accession"
+                  aria-label="Zoom in"
+                  onClick={() =>
+                    setViewState((prev) => ({
+                      ...prev,
+                      zoom: Math.min(prev.zoom + ZOOM_STEP, MAX_ZOOM),
+                    }))
+                  }
                 >
-                  <MagnifyingGlassIcon />
+                  <ZoomInIcon />
                 </IconButton>
-              </Flex>
-              {searchError && (
-                <Text size={{ initial: "1", md: "2" }} color="red">
-                  {searchError}
-                </Text>
-              )}
-            </Flex>
-          </form>
-        </Card>
-      </Box>
-
-      <Box
-        style={{
-          position: "absolute",
-          top: 12,
-          right: 12,
-          zIndex: 23,
-        }}
-      >
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            <Button variant="solid" size={{ initial: "2", md: "2" }}>
-              <SwitchIcon />
-              Configure
-            </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content
-            align="end"
-            sideOffset={8}
-            style={{ width: "min(92vw, 340px)", maxHeight: "72vh" }}
-          >
-            <Flex direction="column" gap="2">
-              <Flex align="center" gap="2">
-                <Checkbox
-                  id="cluster-color-toggle"
-                  size={{ initial: "1", md: "2" }}
-                  checked={colorByClusters}
-                  onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
-                />
-                <Text
-                  as="label"
-                  htmlFor="cluster-color-toggle"
-                  size={{ initial: "1", md: "2" }}
+              </Tooltip>
+              <Tooltip content="Zoom out" side="left">
+                <IconButton
+                  variant="soft"
+                  size={{ initial: "2", md: "2" }}
+                  aria-label="Zoom out"
+                  onClick={() =>
+                    setViewState((prev) => ({
+                      ...prev,
+                      zoom: Math.max(prev.zoom - ZOOM_STEP, MIN_ZOOM),
+                    }))
+                  }
                 >
-                  Color by clusters
-                </Text>
-              </Flex>
-
-              <Box style={{ height: 1, backgroundColor: "var(--gray-a4)" }} />
-
-              <TextField.Root
-                placeholder="Search countries"
-                size={{ initial: "1", md: "2" }}
-                value={countrySearchInput}
-                onChange={(event) => setCountrySearchInput(event.target.value)}
-              />
-
-              <Box style={{ maxHeight: "34vh", overflowY: "auto", paddingRight: 4 }}>
-                <Flex direction="column" gap="1">
-                  {countryStats.length === 0 && (
-                    <Text size={{ initial: "1", md: "2" }} color="gray">
-                      No country metadata available.
-                    </Text>
-                  )}
-                  {countryStats.length > 0 && filteredCountryStats.length === 0 && (
-                    <Text size={{ initial: "1", md: "2" }} color="gray">
-                      No countries match your search.
-                    </Text>
-                  )}
-
-                  {filteredCountryStats.map(({ country }, index) => {
-                    const checked = selectedCountries.includes(country);
-                    const checkboxId = `country-filter-${index}`;
-                    const colorValue =
-                      countryColors[country] ?? defaultCountryColors[country];
-
-                    return (
-                      <Flex key={country} align="center" justify="between" gap="2">
-                        <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
-                          <Checkbox
-                            id={checkboxId}
-                            checked={checked}
-                            onCheckedChange={(value) =>
-                              toggleCountrySelection(country, Boolean(value))
-                            }
-                          />
-                          <Text
-                            as="label"
-                            htmlFor={checkboxId}
-                            size={{ initial: "1", md: "2" }}
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              cursor: "pointer",
-                              flex: 1,
-                            }}
-                          >
-                            {country}
-                          </Text>
-                        </Flex>
-                        <input
-                          type="color"
-                          aria-label={`Color for ${country}`}
-                          value={colorValue}
-                          onChange={(event) =>
-                            setCountryColors((prev) => ({
-                              ...prev,
-                              [country]: event.target.value,
-                            }))
-                          }
-                          style={{
-                            width: 26,
-                            height: 18,
-                            border: "none",
-                            background: "transparent",
-                            padding: 0,
-                            cursor: "pointer",
-                          }}
-                        />
-                      </Flex>
-                    );
-                  })}
-                </Flex>
-              </Box>
-
-              {selectedCountries.length > 0 && (
-                <Text
-                  size="1"
-                  color="gray"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setSelectedCountries([])}
+                  <ZoomOutIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content="Reset view" side="left">
+                <IconButton
+                  variant="soft"
+                  size={{ initial: "2", md: "2" }}
+                  aria-label="Reset zoom"
+                  onClick={() => setViewState(INITIAL_VIEW_STATE)}
                 >
-                  Clear selected countries
-                </Text>
-              )}
+                  <CornersIcon />
+                </IconButton>
+              </Tooltip>
             </Flex>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </Box>
+          </Card>
+        </Box>
+      )}
 
-      <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
-        <Card size={{ initial: "1", md: "2" }}>
-          <Flex gap="2" direction="column" align="center">
-            <Tooltip content="Zoom in" side="left">
-              <IconButton
-                variant="soft"
-                size={{ initial: "2", md: "2" }}
-                aria-label="Zoom in"
-                onClick={() =>
-                  setViewState((prev) => ({
-                    ...prev,
-                    zoom: Math.min(prev.zoom + ZOOM_STEP, MAX_ZOOM),
-                  }))
-                }
-              >
-                <ZoomInIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip content="Zoom out" side="left">
-              <IconButton
-                variant="soft"
-                size={{ initial: "2", md: "2" }}
-                aria-label="Zoom out"
-                onClick={() =>
-                  setViewState((prev) => ({
-                    ...prev,
-                    zoom: Math.max(prev.zoom - ZOOM_STEP, MIN_ZOOM),
-                  }))
-                }
-              >
-                <ZoomOutIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip content="Reset view" side="left">
-              <IconButton
-                variant="soft"
-                size={{ initial: "2", md: "2" }}
-                aria-label="Reset zoom"
-                onClick={() => setViewState(INITIAL_VIEW_STATE)}
-              >
-                <CornersIcon />
-              </IconButton>
-            </Tooltip>
-          </Flex>
-        </Card>
-      </Box>
-
-      {selectedPoint && metadataCardPosition && (
+      {!isMapLoading && selectedPoint && metadataCardPosition && (
         <Box
           style={{
             position: "fixed",
@@ -1301,6 +1563,68 @@ export default function MapGraph() {
         }}
         layers={layers}
       />
+      {isMapLoading && (
+        <Flex
+          align="center"
+          justify="center"
+          direction="column"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 24,
+            pointerEvents: "none",
+          }}
+        >
+          <Card
+            variant="surface"
+            size={{ initial: "2", md: "3" }}
+            style={{
+              width: "min(94vw, 500px)",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
+              background:
+                resolvedTheme === "light"
+                  ? "color-mix(in oklab, var(--gray-1) 76%, transparent)"
+                  : "color-mix(in oklab, var(--gray-2) 78%, transparent)",
+              border: "1px solid var(--gray-a6)",
+              boxShadow: "var(--shadow-5)",
+            }}
+          >
+            <Flex direction="column" gap="3">
+              <Flex align="center" justify="between" gap="2">
+                <Flex align="center" gap="2">
+                  <Spinner size="2" />
+                  <Heading as="h2" size={{ initial: "3", md: "4" }}>
+                    Loading map
+                  </Heading>
+                </Flex>
+                <Badge color="blue" variant="soft" size="2">
+                  {progressPercent !== null ? `${progressPercent}%` : "Syncing"}
+                </Badge>
+              </Flex>
+
+              <Progress
+                size="2"
+                color="blue"
+                radius="full"
+                value={progressPercent ?? undefined}
+                max={100}
+              />
+
+              <Separator size="4" />
+
+              <Flex align="center" justify="between" gap="2">
+                <Text size="1" color="gray">
+                  Plotting points in background
+                </Text>
+                <Text size="1" weight="medium" style={{ whiteSpace: "nowrap" }}>
+                  {loadingStatus}
+                </Text>
+              </Flex>
+            </Flex>
+          </Card>
+        </Flex>
+      )}
     </Box>
   );
 }
