@@ -12,6 +12,7 @@ export type SearchResult = {
   doi: string | null;
   citation_count: number | null;
   publications: unknown[] | null;
+  sort_val?: string | number | null;
 };
 
 export type SearchResults = SearchResult[];

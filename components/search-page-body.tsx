@@ -23,10 +23,11 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-type Cursor = {
-  rank: number;
-  accession: string;
-} | null;
+export type SortBy = "relevance" | "date" | "citations" | "journal";
+
+type RelevanceCursor = { rank: number; accession: string };
+type SortedCursor = { sort_value: string | number; accession: string };
+type Cursor = RelevanceCursor | SortedCursor | null;
 
 type SearchResponse = {
   results: SearchResult[];
@@ -35,10 +36,20 @@ type SearchResponse = {
   next_cursor: Cursor;
 };
 
+const SORT_CONFIG: Record<
+  Exclude<SortBy, "relevance">,
+  { param: string; order: string }
+> = {
+  date: { param: "year", order: "desc" },
+  citations: { param: "citations", order: "desc" },
+  journal: { param: "journal", order: "asc" },
+};
+
 const getSearchResults = async (
   query: string | null,
   db: string | null,
   cursor: Cursor,
+  sortBy: SortBy,
 ): Promise<SearchResponse | null> => {
   if (!query) return null;
 
@@ -46,10 +57,15 @@ const getSearchResults = async (
   if (db === "sra" || db === "geo" || db === "arrayexpress") {
     url += `&db=${encodeURIComponent(db)}`;
   }
-  if (cursor) {
-    url += `&cursor_rank=${cursor.rank}&cursor_acc=${encodeURIComponent(
-      cursor.accession,
-    )}`;
+
+  if (sortBy !== "relevance") {
+    const config = SORT_CONFIG[sortBy];
+    url += `&sortby=${config.param}&order=${config.order}`;
+    if (cursor && "sort_value" in cursor) {
+      url += `&cursor_sort=${encodeURIComponent(String(cursor.sort_value))}&cursor_acc=${encodeURIComponent(cursor.accession)}`;
+    }
+  } else if (cursor && "rank" in cursor) {
+    url += `&cursor_rank=${cursor.rank}&cursor_acc=${encodeURIComponent(cursor.accession)}`;
   }
 
   const res = await fetch(url);
@@ -70,7 +86,7 @@ export default function SearchPageBody() {
   }, [query, setLastSearchQuery]);
 
   const db = searchParams.get("db");
-  const [sortBy, setSortBy] = useState<"relevance" | "date">("relevance");
+  const [sortBy, setSortBy] = useState<SortBy>("relevance");
   const [timeFilter, setTimeFilter] = useState<
     "any" | "1" | "5" | "10" | "20" | "custom"
   >("any");
@@ -95,9 +111,9 @@ export default function SearchPageBody() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["search", query, db],
+    queryKey: ["search", query, db, sortBy],
     queryFn: ({ pageParam }) =>
-      getSearchResults(query, db, pageParam as Cursor),
+      getSearchResults(query, db, pageParam as Cursor, sortBy),
     initialPageParam: null as Cursor,
     getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled: !!query,
@@ -156,15 +172,7 @@ export default function SearchPageBody() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const sortedResults =
-    sortBy === "date"
-      ? [...searchResults].sort(
-          (a, b) =>
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-        )
-      : searchResults;
-
-  const timeFilteredResults = sortedResults.filter((result) => {
+  const timeFilteredResults = searchResults.filter((result) => {
     if (timeFilter === "any") return true;
     if (timeFilter === "custom") {
       const from = parseInt(customYearRange.from);

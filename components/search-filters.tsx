@@ -1,6 +1,7 @@
 "use client";
 
 import { OrganismFilter, OrganismNameMode } from "@/components/organism_filter";
+import type { SortBy } from "@/components/search-page-body";
 import { SearchResult } from "@/utils/types";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import {
@@ -20,7 +21,7 @@ type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 type SearchFiltersProps = {
   db: string | null;
   query: string | null;
-  setSortBy: (value: "relevance" | "date") => void;
+  setSortBy: (value: SortBy) => void;
   setTimeFilter: (value: TimeFilter) => void;
   timeFilter: TimeFilter;
   customYearRange: { from: string; to: string };
@@ -90,7 +91,7 @@ export function SearchFilters({
         <Select.Root
           defaultValue="relevance"
           name="sort"
-          onValueChange={(value) => setSortBy(value as "relevance" | "date")}
+          onValueChange={(value) => setSortBy(value as SortBy)}
           size={"1"}
         >
           <Select.Trigger />
@@ -98,6 +99,8 @@ export function SearchFilters({
             <Select.Group>
               <Select.Item value="relevance">Sort by relevance</Select.Item>
               <Select.Item value="date">Sort by date</Select.Item>
+              <Select.Item value="citations">Sort by citations</Select.Item>
+              <Select.Item value="journal">Sort by journal</Select.Item>
             </Select.Group>
           </Select.Content>
         </Select.Root>
@@ -171,10 +174,12 @@ export function SearchFilters({
         <RadioGroup.Root
           defaultValue="relevance"
           name="sort"
-          onValueChange={(value) => setSortBy(value as "relevance" | "date")}
+          onValueChange={(value) => setSortBy(value as SortBy)}
         >
           <RadioGroup.Item value="relevance">Sort by relevance</RadioGroup.Item>
           <RadioGroup.Item value="date">Sort by date</RadioGroup.Item>
+          <RadioGroup.Item value="citations">Sort by citations</RadioGroup.Item>
+          <RadioGroup.Item value="journal">Sort by journal</RadioGroup.Item>
         </RadioGroup.Root>
 
         <Separator orientation={"horizontal"} size={"4"} />
