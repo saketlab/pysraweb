@@ -22,7 +22,13 @@ type PublicationCardProps = {
   publication: StudyPublication;
 };
 
+const JOURNAL_ALIASES: Record<string, string> = {
+  "Proceedings of the National Academy of Sciences of the United States of America":
+    "PNAS",
+};
+
 function cleanJournalName(name: string): string {
+  if (JOURNAL_ALIASES[name]) return JOURNAL_ALIASES[name];
   let cleaned = name;
   const colonIndex = cleaned.indexOf(": ");
   if (colonIndex !== -1) cleaned = cleaned.slice(0, colonIndex);
