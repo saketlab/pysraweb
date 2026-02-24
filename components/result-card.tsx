@@ -75,6 +75,11 @@ export default function ResultCard({
                 })
               : null}
           </Badge>
+          {citation_count != null && citation_count > 0 && (
+            <Badge color="green">
+              Citations: {citation_count.toLocaleString()}
+            </Badge>
+          )}
           {journal && (
             <Badge
               color="blue"
@@ -89,7 +94,6 @@ export default function ResultCard({
               }
             >
               {cleanJournalName(journal)}
-              {citation_count != null && citation_count > 0 && ` (${citation_count})`}
             </Badge>
           )}
         </Flex>

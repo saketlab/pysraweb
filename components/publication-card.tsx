@@ -1,5 +1,5 @@
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
-import { Box, Card, Flex, Link, Text } from "@radix-ui/themes";
+import { Badge, Box, Card, Flex, Link, Text } from "@radix-ui/themes";
 import Image from "next/image";
 
 export type StudyPublication = {
@@ -95,29 +95,26 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
               {formatAuthors(publication.authors)}
             </Text>
           )}
-          {publication.journal && (
-            doi ? (
-              <Link
-                href={`https://doi.org/${doi}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                size={{ initial: "1", md: "2" }}
-                weight={"light"}
+          <Flex gap={"2"} align={"center"} wrap={"wrap"}>
+            {citationCount != null && citationCount > 0 && (
+              <Badge color="green">
+                Citations: {citationCount.toLocaleString()}
+              </Badge>
+            )}
+            {publication.journal && (
+              <Badge
+                color="blue"
+                style={{ cursor: doi ? "pointer" : undefined }}
+                onClick={
+                  doi
+                    ? () => window.open(`https://doi.org/${doi}`, "_blank")
+                    : undefined
+                }
               >
                 {cleanJournalName(publication.journal)}
-                {citationCount != null &&
-                  citationCount > 0 &&
-                  ` (${citationCount})`}
-              </Link>
-            ) : (
-              <Text weight={"light"} size={{ initial: "1", md: "2" }}>
-                {cleanJournalName(publication.journal)}
-                {citationCount != null &&
-                  citationCount > 0 &&
-                  ` (${citationCount})`}
-              </Text>
-            )
-          )}
+              </Badge>
+            )}
+          </Flex>
         </Flex>
       </Flex>
     </Card>
