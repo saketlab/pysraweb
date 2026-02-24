@@ -1,4 +1,5 @@
 import { getProjectShortUrl } from "@/utils/shortUrl";
+import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { Badge, Card, Flex, Text } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
 
@@ -71,7 +72,7 @@ export default function ResultCard({
           >
             {accesssion}
           </Badge>
-          <Badge color="gray">
+          <Badge size={"2"} color="gray">
             Last updated on{" "}
             {updated_at
               ? new Date(updated_at).toLocaleDateString("en-GB", {
@@ -82,12 +83,13 @@ export default function ResultCard({
               : null}
           </Badge>
           {citation_count != null && citation_count > 0 && (
-            <Badge color="green">
+            <Badge size={"2"} color="green">
               Citations: {citation_count.toLocaleString()}
             </Badge>
           )}
           {journal && (
             <Badge
+              size={"2"}
               color="blue"
               style={{ cursor: doi ? "pointer" : undefined }}
               onClick={
@@ -99,7 +101,7 @@ export default function ResultCard({
                   : undefined
               }
             >
-              {cleanJournalName(journal)}
+              {cleanJournalName(journal)} <ExternalLinkIcon />
             </Badge>
           )}
         </Flex>
