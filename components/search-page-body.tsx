@@ -1,11 +1,8 @@
 "use client";
+import { OrganismNameMode } from "@/components/organism_filter";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
-import {
-  SearchFilters,
-  SearchOrganismRail,
-} from "@/components/search-filters";
-import { OrganismNameMode } from "@/components/organism_filter";
+import { SearchFilters, SearchOrganismRail } from "@/components/search-filters";
 import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
 import { SearchResult } from "@/utils/types";
@@ -100,12 +97,16 @@ export default function SearchPageBody() {
   const [selectedOrganismKey, setSelectedOrganismKey] = useState<string | null>(
     null,
   );
-  const [selectedJournalFilters, setSelectedJournalFilters] = useState<string[]>(
-    [],
-  );
+  const [selectedJournalFilters, setSelectedJournalFilters] = useState<
+    string[]
+  >([]);
+  const [selectedCountryFilters, setSelectedCountryFilters] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     setSelectedJournalFilters([]);
+    setSelectedCountryFilters([]);
   }, [query, db]);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -130,7 +131,8 @@ export default function SearchPageBody() {
   const tookMs = data?.pages?.[0]?.took_ms ?? 0;
 
   // Flatten all pages into a single array of results
-  const flattenedResults = data?.pages.flatMap((page) => page?.results ?? []) ?? [];
+  const flattenedResults =
+    data?.pages.flatMap((page) => page?.results ?? []) ?? [];
   const seenResultIds = new Set<string>();
   const searchResults = flattenedResults.filter((result) => {
     const resultId = `${result.source}:${result.accession}`;
@@ -166,7 +168,8 @@ export default function SearchPageBody() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
 
-  const shouldShowOrganismRail = !isLoading && !isError && searchResults.length > 0;
+  const shouldShowOrganismRail =
+    !isLoading && !isError && searchResults.length > 0;
   const shouldReserveRailSpace =
     isLoading || (!!query && (isError || searchResults.length === 0));
 
@@ -207,6 +210,18 @@ export default function SearchPageBody() {
           return journal ? selectedJournalFilters.includes(journal) : false;
         })
       : organismFilteredResults;
+
+  const countryFilteredResults =
+    selectedCountryFilters.length > 0
+      ? journalFilteredResults.filter((result) => {
+          const countries = (result.countries ?? []).map((country) =>
+            country.trim().toUpperCase(),
+          );
+          return countries.some((country) =>
+            selectedCountryFilters.includes(country),
+          );
+        })
+      : journalFilteredResults;
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -349,7 +364,7 @@ export default function SearchPageBody() {
                 Fetched {total} result{total == 1 ? "" : "s"} in{" "}
                 {(tookMs / 1000).toFixed(2)} seconds
               </Text>
-              {journalFilteredResults.length === 0 ? (
+              {countryFilteredResults.length === 0 ? (
                 <Flex
                   align="center"
                   justify="center"
@@ -360,12 +375,12 @@ export default function SearchPageBody() {
                     No results match your filters
                   </Text>
                   <Text color="gray" size={"2"}>
-                    Try clearing organism or journal filters, or widening the time
-                    range.
+                    Try clearing organism, journal, or country filters, or
+                    widening the time range.
                   </Text>
                 </Flex>
               ) : (
-                journalFilteredResults.map((searchResult) => (
+                countryFilteredResults.map((searchResult) => (
                   <ResultCard
                     key={`${searchResult.source}:${searchResult.accession}`}
                     accesssion={searchResult.accession}
@@ -423,16 +438,19 @@ export default function SearchPageBody() {
           <SearchOrganismRail
             results={searchResults}
             journalResults={organismFilteredResults}
+            countryResults={organismFilteredResults}
             organismNameMode={organismNameMode}
             setOrganismNameMode={setOrganismNameMode}
             selectedOrganismKey={selectedOrganismKey}
             setSelectedOrganismFilter={setSelectedOrganismKey}
             selectedJournalFilters={selectedJournalFilters}
             setSelectedJournalFilters={setSelectedJournalFilters}
+            selectedCountryFilters={selectedCountryFilters}
+            setSelectedCountryFilters={setSelectedCountryFilters}
           />
         ) : null}
 
-        {journalFilteredResults.length > 0 && (
+        {countryFilteredResults.length > 0 && (
           <Flex
             position="fixed"
             direction="column"

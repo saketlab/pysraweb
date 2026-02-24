@@ -3,22 +3,28 @@
 import { OrganismFilter, OrganismNameMode } from "@/components/organism_filter";
 import type { SortBy } from "@/components/search-page-body";
 import { SearchResult } from "@/utils/types";
-import { Cross2Icon, MixerHorizontalIcon } from "@radix-ui/react-icons";
+import {
+  MagnifyingGlassIcon,
+  MixerHorizontalIcon,
+} from "@radix-ui/react-icons";
 import {
   Badge,
   Button,
-  Card,
   Checkbox,
   Dialog,
   Flex,
   RadioGroup,
   Select,
   Separator,
+  Tabs,
   Text,
   TextField,
-  Tooltip,
 } from "@radix-ui/themes";
+import countries from "i18n-iso-countries";
+import enLocale from "i18n-iso-countries/langs/en.json";
 import { useState } from "react";
+
+countries.registerLocale(enLocale);
 
 type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 
@@ -32,46 +38,6 @@ type SearchFiltersProps = {
   setCustomYearRange: (value: { from: string; to: string }) => void;
   onDatabaseChange: (value: "geo" | "sra" | "arrayexpress" | "both") => void;
 };
-
-function AppliedCountBadge({
-  count,
-  label,
-  onClear,
-}: {
-  count: number;
-  label: string;
-  onClear: () => void;
-}) {
-  return (
-    <Badge>
-      <Flex align="center" gap="1">
-        <span>{count}</span>
-        <Tooltip content="Clear filters">
-          <button
-            type="button"
-            aria-label={`Clear ${label} filters`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onClear();
-            }}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "inherit",
-              padding: 0,
-              margin: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Cross2Icon />
-          </button>
-        </Tooltip>
-      </Flex>
-    </Badge>
-  );
-}
 
 export function SearchFilters({
   db,
@@ -241,24 +207,31 @@ export function SearchFilters({
 export function SearchOrganismRail({
   results,
   journalResults,
+  countryResults,
   organismNameMode,
   setOrganismNameMode,
   selectedOrganismKey,
   setSelectedOrganismFilter,
   selectedJournalFilters,
   setSelectedJournalFilters,
+  selectedCountryFilters,
+  setSelectedCountryFilters,
 }: {
   results: SearchResult[];
   journalResults: SearchResult[];
+  countryResults: SearchResult[];
   organismNameMode: OrganismNameMode;
   setOrganismNameMode: (value: OrganismNameMode) => void;
   selectedOrganismKey: string | null;
   setSelectedOrganismFilter: (value: string | null) => void;
   selectedJournalFilters: string[];
   setSelectedJournalFilters: (value: string[]) => void;
+  selectedCountryFilters: string[];
+  setSelectedCountryFilters: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [journalQuery, setJournalQuery] = useState("");
+  const [countryQuery, setCountryQuery] = useState("");
 
   const journalCounts = new Map<string, number>();
   for (const result of journalResults) {
@@ -288,6 +261,45 @@ export function SearchOrganismRail({
     setSelectedJournalFilters([...selectedJournalFilters, journal]);
   };
 
+  const countryCounts = new Map<string, number>();
+  for (const result of countryResults) {
+    for (const countryCode of result.countries ?? []) {
+      const country = countryCode.trim().toUpperCase();
+      if (!country) continue;
+      countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+    }
+  }
+
+  const countryOptions = Array.from(countryCounts.entries())
+    .map(([code, count]) => ({
+      code,
+      label: countries.getName(code, "en", { select: "official" }) ?? code,
+      count,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const normalizedCountryQuery = countryQuery.trim().toLowerCase();
+  const visibleCountryOptions = normalizedCountryQuery
+    ? countryOptions.filter(
+        (option) =>
+          option.label.toLowerCase().includes(normalizedCountryQuery) ||
+          option.code.toLowerCase().includes(normalizedCountryQuery),
+      )
+    : countryOptions;
+
+  const toggleCountrySelection = (countryCode: string) => {
+    if (selectedCountryFilters.includes(countryCode)) {
+      setSelectedCountryFilters(
+        selectedCountryFilters.filter((item) => item !== countryCode),
+      );
+      return;
+    }
+    setSelectedCountryFilters([...selectedCountryFilters, countryCode]);
+  };
+
+  const selectedFilterCount =
+    selectedJournalFilters.length + selectedCountryFilters.length;
+
   return (
     <Flex
       display={{ initial: "none", md: "flex" }}
@@ -309,39 +321,50 @@ export function SearchOrganismRail({
           <Button variant="surface">
             <MixerHorizontalIcon />
             More filters
-            {selectedJournalFilters.length > 0 ? (
-              <Badge color="blue">{selectedJournalFilters.length}</Badge>
+            {selectedFilterCount > 0 ? (
+              <Badge color="blue">{selectedFilterCount}</Badge>
             ) : null}
           </Button>
         </Dialog.Trigger>
         <Dialog.Content size="3">
           <Dialog.Title>More filters</Dialog.Title>
-          <Dialog.Description>
+          <Dialog.Description size={"1"}>
             Filters apply only to loaded results. Scroll to load more. Selecting
             a filter also has the effect of fetching more results.
           </Dialog.Description>
 
-          <Flex direction="column" gap="3">
-            <Card variant="surface" style={{ marginTop: "0.5rem" }}>
-              <Flex direction="column" gap="3">
-                <Flex align="center" justify="between" px="2">
-                  <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
-                    Journals
-                  </Text>
+          <Tabs.Root defaultValue="journals" style={{ marginTop: "0.5rem" }}>
+            <Tabs.List>
+              <Tabs.Trigger value="journals">
+                <Flex align="center" gap="1">
+                  <span>Journals</span>
                   {selectedJournalFilters.length > 0 ? (
-                    <AppliedCountBadge
-                      count={selectedJournalFilters.length}
-                      label="journal"
-                      onClear={() => setSelectedJournalFilters([])}
-                    />
+                    <Badge>{selectedJournalFilters.length}</Badge>
                   ) : null}
                 </Flex>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="countries">
+                <Flex align="center" gap="1">
+                  <span>Countries</span>
+                  {selectedCountryFilters.length > 0 ? (
+                    <Badge>{selectedCountryFilters.length}</Badge>
+                  ) : null}
+                </Flex>
+              </Tabs.Trigger>
+            </Tabs.List>
+
+            <Tabs.Content value="journals">
+              <Flex direction="column" gap="3" pt="3">
                 <TextField.Root
                   value={journalQuery}
                   onChange={(event) => setJournalQuery(event.target.value)}
                   placeholder="Search journals"
                   size="2"
-                />
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlassIcon height="16" width="16" />
+                  </TextField.Slot>
+                </TextField.Root>
                 {visibleJournalOptions.length > 0 ? (
                   <Flex
                     direction="column"
@@ -375,8 +398,55 @@ export function SearchOrganismRail({
                   </Text>
                 )}
               </Flex>
-            </Card>
-          </Flex>
+            </Tabs.Content>
+
+            <Tabs.Content value="countries">
+              <Flex direction="column" gap="3" pt="3">
+                <TextField.Root
+                  value={countryQuery}
+                  onChange={(event) => setCountryQuery(event.target.value)}
+                  placeholder="Search countries"
+                  size="2"
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlassIcon height="16" width="16" />
+                  </TextField.Slot>
+                </TextField.Root>
+                {visibleCountryOptions.length > 0 ? (
+                  <Flex
+                    direction="column"
+                    gap="2"
+                    style={{ maxHeight: "16rem", overflowY: "auto" }}
+                  >
+                    {visibleCountryOptions.map((countryOption) => (
+                      <Text as="label" size="2" key={countryOption.code}>
+                        <Flex align="center" justify="between" gap="2">
+                          <Flex align="center" gap="2">
+                            <Checkbox
+                              checked={selectedCountryFilters.includes(
+                                countryOption.code,
+                              )}
+                              onCheckedChange={() =>
+                                toggleCountrySelection(countryOption.code)
+                              }
+                            />
+                            <span>{countryOption.label}</span>
+                          </Flex>
+                          <Badge color="gray" variant="soft">
+                            {countryOption.count}
+                          </Badge>
+                        </Flex>
+                      </Text>
+                    ))}
+                  </Flex>
+                ) : (
+                  <Text size="2" color="gray">
+                    No countries found.
+                  </Text>
+                )}
+              </Flex>
+            </Tabs.Content>
+          </Tabs.Root>
         </Dialog.Content>
       </Dialog.Root>
     </Flex>

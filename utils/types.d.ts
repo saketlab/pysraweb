@@ -9,6 +9,7 @@ export type SearchResult = {
   pmid: string | null;
   publication_title: string | null;
   journal: string | null;
+  countries?: string[] | null;
   doi: string | null;
   citation_count: number | null;
   publications: unknown[] | null;
