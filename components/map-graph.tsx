@@ -2013,10 +2013,7 @@ export default function MapGraph() {
 
               <Flex align="center" justify="between" gap="2">
                 <Text size="1" color="gray">
-                  Plotting points in background
-                </Text>
-                <Text size="1" weight="medium" style={{ whiteSpace: "nowrap" }}>
-                  {loadingPercentText}
+                  Plotting points in background...
                 </Text>
               </Flex>
             </Flex>
