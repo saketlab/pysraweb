@@ -79,13 +79,13 @@ export default function SearchPageBody() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get("q");
+  const db = searchParams.get("db");
   const { setLastSearchQuery } = useSearchQuery();
 
   useEffect(() => {
     if (query) setLastSearchQuery(query);
   }, [query, setLastSearchQuery]);
 
-  const db = searchParams.get("db");
   const [sortBy, setSortBy] = useState<SortBy>("relevance");
   const [timeFilter, setTimeFilter] = useState<
     "any" | "1" | "5" | "10" | "20" | "custom"
@@ -100,6 +100,13 @@ export default function SearchPageBody() {
   const [selectedOrganismKey, setSelectedOrganismKey] = useState<string | null>(
     null,
   );
+  const [selectedJournalFilters, setSelectedJournalFilters] = useState<string[]>(
+    [],
+  );
+
+  useEffect(() => {
+    setSelectedJournalFilters([]);
+  }, [query, db]);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -192,6 +199,14 @@ export default function SearchPageBody() {
         (result.organisms ?? []).includes(selectedOrganismKey),
       )
     : timeFilteredResults;
+
+  const journalFilteredResults =
+    selectedJournalFilters.length > 0
+      ? organismFilteredResults.filter((result) => {
+          const journal = result.journal?.trim();
+          return journal ? selectedJournalFilters.includes(journal) : false;
+        })
+      : organismFilteredResults;
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -334,7 +349,7 @@ export default function SearchPageBody() {
                 Fetched {total} result{total == 1 ? "" : "s"} in{" "}
                 {(tookMs / 1000).toFixed(2)} seconds
               </Text>
-              {organismFilteredResults.length === 0 ? (
+              {journalFilteredResults.length === 0 ? (
                 <Flex
                   align="center"
                   justify="center"
@@ -345,11 +360,12 @@ export default function SearchPageBody() {
                     No results match your filters
                   </Text>
                   <Text color="gray" size={"2"}>
-                    Try clearing the organism filter or widening the time range.
+                    Try clearing organism or journal filters, or widening the time
+                    range.
                   </Text>
                 </Flex>
               ) : (
-                organismFilteredResults.map((searchResult) => (
+                journalFilteredResults.map((searchResult) => (
                   <ResultCard
                     key={`${searchResult.source}:${searchResult.accession}`}
                     accesssion={searchResult.accession}
@@ -406,14 +422,17 @@ export default function SearchPageBody() {
         ) : shouldShowOrganismRail ? (
           <SearchOrganismRail
             results={searchResults}
+            journalResults={organismFilteredResults}
             organismNameMode={organismNameMode}
             setOrganismNameMode={setOrganismNameMode}
             selectedOrganismKey={selectedOrganismKey}
             setSelectedOrganismFilter={setSelectedOrganismKey}
+            selectedJournalFilters={selectedJournalFilters}
+            setSelectedJournalFilters={setSelectedJournalFilters}
           />
         ) : null}
 
-        {organismFilteredResults.length > 0 && (
+        {journalFilteredResults.length > 0 && (
           <Flex
             position="fixed"
             direction="column"

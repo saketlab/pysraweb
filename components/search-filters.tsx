@@ -3,9 +3,13 @@
 import { OrganismFilter, OrganismNameMode } from "@/components/organism_filter";
 import type { SortBy } from "@/components/search-page-body";
 import { SearchResult } from "@/utils/types";
-import { Cross2Icon } from "@radix-ui/react-icons";
+import { Cross2Icon, MixerHorizontalIcon } from "@radix-ui/react-icons";
 import {
   Badge,
+  Button,
+  Card,
+  Checkbox,
+  Dialog,
   Flex,
   RadioGroup,
   Select,
@@ -236,61 +240,52 @@ export function SearchFilters({
 
 export function SearchOrganismRail({
   results,
+  journalResults,
   organismNameMode,
   setOrganismNameMode,
   selectedOrganismKey,
   setSelectedOrganismFilter,
+  selectedJournalFilters,
+  setSelectedJournalFilters,
 }: {
   results: SearchResult[];
+  journalResults: SearchResult[];
   organismNameMode: OrganismNameMode;
   setOrganismNameMode: (value: OrganismNameMode) => void;
   selectedOrganismKey: string | null;
   setSelectedOrganismFilter: (value: string | null) => void;
+  selectedJournalFilters: string[];
+  setSelectedJournalFilters: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    assay: true,
-    platform: false,
-    country: true,
-    organization: false,
-  });
-  const [selectedAssays, setSelectedAssays] = useState<string[]>([]);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [selectedOrganizations, setSelectedOrganizations] = useState<string[]>(
-    [],
-  );
+  const [journalQuery, setJournalQuery] = useState("");
 
-  const assayOptions = ["RNA-Seq", "ChIP-Seq", "ATAC-Seq", "WGS"];
-  const platformOptions = [
-    "Illumina NovaSeq 6000",
-    "Illumina HiSeq 2500",
-    "Oxford Nanopore",
-    "PacBio Sequel II",
-  ];
-  const countryOptions = [
-    "United States",
-    "United Kingdom",
-    "Germany",
-    "Japan",
-  ];
-  const organizationOptions = [
-    "Broad Institute",
-    "NCBI",
-    "EMBL-EBI",
-    "Stanford University",
-  ];
+  const journalCounts = new Map<string, number>();
+  for (const result of journalResults) {
+    const journal = result.journal?.trim();
+    if (!journal) continue;
+    journalCounts.set(journal, (journalCounts.get(journal) ?? 0) + 1);
+  }
 
-  const toggleSelection = (
-    values: string[],
-    setValues: (next: string[]) => void,
-    value: string,
-  ) => {
-    if (values.includes(value)) {
-      setValues(values.filter((item) => item !== value));
+  const journalOptions = Array.from(journalCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const normalizedJournalQuery = journalQuery.trim().toLowerCase();
+  const visibleJournalOptions = normalizedJournalQuery
+    ? journalOptions.filter((option) =>
+        option.name.toLowerCase().includes(normalizedJournalQuery),
+      )
+    : journalOptions;
+
+  const toggleJournalSelection = (journal: string) => {
+    if (selectedJournalFilters.includes(journal)) {
+      setSelectedJournalFilters(
+        selectedJournalFilters.filter((item) => item !== journal),
+      );
       return;
     }
-    setValues([...values, value]);
+    setSelectedJournalFilters([...selectedJournalFilters, journal]);
   };
 
   return (
@@ -309,266 +304,81 @@ export function SearchOrganismRail({
         selectedKey={selectedOrganismKey}
         onChangeSelection={setSelectedOrganismFilter}
       />
-      {/* <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Trigger>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Trigger asChild>
           <Button variant="surface">
             <MixerHorizontalIcon />
             More filters
+            {selectedJournalFilters.length > 0 ? (
+              <Badge color="blue">{selectedJournalFilters.length}</Badge>
+            ) : null}
           </Button>
         </Dialog.Trigger>
         <Dialog.Content size="3">
           <Dialog.Title>More filters</Dialog.Title>
+          <Text size="2" color="gray">
+            Filters apply to the results currently loaded on this page. Scroll in
+            search results to load more entries.
+          </Text>
 
-          <Flex direction="column" gap="2">
-            <Card variant="surface">
-              <Flex direction="column" gap="2">
+          <Flex direction="column" gap="3">
+            <Card variant="surface" style={{ marginTop: "0.5rem" }}>
+              <Flex direction="column" gap="3">
                 <Flex align="center" justify="between" px="2">
-                  <Flex align="center" gap="2">
-                    <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
-                      Assay
-                    </Text>
-                    {!expandedSections.assay && selectedAssays.length > 0 ? (
-                      <AppliedCountBadge
-                        count={selectedAssays.length}
-                        label="assay"
-                        onClear={() => setSelectedAssays([])}
-                      />
-                    ) : null}
-                  </Flex>
-                  <IconButton
-                    variant="ghost"
-                    color="gray"
-                    aria-label={
-                      expandedSections.assay
-                        ? "Collapse assay filters"
-                        : "Expand assay filters"
-                    }
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        assay: !prev.assay,
-                      }))
-                    }
-                  >
-                    {expandedSections.assay ? (
-                      <ChevronUpIcon />
-                    ) : (
-                      <ChevronDownIcon />
-                    )}
-                  </IconButton>
+                  <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
+                    Journals
+                  </Text>
+                  {selectedJournalFilters.length > 0 ? (
+                    <AppliedCountBadge
+                      count={selectedJournalFilters.length}
+                      label="journal"
+                      onClear={() => setSelectedJournalFilters([])}
+                    />
+                  ) : null}
                 </Flex>
-                {expandedSections.assay ? (
-                  <Flex direction="column" gap="2" pl="1">
-                    {assayOptions.map((assay) => (
-                      <Text as="label" size="2" key={assay}>
-                        <Flex align="center" gap="2">
-                          <Checkbox
-                            checked={selectedAssays.includes(assay)}
-                            onCheckedChange={() =>
-                              toggleSelection(
-                                selectedAssays,
-                                setSelectedAssays,
-                                assay,
-                              )
-                            }
-                          />
-                          {assay}
+                <TextField.Root
+                  value={journalQuery}
+                  onChange={(event) => setJournalQuery(event.target.value)}
+                  placeholder="Search journals"
+                  size="2"
+                />
+                {visibleJournalOptions.length > 0 ? (
+                  <Flex
+                    direction="column"
+                    gap="2"
+                    style={{ maxHeight: "16rem", overflowY: "auto" }}
+                  >
+                    {visibleJournalOptions.map((journalOption) => (
+                      <Text as="label" size="2" key={journalOption.name}>
+                        <Flex align="center" justify="between" gap="2">
+                          <Flex align="center" gap="2">
+                            <Checkbox
+                              checked={selectedJournalFilters.includes(
+                                journalOption.name,
+                              )}
+                              onCheckedChange={() =>
+                                toggleJournalSelection(journalOption.name)
+                              }
+                            />
+                            <span>{journalOption.name}</span>
+                          </Flex>
+                          <Badge color="gray" variant="soft">
+                            {journalOption.count}
+                          </Badge>
                         </Flex>
                       </Text>
                     ))}
                   </Flex>
-                ) : null}
-              </Flex>
-            </Card>
-
-            <Card variant="surface">
-              <Flex direction="column" gap="2">
-                <Flex align="center" justify="between" px="2">
-                  <Flex align="center" gap="2">
-                    <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
-                      Platform
-                    </Text>
-                    {!expandedSections.platform && selectedPlatforms.length > 0 ? (
-                      <AppliedCountBadge
-                        count={selectedPlatforms.length}
-                        label="platform"
-                        onClear={() => setSelectedPlatforms([])}
-                      />
-                    ) : null}
-                  </Flex>
-                  <IconButton
-                    variant="ghost"
-                    color="gray"
-                    aria-label={
-                      expandedSections.platform
-                        ? "Collapse platform filters"
-                        : "Expand platform filters"
-                    }
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        platform: !prev.platform,
-                      }))
-                    }
-                  >
-                    {expandedSections.platform ? (
-                      <ChevronUpIcon />
-                    ) : (
-                      <ChevronDownIcon />
-                    )}
-                  </IconButton>
-                </Flex>
-                {expandedSections.platform ? (
-                  <Flex direction="column" gap="2" pl="1">
-                    {platformOptions.map((platform) => (
-                      <Text as="label" size="2" key={platform}>
-                        <Flex align="center" gap="2">
-                          <Checkbox
-                            checked={selectedPlatforms.includes(platform)}
-                            onCheckedChange={() =>
-                              toggleSelection(
-                                selectedPlatforms,
-                                setSelectedPlatforms,
-                                platform,
-                              )
-                            }
-                          />
-                          {platform}
-                        </Flex>
-                      </Text>
-                    ))}
-                  </Flex>
-                ) : null}
-              </Flex>
-            </Card>
-
-            <Card variant="surface">
-              <Flex direction="column" gap="2">
-                <Flex align="center" justify="between" px="2">
-                  <Flex align="center" gap="2">
-                    <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
-                      Country
-                    </Text>
-                    {!expandedSections.country && selectedCountries.length > 0 ? (
-                      <AppliedCountBadge
-                        count={selectedCountries.length}
-                        label="country"
-                        onClear={() => setSelectedCountries([])}
-                      />
-                    ) : null}
-                  </Flex>
-                  <IconButton
-                    variant="ghost"
-                    color="gray"
-                    aria-label={
-                      expandedSections.country
-                        ? "Collapse country filters"
-                        : "Expand country filters"
-                    }
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        country: !prev.country,
-                      }))
-                    }
-                  >
-                    {expandedSections.country ? (
-                      <ChevronUpIcon />
-                    ) : (
-                      <ChevronDownIcon />
-                    )}
-                  </IconButton>
-                </Flex>
-                {expandedSections.country ? (
-                  <Flex direction="column" gap="2" pl="1">
-                    {countryOptions.map((country) => (
-                      <Text as="label" size="2" key={country}>
-                        <Flex align="center" gap="2">
-                          <Checkbox
-                            checked={selectedCountries.includes(country)}
-                            onCheckedChange={() =>
-                              toggleSelection(
-                                selectedCountries,
-                                setSelectedCountries,
-                                country,
-                              )
-                            }
-                          />
-                          {country}
-                        </Flex>
-                      </Text>
-                    ))}
-                  </Flex>
-                ) : null}
-              </Flex>
-            </Card>
-
-            <Card variant="surface">
-              <Flex direction="column" gap="2">
-                <Flex align="center" justify="between" px="2">
-                  <Flex align="center" gap="2">
-                    <Text size="3" style={{ fontSize: 14, lineHeight: "20px" }}>
-                      Organization
-                    </Text>
-                    {!expandedSections.organization &&
-                    selectedOrganizations.length > 0 ? (
-                      <AppliedCountBadge
-                        count={selectedOrganizations.length}
-                        label="organization"
-                        onClear={() => setSelectedOrganizations([])}
-                      />
-                    ) : null}
-                  </Flex>
-                  <IconButton
-                    variant="ghost"
-                    color="gray"
-                    aria-label={
-                      expandedSections.organization
-                        ? "Collapse organization filters"
-                        : "Expand organization filters"
-                    }
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        organization: !prev.organization,
-                      }))
-                    }
-                  >
-                    {expandedSections.organization ? (
-                      <ChevronUpIcon />
-                    ) : (
-                      <ChevronDownIcon />
-                    )}
-                  </IconButton>
-                </Flex>
-                {expandedSections.organization ? (
-                  <Flex direction="column" gap="2" pl="1">
-                    {organizationOptions.map((organization) => (
-                      <Text as="label" size="2" key={organization}>
-                        <Flex align="center" gap="2">
-                          <Checkbox
-                            checked={selectedOrganizations.includes(
-                              organization,
-                            )}
-                            onCheckedChange={() =>
-                              toggleSelection(
-                                selectedOrganizations,
-                                setSelectedOrganizations,
-                                organization,
-                              )
-                            }
-                          />
-                          {organization}
-                        </Flex>
-                      </Text>
-                    ))}
-                  </Flex>
-                ) : null}
+                ) : (
+                  <Text size="2" color="gray">
+                    No journals found.
+                  </Text>
+                )}
               </Flex>
             </Card>
           </Flex>
         </Dialog.Content>
-      </Dialog.Root> */}
+      </Dialog.Root>
     </Flex>
   );
 }
