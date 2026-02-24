@@ -305,7 +305,7 @@ export function SearchOrganismRail({
         onChangeSelection={setSelectedOrganismFilter}
       />
       <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Trigger asChild>
+        <Dialog.Trigger>
           <Button variant="surface">
             <MixerHorizontalIcon />
             More filters
@@ -316,10 +316,10 @@ export function SearchOrganismRail({
         </Dialog.Trigger>
         <Dialog.Content size="3">
           <Dialog.Title>More filters</Dialog.Title>
-          <Text size="2" color="gray">
-            Filters apply to the results currently loaded on this page. Scroll in
-            search results to load more entries.
-          </Text>
+          <Dialog.Description>
+            Filters apply only to loaded results. Scroll to load more. Selecting
+            a filter also has the effect of fetching more results.
+          </Dialog.Description>
 
           <Flex direction="column" gap="3">
             <Card variant="surface" style={{ marginTop: "0.5rem" }}>
