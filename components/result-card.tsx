@@ -83,8 +83,8 @@ export default function ResultCard({
               : null}
           </Badge>
           {citation_count != null && citation_count > 0 && (
-            <Badge size={"2"} color="green">
-              Citations: {citation_count.toLocaleString()}
+            <Badge size={"2"} color="iris">
+              {citation_count.toLocaleString()} citations
             </Badge>
           )}
           {journal && (

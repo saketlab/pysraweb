@@ -101,23 +101,15 @@ export default function PublicationCard({ publication }: PublicationCardProps) {
               {formatAuthors(publication.authors)}
             </Text>
           )}
-          <Flex gap={"2"} align={"center"} wrap={"wrap"}>
-            {citationCount != null && citationCount > 0 && (
-              <Badge color="green">
-                Citations: {citationCount.toLocaleString()}
-              </Badge>
-            )}
+          <Flex gap={"2"} align={"center"} wrap={"wrap"} mt={"1"}>
             {publication.journal && (
-              <Badge
-                color="blue"
-                style={{ cursor: doi ? "pointer" : undefined }}
-                onClick={
-                  doi
-                    ? () => window.open(`https://doi.org/${doi}`, "_blank")
-                    : undefined
-                }
-              >
+              <Text weight={"medium"} size={"2"}>
                 {cleanJournalName(publication.journal)}
+              </Text>
+            )}
+            {citationCount != null && citationCount > 0 && (
+              <Badge color="iris" size={"1"}>
+                {citationCount.toLocaleString()} citations
               </Badge>
             )}
           </Flex>
