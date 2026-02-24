@@ -7,15 +7,17 @@ import DeckGL from "@deck.gl/react";
 import {
   CornersIcon,
   Cross1Icon,
+  InfoCircledIcon,
   MagnifyingGlassIcon,
   SwitchIcon,
+  UpdateIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "@radix-ui/react-icons";
 import {
   Badge,
-  Button,
   Box,
+  Button,
   Card,
   Checkbox,
   DropdownMenu,
@@ -23,6 +25,7 @@ import {
   Heading,
   IconButton,
   Link,
+  Popover,
   Progress,
   Separator,
   Spinner,
@@ -91,12 +94,29 @@ type PointsChunkInfo = {
   totalPoints: number | null;
 };
 
+type MapDataSource = "cache" | "network";
+
+type MapCacheStatus = {
+  hasCache: boolean;
+  cachedAt: number | null;
+};
+
+type MapBinaryCacheRecord = {
+  version: number;
+  savedAt: number;
+  pointsBuffer: ArrayBuffer;
+  accessionsBuffer: ArrayBuffer;
+};
+
 type FetchMapDataOptions = {
   signal?: AbortSignal;
   onPointsChunk?: (
     points: Array<{ x: number; y: number }>,
     info: PointsChunkInfo,
   ) => void;
+  forceNetwork?: boolean;
+  onSourceResolved?: (source: MapDataSource) => void;
+  onCacheStatus?: (status: MapCacheStatus) => void;
 };
 
 const POINT_COLOR_DARK: [number, number, number, number] = [97, 207, 196, 210];
@@ -104,7 +124,9 @@ const POINT_COLOR_LIGHT: [number, number, number, number] = [72, 136, 245, 210];
 const CLUSTER_TEXT_COLOR_DARK: [number, number, number, number] = [
   255, 255, 255, 235,
 ];
-const CLUSTER_TEXT_COLOR_LIGHT: [number, number, number, number] = [34, 41, 51, 235];
+const CLUSTER_TEXT_COLOR_LIGHT: [number, number, number, number] = [
+  34, 41, 51, 235,
+];
 const MUTED_POINT_DARK: [number, number, number, number] = [111, 124, 139, 80];
 const MUTED_POINT_LIGHT: [number, number, number, number] = [168, 176, 187, 90];
 
@@ -115,6 +137,11 @@ const ZOOM_STEP = 0.45;
 const LOADING_PREVIEW_MAX_POINTS = 140000;
 const LOADING_PREVIEW_CHUNK_TARGET = 2200;
 const LOADING_PREVIEW_FLUSH_MS = 120;
+const POINTS_DECODE_BATCH_SIZE = 50000;
+const MAP_CACHE_DB_NAME = "pysradb-map-cache";
+const MAP_CACHE_STORE_NAME = "map-binaries";
+const MAP_CACHE_ENTRY_KEY = "v1";
+const MAP_CACHE_VERSION = 1;
 const INITIAL_VIEW_STATE: ViewState = {
   target: [0, 0, 0],
   zoom: 0,
@@ -350,7 +377,9 @@ function decodePoints(buffer: ArrayBuffer): Array<{ x: number; y: number }> {
 
 function decodePointsChunk(bytes: Uint8Array): Array<{ x: number; y: number }> {
   if (bytes.byteLength % 8 !== 0) {
-    throw new Error("Invalid points.bin chunk size. Expected 8 bytes per point.");
+    throw new Error(
+      "Invalid points.bin chunk size. Expected 8 bytes per point.",
+    );
   }
 
   const count = bytes.byteLength / 8;
@@ -384,6 +413,148 @@ function sampleEvenly<T>(items: T[], targetCount: number): T[] {
   return sampled;
 }
 
+function mergeMapPoints(
+  points: Array<{ x: number; y: number }>,
+  accessionRecords: AccessionsRecord[],
+): MapPoint[] {
+  if (points.length !== accessionRecords.length) {
+    throw new Error(
+      `Data mismatch: points=${points.length}, accessions=${accessionRecords.length}`,
+    );
+  }
+
+  return points.map((point, index) => ({
+    accession: accessionRecords[index].accession,
+    countries: accessionRecords[index].countries,
+    x: point.x,
+    y: point.y,
+  }));
+}
+
+async function decodePointsProgressively(
+  buffer: ArrayBuffer,
+  onPointsChunk?: FetchMapDataOptions["onPointsChunk"],
+): Promise<Array<{ x: number; y: number }>> {
+  if (!onPointsChunk) {
+    return decodePoints(buffer);
+  }
+
+  if (buffer.byteLength % 8 !== 0) {
+    throw new Error("Invalid points.bin size. Expected 8 bytes per point.");
+  }
+
+  const totalPoints = buffer.byteLength / 8;
+  const points = new Array<{ x: number; y: number }>(totalPoints);
+
+  for (let start = 0; start < totalPoints; start += POINTS_DECODE_BATCH_SIZE) {
+    const end = Math.min(totalPoints, start + POINTS_DECODE_BATCH_SIZE);
+    const chunkByteOffset = start * 8;
+    const chunkByteLength = (end - start) * 8;
+    const chunkBytes = new Uint8Array(buffer, chunkByteOffset, chunkByteLength);
+    const chunkPoints = decodePointsChunk(chunkBytes);
+
+    for (let i = 0; i < chunkPoints.length; i += 1) {
+      points[start + i] = chunkPoints[i];
+    }
+
+    onPointsChunk(chunkPoints, {
+      loadedPoints: end,
+      totalPoints,
+    });
+
+    if (end < totalPoints) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    }
+  }
+
+  return points;
+}
+
+function isMapBinaryCacheRecord(value: unknown): value is MapBinaryCacheRecord {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Partial<MapBinaryCacheRecord>;
+  return (
+    record.version === MAP_CACHE_VERSION &&
+    typeof record.savedAt === "number" &&
+    Number.isFinite(record.savedAt) &&
+    record.pointsBuffer instanceof ArrayBuffer &&
+    record.accessionsBuffer instanceof ArrayBuffer
+  );
+}
+
+function openMapCacheDb(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === "undefined") {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(MAP_CACHE_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(MAP_CACHE_STORE_NAME)) {
+        db.createObjectStore(MAP_CACHE_STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(request.error ?? new Error("Failed to open map cache."));
+  });
+}
+
+async function readMapBinaryCache(): Promise<MapBinaryCacheRecord | null> {
+  const db = await openMapCacheDb();
+  if (!db) {
+    return null;
+  }
+
+  try {
+    const record = await new Promise<unknown>((resolve, reject) => {
+      const tx = db.transaction(MAP_CACHE_STORE_NAME, "readonly");
+      const store = tx.objectStore(MAP_CACHE_STORE_NAME);
+      const request = store.get(MAP_CACHE_ENTRY_KEY);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(request.error ?? new Error("Failed to read map cache."));
+      tx.onabort = () =>
+        reject(tx.error ?? new Error("Reading map cache was aborted."));
+    });
+
+    return isMapBinaryCacheRecord(record) ? record : null;
+  } finally {
+    db.close();
+  }
+}
+
+async function writeMapBinaryCache(
+  record: MapBinaryCacheRecord,
+): Promise<void> {
+  const db = await openMapCacheDb();
+  if (!db) {
+    return;
+  }
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(MAP_CACHE_STORE_NAME, "readwrite");
+      const store = tx.objectStore(MAP_CACHE_STORE_NAME);
+      store.put(record, MAP_CACHE_ENTRY_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () =>
+        reject(tx.error ?? new Error("Failed to write map cache."));
+      tx.onabort = () =>
+        reject(tx.error ?? new Error("Writing map cache was aborted."));
+    });
+  } finally {
+    db.close();
+  }
+}
+
 function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
   const view = new DataView(buffer);
   const decoder = new TextDecoder();
@@ -402,7 +573,9 @@ function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
       throw new Error("Invalid accessions.bin accession payload.");
     }
 
-    const accession = decoder.decode(new Uint8Array(buffer, offset, accessionLen));
+    const accession = decoder.decode(
+      new Uint8Array(buffer, offset, accessionLen),
+    );
     offset += accessionLen;
 
     let countries: string[] = [];
@@ -456,8 +629,48 @@ function decodeAccessions(buffer: ArrayBuffer): AccessionsRecord[] {
   return records;
 }
 
-async function fetchMapData(options: FetchMapDataOptions = {}): Promise<MapPoint[]> {
-  const { signal, onPointsChunk } = options;
+async function fetchMapData(
+  options: FetchMapDataOptions = {},
+): Promise<MapPoint[]> {
+  const {
+    signal,
+    onPointsChunk,
+    forceNetwork = false,
+    onSourceResolved,
+    onCacheStatus,
+  } = options;
+
+  if (!forceNetwork) {
+    try {
+      const cachedRecord = await readMapBinaryCache();
+      if (cachedRecord) {
+        onCacheStatus?.({
+          hasCache: true,
+          cachedAt: cachedRecord.savedAt,
+        });
+        onSourceResolved?.("cache");
+
+        const [points, accessionRecords] = await Promise.all([
+          decodePointsProgressively(cachedRecord.pointsBuffer, onPointsChunk),
+          Promise.resolve(decodeAccessions(cachedRecord.accessionsBuffer)),
+        ]);
+
+        return mergeMapPoints(points, accessionRecords);
+      }
+
+      onCacheStatus?.({
+        hasCache: false,
+        cachedAt: null,
+      });
+    } catch {
+      onCacheStatus?.({
+        hasCache: false,
+        cachedAt: null,
+      });
+    }
+  }
+
+  onSourceResolved?.("network");
   const [pointsRes, accessionsRes] = await Promise.all([
     fetch(`${SERVER_URL}/points.bin`, { signal }),
     fetch(`${SERVER_URL}/accessions.bin`, { signal }),
@@ -553,18 +766,20 @@ async function fetchMapData(options: FetchMapDataOptions = {}): Promise<MapPoint
   const points = decodePoints(pointsBuffer);
   const accessionRecords = decodeAccessions(accessionsBuffer);
 
-  if (points.length !== accessionRecords.length) {
-    throw new Error(
-      `Data mismatch: points=${points.length}, accessions=${accessionRecords.length}`,
-    );
-  }
+  const savedAt = Date.now();
+  onCacheStatus?.({
+    hasCache: true,
+    cachedAt: savedAt,
+  });
 
-  return points.map((point, index) => ({
-    accession: accessionRecords[index].accession,
-    countries: accessionRecords[index].countries,
-    x: point.x,
-    y: point.y,
-  }));
+  void writeMapBinaryCache({
+    version: MAP_CACHE_VERSION,
+    savedAt,
+    pointsBuffer: pointsBuffer.slice(0),
+    accessionsBuffer: accessionsBuffer.slice(0),
+  }).catch(() => {});
+
+  return mergeMapPoints(points, accessionRecords);
 }
 
 async function fetchClusters(): Promise<ClusterRaw[]> {
@@ -578,6 +793,34 @@ async function fetchClusters(): Promise<ClusterRaw[]> {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function formatRelativeAge(timestamp: number): string {
+  const now = new Date();
+  const cachedAt = new Date(timestamp);
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfCachedDay = new Date(cachedAt);
+  startOfCachedDay.setHours(0, 0, 0, 0);
+
+  const dayDiff = Math.floor(
+    (startOfToday.getTime() - startOfCachedDay.getTime()) /
+      (24 * 60 * 60 * 1000),
+  );
+
+  if (dayDiff <= 0) {
+    const hours = Math.max(
+      1,
+      Math.floor((now.getTime() - cachedAt.getTime()) / (60 * 60 * 1000)),
+    );
+    return `Cached ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  }
+
+  if (dayDiff === 1) {
+    return "Cached yesterday";
+  }
+
+  return `Cached ${dayDiff} days ago`;
 }
 
 function truncateText(value: string, maxLength: number): string {
@@ -659,6 +902,7 @@ export default function MapGraph() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const loadingPreviewBufferRef = useRef<Array<{ x: number; y: number }>>([]);
   const loadingPreviewFlushRef = useRef(0);
+  const forceNetworkFetchRef = useRef(false);
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
@@ -668,10 +912,16 @@ export default function MapGraph() {
   const [countrySearchInput, setCountrySearchInput] = useState("");
   const [colorByClusters, setColorByClusters] = useState(false);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [countryColors, setCountryColors] = useState<Record<string, string>>({});
+  const [countryColors, setCountryColors] = useState<Record<string, string>>(
+    {},
+  );
 
-  const [highlightedPoint, setHighlightedPoint] = useState<MapPoint | null>(null);
-  const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null);
+  const [highlightedPoint, setHighlightedPoint] = useState<MapPoint | null>(
+    null,
+  );
+  const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(
+    null,
+  );
   const [loadingPreviewPoints, setLoadingPreviewPoints] = useState<
     Array<{ x: number; y: number }>
   >([]);
@@ -679,6 +929,14 @@ export default function MapGraph() {
     loadedPoints: 0,
     totalPoints: null,
   });
+  const [mapDataSource, setMapDataSource] = useState<MapDataSource | null>(
+    null,
+  );
+  const [cacheStatus, setCacheStatus] = useState<MapCacheStatus>({
+    hasCache: false,
+    cachedAt: null,
+  });
+  const [isFetchingFreshMap, setIsFetchingFreshMap] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -707,8 +965,12 @@ export default function MapGraph() {
   const dataQuery = useQuery({
     queryKey: ["map-binaries"],
     queryFn: ({ signal }) => {
+      const forceNetwork = forceNetworkFetchRef.current;
+      forceNetworkFetchRef.current = false;
+
       loadingPreviewBufferRef.current = [];
       loadingPreviewFlushRef.current = 0;
+      setMapDataSource(null);
       setLoadingPreviewPoints([]);
       setLoadingProgress({
         loadedPoints: 0,
@@ -717,9 +979,13 @@ export default function MapGraph() {
 
       return fetchMapData({
         signal,
+        forceNetwork,
+        onSourceResolved: setMapDataSource,
+        onCacheStatus: setCacheStatus,
         onPointsChunk: (chunkPoints, info) => {
           const previewBuffer = loadingPreviewBufferRef.current;
-          const remainingCapacity = LOADING_PREVIEW_MAX_POINTS - previewBuffer.length;
+          const remainingCapacity =
+            LOADING_PREVIEW_MAX_POINTS - previewBuffer.length;
 
           if (chunkPoints.length > 0 && remainingCapacity > 0) {
             const sampleTarget = Math.min(
@@ -950,7 +1216,9 @@ export default function MapGraph() {
   const filteredCountryStats = useMemo(() => {
     const query = countrySearchInput.trim().toLowerCase();
     if (!query) return countryStats;
-    return countryStats.filter(({ country }) => countryMatchesQuery(country, query));
+    return countryStats.filter(({ country }) =>
+      countryMatchesQuery(country, query),
+    );
   }, [countryStats, countrySearchInput]);
 
   const pointsByAccession = useMemo(() => {
@@ -966,7 +1234,9 @@ export default function MapGraph() {
   const mutedPointColor =
     resolvedTheme === "light" ? MUTED_POINT_LIGHT : MUTED_POINT_DARK;
   const clusterTextColor =
-    resolvedTheme === "light" ? CLUSTER_TEXT_COLOR_LIGHT : CLUSTER_TEXT_COLOR_DARK;
+    resolvedTheme === "light"
+      ? CLUSTER_TEXT_COLOR_LIGHT
+      : CLUSTER_TEXT_COLOR_DARK;
   const loadingPointAlpha = resolvedTheme === "light" ? 95 : 120;
 
   const loadingRenderPoints = useMemo<LoadingRenderPoint[]>(() => {
@@ -993,7 +1263,12 @@ export default function MapGraph() {
     return loadingPreviewPoints.map((point) => ({
       x: ((point.x - minX) / xSpan - 0.5) * extent,
       y: ((point.y - minY) / ySpan - 0.5) * extent,
-      fillColor: [pointColor[0], pointColor[1], pointColor[2], loadingPointAlpha],
+      fillColor: [
+        pointColor[0],
+        pointColor[1],
+        pointColor[2],
+        loadingPointAlpha,
+      ],
     }));
   }, [loadingPreviewPoints, pointColor, loadingPointAlpha]);
 
@@ -1027,10 +1302,18 @@ export default function MapGraph() {
 
     const clusterStyles = topClusters.map((cluster, idx) => {
       const hue = (idx * 137.5) % 360;
-      const [r, g, b] = hslToRgb(hue, 0.8, resolvedTheme === "light" ? 0.52 : 0.58);
+      const [r, g, b] = hslToRgb(
+        hue,
+        0.8,
+        resolvedTheme === "light" ? 0.52 : 0.58,
+      );
       const radiusNorm = Math.sqrt(cluster.num_points / maxNumPoints);
       const radius = minRadius + (maxRadius - minRadius) * radiusNorm;
-      return { ...cluster, color: [r, g, b] as [number, number, number], radius };
+      return {
+        ...cluster,
+        color: [r, g, b] as [number, number, number],
+        radius,
+      };
     });
 
     return points.map((point) => {
@@ -1093,7 +1376,10 @@ export default function MapGraph() {
           return;
         }
 
-        if (!("accession" in info.object) || !Array.isArray(info.object.countries)) {
+        if (
+          !("accession" in info.object) ||
+          !Array.isArray(info.object.countries)
+        ) {
           return;
         }
 
@@ -1216,11 +1502,24 @@ export default function MapGraph() {
           ) * 100,
         )
       : null;
-  const loadingStatus = `${loadingProgress.loadedPoints.toLocaleString()}${
-    loadingProgress.totalPoints
-      ? ` / ${loadingProgress.totalPoints.toLocaleString()}`
-      : ""
-  } points`;
+  const loadingPercentText =
+    progressPercent !== null ? `${progressPercent}%` : "Starting...";
+  const loadingSourceText =
+    mapDataSource === "cache"
+      ? "Using cached map from browser storage."
+      : mapDataSource === "network"
+        ? "Fetching the latest map from server."
+        : "Preparing map data source...";
+  const cacheAgeText =
+    cacheStatus.hasCache && cacheStatus.cachedAt
+      ? formatRelativeAge(cacheStatus.cachedAt)
+      : "No cached map found on this browser yet.";
+  const mapSourceBadge =
+    mapDataSource === "cache"
+      ? { label: "Viewing cached", color: "green" as const }
+      : mapDataSource === "network"
+        ? { label: "Viewing fresh", color: "blue" as const }
+        : null;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1252,6 +1551,20 @@ export default function MapGraph() {
       }
       return prev.filter((item) => item !== country);
     });
+  };
+
+  const handleFetchFreshMap = async () => {
+    if (dataQuery.isFetching || isFetchingFreshMap) {
+      return;
+    }
+
+    forceNetworkFetchRef.current = true;
+    setIsFetchingFreshMap(true);
+    try {
+      await dataQuery.refetch({ cancelRefetch: true });
+    } finally {
+      setIsFetchingFreshMap(false);
+    }
   };
 
   return (
@@ -1318,7 +1631,9 @@ export default function MapGraph() {
                     id="cluster-color-toggle"
                     size={{ initial: "1", md: "2" }}
                     checked={colorByClusters}
-                    onCheckedChange={(checked) => setColorByClusters(Boolean(checked))}
+                    onCheckedChange={(checked) =>
+                      setColorByClusters(Boolean(checked))
+                    }
                   />
                   <Text
                     as="label"
@@ -1335,21 +1650,30 @@ export default function MapGraph() {
                   placeholder="Search countries"
                   size={{ initial: "1", md: "2" }}
                   value={countrySearchInput}
-                  onChange={(event) => setCountrySearchInput(event.target.value)}
+                  onChange={(event) =>
+                    setCountrySearchInput(event.target.value)
+                  }
                 />
 
-                <Box style={{ maxHeight: "34vh", overflowY: "auto", paddingRight: 4 }}>
+                <Box
+                  style={{
+                    maxHeight: "34vh",
+                    overflowY: "auto",
+                    paddingRight: 4,
+                  }}
+                >
                   <Flex direction="column" gap="1">
                     {countryStats.length === 0 && (
                       <Text size={{ initial: "1", md: "2" }} color="gray">
                         No country metadata available.
                       </Text>
                     )}
-                    {countryStats.length > 0 && filteredCountryStats.length === 0 && (
-                      <Text size={{ initial: "1", md: "2" }} color="gray">
-                        No countries match your search.
-                      </Text>
-                    )}
+                    {countryStats.length > 0 &&
+                      filteredCountryStats.length === 0 && (
+                        <Text size={{ initial: "1", md: "2" }} color="gray">
+                          No countries match your search.
+                        </Text>
+                      )}
 
                     {filteredCountryStats.map(({ country }, index) => {
                       const checked = selectedCountries.includes(country);
@@ -1358,8 +1682,17 @@ export default function MapGraph() {
                         countryColors[country] ?? defaultCountryColors[country];
 
                       return (
-                        <Flex key={country} align="center" justify="between" gap="2">
-                          <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
+                        <Flex
+                          key={country}
+                          align="center"
+                          justify="between"
+                          gap="2"
+                        >
+                          <Flex
+                            align="center"
+                            gap="2"
+                            style={{ minWidth: 0, flex: 1 }}
+                          >
                             <Checkbox
                               id={checkboxId}
                               checked={checked}
@@ -1424,7 +1757,68 @@ export default function MapGraph() {
       )}
 
       {!isMapLoading && (
-        <Box style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}>
+        <Box style={{ position: "absolute", left: 12, bottom: 24, zIndex: 20 }}>
+          <Popover.Root>
+            <Popover.Trigger>
+              <IconButton
+                variant="soft"
+                size={{ initial: "2", md: "2" }}
+                aria-label="Open map cache settings"
+              >
+                <InfoCircledIcon />
+              </IconButton>
+            </Popover.Trigger>
+            <Popover.Content
+              side="top"
+              align="start"
+              sideOffset={8}
+              size="2"
+              style={{ width: "min(92vw, 300px)" }}
+            >
+              <Flex direction="column" gap="2">
+                <Flex align="center" justify="between" gap="2">
+                  <Text size={{ initial: "1", md: "2" }} weight="medium">
+                    Map cache
+                  </Text>
+                  {mapSourceBadge && (
+                    <Badge size="1" color={mapSourceBadge.color} variant="soft">
+                      {mapSourceBadge.label}
+                    </Badge>
+                  )}
+                </Flex>
+
+                <Text size="1" color="gray">
+                  Maps are seldom changed, so fetching a fresh version is
+                  usually not necessary.
+                </Text>
+
+                <Separator size="4" />
+
+                <Text size="1" color="gray">
+                  {cacheAgeText}
+                </Text>
+
+                <Button
+                  variant="soft"
+                  size="1"
+                  onClick={() => {
+                    void handleFetchFreshMap();
+                  }}
+                  disabled={isFetchingFreshMap || dataQuery.isFetching}
+                >
+                  {isFetchingFreshMap ? <Spinner size="1" /> : <UpdateIcon />}
+                  {isFetchingFreshMap ? "Fetching..." : "Fetch fresh version"}
+                </Button>
+              </Flex>
+            </Popover.Content>
+          </Popover.Root>
+        </Box>
+      )}
+
+      {!isMapLoading && (
+        <Box
+          style={{ position: "absolute", right: 12, bottom: 24, zIndex: 20 }}
+        >
           <Card size={{ initial: "1", md: "2" }}>
             <Flex gap="2" direction="column" align="center">
               <Tooltip content="Zoom in" side="left">
@@ -1603,6 +1997,10 @@ export default function MapGraph() {
                 </Badge>
               </Flex>
 
+              <Text size="1" color="gray">
+                {loadingSourceText}
+              </Text>
+
               <Progress
                 size="2"
                 color="blue"
@@ -1618,7 +2016,7 @@ export default function MapGraph() {
                   Plotting points in background
                 </Text>
                 <Text size="1" weight="medium" style={{ whiteSpace: "nowrap" }}>
-                  {loadingStatus}
+                  {loadingPercentText}
                 </Text>
               </Flex>
             </Flex>
