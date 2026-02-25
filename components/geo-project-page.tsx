@@ -447,6 +447,11 @@ export default function GeoProjectPage() {
   // });
 
   const publications = project?.publications ?? null;
+  const linkedGeoSeriesAlias = React.useMemo(() => {
+    const alias = project?.alias?.trim().toUpperCase();
+    if (!alias || !alias.startsWith("GSE")) return null;
+    return alias;
+  }, [project?.alias]);
 
   const { data: samples, isLoading: isSamplesLoading } = useQuery({
     queryKey: ["samples", accession],
@@ -901,6 +906,17 @@ export default function GeoProjectPage() {
                     style={{ cursor: "pointer" }}
                   >
                     {project.alias}
+                    <EnterIcon />
+                  </Badge>
+                </a>
+              )}
+              {isArrayExpress && linkedGeoSeriesAlias && (
+                <a href={`/p/${linkedGeoSeriesAlias}`}>
+                  <Badge
+                    size={{ initial: "1", md: "3" }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {linkedGeoSeriesAlias}
                     <EnterIcon />
                   </Badge>
                 </a>
