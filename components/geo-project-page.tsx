@@ -452,6 +452,12 @@ export default function GeoProjectPage() {
     if (!alias || !alias.startsWith("GSE")) return null;
     return alias;
   }, [project?.alias]);
+  const linkedArrayExpressAlias = React.useMemo(() => {
+    if (isArrayExpress) return null;
+    const alias = project?.alias?.trim();
+    if (!alias || alias.toUpperCase().startsWith("SRP")) return null;
+    return alias;
+  }, [isArrayExpress, project?.alias]);
 
   const { data: samples, isLoading: isSamplesLoading } = useQuery({
     queryKey: ["samples", accession],
@@ -906,6 +912,19 @@ export default function GeoProjectPage() {
                     style={{ cursor: "pointer" }}
                   >
                     {project.alias}
+                    <EnterIcon />
+                  </Badge>
+                </a>
+              )}
+              {linkedArrayExpressAlias && (
+                <a href={`/p/${linkedArrayExpressAlias}`}>
+                  <Badge
+                    size={{ initial: "1", md: "3" }}
+                    color="gold"
+                    variant="solid"
+                    style={{ cursor: "pointer" }}
+                  >
+                    {linkedArrayExpressAlias}
                     <EnterIcon />
                   </Badge>
                 </a>
