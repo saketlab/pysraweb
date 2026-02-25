@@ -34,8 +34,12 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import isoCountries from "i18n-iso-countries";
+import enLocale from "i18n-iso-countries/langs/en.json";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+isoCountries.registerLocale(enLocale);
 
 type MapPoint = {
   accession: string;
@@ -147,212 +151,31 @@ const INITIAL_VIEW_STATE: ViewState = {
   zoom: 0,
 };
 
-const ISO3_TO_COUNTRY_NAME: Record<string, string> = {
-  AFG: "Afghanistan",
-  ARE: "United Arab Emirates",
-  ARG: "Argentina",
-  ARM: "Armenia",
-  AUS: "Australia",
-  AUT: "Austria",
-  BEL: "Belgium",
-  BGD: "Bangladesh",
-  BGR: "Bulgaria",
-  BHR: "Bahrain",
-  BIH: "Bosnia and Herzegovina",
-  BRA: "Brazil",
-  CAN: "Canada",
-  CHE: "Switzerland",
-  CHL: "Chile",
-  CHN: "China",
-  CIV: "Cote d'Ivoire",
-  CMR: "Cameroon",
-  COL: "Colombia",
-  CRI: "Costa Rica",
-  CUB: "Cuba",
-  CYP: "Cyprus",
-  CZE: "Czech Republic",
-  DEU: "Germany",
-  DNK: "Denmark",
-  DZA: "Algeria",
-  ECU: "Ecuador",
-  EGY: "Egypt",
-  ESP: "Spain",
-  EST: "Estonia",
-  ETH: "Ethiopia",
-  EUR: "Europe",
-  FIN: "Finland",
-  FRA: "France",
-  GBR: "United Kingdom",
-  GGY: "Guernsey",
-  GHA: "Ghana",
-  GLP: "Guadeloupe",
-  GMB: "Gambia",
-  GRC: "Greece",
-  HKG: "Hong Kong",
-  HRV: "Croatia",
-  HUN: "Hungary",
-  IDN: "Indonesia",
-  IMN: "Isle of Man",
-  IND: "India",
-  IRL: "Ireland",
-  IRN: "Iran",
-  IRQ: "Iraq",
-  ISL: "Iceland",
-  ISR: "Israel",
-  ITA: "Italy",
-  JEY: "Jersey",
-  JOR: "Jordan",
-  JPN: "Japan",
-  KAZ: "Kazakhstan",
-  KEN: "Kenya",
-  KOR: "South Korea",
-  KWT: "Kuwait",
-  LBN: "Lebanon",
-  LKA: "Sri Lanka",
-  LTU: "Lithuania",
-  LUX: "Luxembourg",
-  LVA: "Latvia",
-  MAC: "Macau",
-  MAR: "Morocco",
-  MEX: "Mexico",
-  MLT: "Malta",
-  MNG: "Mongolia",
-  MWI: "Malawi",
-  MYS: "Malaysia",
-  NGA: "Nigeria",
-  NLD: "Netherlands",
-  NOR: "Norway",
-  NPL: "Nepal",
-  NZL: "New Zealand",
-  OMN: "Oman",
-  PAK: "Pakistan",
-  PAN: "Panama",
-  PER: "Peru",
-  PHL: "Philippines",
-  POL: "Poland",
-  PRI: "Puerto Rico",
-  PRT: "Portugal",
-  PRY: "Paraguay",
-  QAT: "Qatar",
-  ROU: "Romania",
-  RUS: "Russia",
-  SAU: "Saudi Arabia",
-  SEN: "Senegal",
-  SGP: "Singapore",
-  SRB: "Serbia",
-  SVK: "Slovakia",
-  SVN: "Slovenia",
-  SWE: "Sweden",
-  SWZ: "Eswatini",
-  SYR: "Syria",
-  THA: "Thailand",
-  TJK: "Tajikistan",
-  TUN: "Tunisia",
-  TWN: "Taiwan",
-  TUR: "Turkey",
-  TZA: "Tanzania",
-  UGA: "Uganda",
-  UKR: "Ukraine",
-  URY: "Uruguay",
-  USA: "United States",
-  VIR: "U.S. Virgin Islands",
-  VNM: "Vietnam",
-  ZAF: "South Africa",
-  ZMB: "Zambia",
-  ZWE: "Zimbabwe",
-};
-
-const COUNTRY_NAME_ALIASES: Record<string, string> = {
-  COTE_D_IVOIRE: "Cote d'Ivoire",
-  IRAN_ISLAMIC_REPUBLIC_OF: "Iran",
-  KOREA_REPUBLIC_OF: "South Korea",
-  REPUBLIC_OF_KOREA: "South Korea",
-  UNITED_KINGDOM_OF_GREAT_BRITAIN_AND_NORTHERN_IRELAND: "United Kingdom",
-  UNITED_STATES: "United States",
-  UNITED_STATES_OF_AMERICA: "United States",
-  U_A_E: "United Arab Emirates",
-  U_K: "United Kingdom",
-  U_S_A: "United States",
-  VIET_NAM: "Vietnam",
-  US: "United States",
-  U_S_A_: "United States",
-  UK: "United Kingdom",
-  U_K_: "United Kingdom",
-  U_A_E_: "United Arab Emirates",
-};
-
-const COUNTRY_CODES_BY_NAME: Record<string, string[]> = Object.entries(
-  ISO3_TO_COUNTRY_NAME,
-).reduce<Record<string, string[]>>((acc, [code, country]) => {
-  if (!acc[country]) {
-    acc[country] = [];
-  }
-  acc[country].push(code);
-  return acc;
-}, {});
-
-const REGION_DISPLAY_NAMES =
-  typeof Intl !== "undefined" && "DisplayNames" in Intl
-    ? new Intl.DisplayNames(["en"], { type: "region" })
-    : null;
-
-const COUNTRY_NORMALIZATION_CACHE = new Map<string, string>();
-
-function getRegionNameFromIso2(code: string): string | null {
-  try {
-    return REGION_DISPLAY_NAMES?.of(code) ?? null;
-  } catch {
-    return null;
-  }
-}
+const ISO3_COUNTRY_CODE_PATTERN = /^[A-Z]{3}$/;
 
 function normalizeCountry(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (!/[A-Za-z0-9]/.test(trimmed)) return "";
-
-  const cached = COUNTRY_NORMALIZATION_CACHE.get(trimmed);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const normalizedKey = trimmed
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  if (COUNTRY_NAME_ALIASES[normalizedKey]) {
-    const canonical = COUNTRY_NAME_ALIASES[normalizedKey];
-    COUNTRY_NORMALIZATION_CACHE.set(trimmed, canonical);
-    return canonical;
-  }
-
-  const upper = trimmed.toUpperCase();
-  if (ISO3_TO_COUNTRY_NAME[upper]) {
-    const canonical = ISO3_TO_COUNTRY_NAME[upper];
-    COUNTRY_NORMALIZATION_CACHE.set(trimmed, canonical);
-    return canonical;
-  }
-
-  if (/^[A-Z]{2}$/.test(upper)) {
-    const canonical = getRegionNameFromIso2(upper) ?? trimmed;
-    COUNTRY_NORMALIZATION_CACHE.set(trimmed, canonical);
-    return canonical;
-  }
-
-  COUNTRY_NORMALIZATION_CACHE.set(trimmed, trimmed);
-  return trimmed;
+  const normalized = value.trim().toUpperCase();
+  if (!ISO3_COUNTRY_CODE_PATTERN.test(normalized)) return "";
+  return normalized;
 }
 
-function countryMatchesQuery(country: string, query: string): boolean {
+function getCountryLabel(countryCode: string): string {
+  return (
+    isoCountries.getName(countryCode, "en", { select: "official" }) ?? countryCode
+  );
+}
+
+function countryMatchesQuery(
+  countryCode: string,
+  countryLabel: string,
+  query: string,
+): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return true;
-
-  if (country.toLowerCase().includes(normalizedQuery)) {
-    return true;
-  }
-
-  const aliases = COUNTRY_CODES_BY_NAME[country] ?? [];
-  return aliases.some((alias) => alias.toLowerCase().includes(normalizedQuery));
+  return (
+    countryCode.toLowerCase().includes(normalizedQuery) ||
+    countryLabel.toLowerCase().includes(normalizedQuery)
+  );
 }
 
 function decodePoints(buffer: ArrayBuffer): Array<{ x: number; y: number }> {
@@ -1202,13 +1025,17 @@ export default function MapGraph() {
 
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
-      .map(([country, count]) => ({ country, count }));
+      .map(([code, count]) => ({
+        code,
+        label: getCountryLabel(code),
+        count,
+      }));
   }, [points]);
 
   const defaultCountryColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
     for (const option of countryStats) {
-      colorMap[option.country] = deterministicCountryColor(option.country);
+      colorMap[option.code] = deterministicCountryColor(option.code);
     }
     return colorMap;
   }, [countryStats]);
@@ -1216,8 +1043,8 @@ export default function MapGraph() {
   const filteredCountryStats = useMemo(() => {
     const query = countrySearchInput.trim().toLowerCase();
     if (!query) return countryStats;
-    return countryStats.filter(({ country }) =>
-      countryMatchesQuery(country, query),
+    return countryStats.filter(({ code, label }) =>
+      countryMatchesQuery(code, label, query),
     );
   }, [countryStats, countrySearchInput]);
 
@@ -1675,15 +1502,15 @@ export default function MapGraph() {
                         </Text>
                       )}
 
-                    {filteredCountryStats.map(({ country }, index) => {
-                      const checked = selectedCountries.includes(country);
+                    {filteredCountryStats.map(({ code, label }, index) => {
+                      const checked = selectedCountries.includes(code);
                       const checkboxId = `country-filter-${index}`;
                       const colorValue =
-                        countryColors[country] ?? defaultCountryColors[country];
+                        countryColors[code] ?? defaultCountryColors[code];
 
                       return (
                         <Flex
-                          key={country}
+                          key={code}
                           align="center"
                           justify="between"
                           gap="2"
@@ -1697,7 +1524,7 @@ export default function MapGraph() {
                               id={checkboxId}
                               checked={checked}
                               onCheckedChange={(value) =>
-                                toggleCountrySelection(country, Boolean(value))
+                                toggleCountrySelection(code, Boolean(value))
                               }
                             />
                             <Text
@@ -1712,17 +1539,17 @@ export default function MapGraph() {
                                 flex: 1,
                               }}
                             >
-                              {country}
+                              {label}
                             </Text>
                           </Flex>
                           <input
                             type="color"
-                            aria-label={`Color for ${country}`}
+                            aria-label={`Color for ${label}`}
                             value={colorValue}
                             onChange={(event) =>
                               setCountryColors((prev) => ({
                                 ...prev,
-                                [country]: event.target.value,
+                                [code]: event.target.value,
                               }))
                             }
                             style={{
