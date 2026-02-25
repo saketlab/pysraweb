@@ -103,10 +103,16 @@ export default function SearchPageBody() {
   const [selectedCountryFilters, setSelectedCountryFilters] = useState<
     string[]
   >([]);
+  const [selectedLibraryStrategyFilters, setSelectedLibraryStrategyFilters] =
+    useState<string[]>([]);
+  const [selectedInstrumentModelFilters, setSelectedInstrumentModelFilters] =
+    useState<string[]>([]);
 
   useEffect(() => {
     setSelectedJournalFilters([]);
     setSelectedCountryFilters([]);
+    setSelectedLibraryStrategyFilters([]);
+    setSelectedInstrumentModelFilters([]);
   }, [query, db]);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -222,6 +228,30 @@ export default function SearchPageBody() {
           );
         })
       : journalFilteredResults;
+
+  const libraryStrategyFilteredResults =
+    selectedLibraryStrategyFilters.length > 0
+      ? countryFilteredResults.filter((result) => {
+          const strategies = (result.library_strategies ?? []).map((strategy) =>
+            strategy.trim(),
+          );
+          return strategies.some((strategy) =>
+            selectedLibraryStrategyFilters.includes(strategy),
+          );
+        })
+      : countryFilteredResults;
+
+  const instrumentModelFilteredResults =
+    selectedInstrumentModelFilters.length > 0
+      ? libraryStrategyFilteredResults.filter((result) => {
+          const instrumentModels = (result.instrument_models ?? []).map((model) =>
+            model.trim(),
+          );
+          return instrumentModels.some((model) =>
+            selectedInstrumentModelFilters.includes(model),
+          );
+        })
+      : libraryStrategyFilteredResults;
 
   const handleDownloadResults = async () => {
     if (isDownloading || !query) return;
@@ -364,7 +394,7 @@ export default function SearchPageBody() {
                 Fetched {total} result{total == 1 ? "" : "s"} in{" "}
                 {(tookMs / 1000).toFixed(2)} seconds
               </Text>
-              {countryFilteredResults.length === 0 ? (
+              {instrumentModelFilteredResults.length === 0 ? (
                 <Flex
                   align="center"
                   justify="center"
@@ -375,12 +405,11 @@ export default function SearchPageBody() {
                     No results match your filters
                   </Text>
                   <Text color="gray" size={"2"}>
-                    Try clearing organism, journal, or country filters, or
-                    widening the time range.
+                    Try clearing active filters or widening the time range.
                   </Text>
                 </Flex>
               ) : (
-                countryFilteredResults.map((searchResult) => (
+                instrumentModelFilteredResults.map((searchResult) => (
                   <ResultCard
                     key={`${searchResult.source}:${searchResult.accession}`}
                     accesssion={searchResult.accession}
@@ -439,6 +468,8 @@ export default function SearchPageBody() {
             results={searchResults}
             journalResults={organismFilteredResults}
             countryResults={organismFilteredResults}
+            libraryStrategyResults={organismFilteredResults}
+            instrumentModelResults={organismFilteredResults}
             organismNameMode={organismNameMode}
             setOrganismNameMode={setOrganismNameMode}
             selectedOrganismKey={selectedOrganismKey}
@@ -447,10 +478,14 @@ export default function SearchPageBody() {
             setSelectedJournalFilters={setSelectedJournalFilters}
             selectedCountryFilters={selectedCountryFilters}
             setSelectedCountryFilters={setSelectedCountryFilters}
+            selectedLibraryStrategyFilters={selectedLibraryStrategyFilters}
+            setSelectedLibraryStrategyFilters={setSelectedLibraryStrategyFilters}
+            selectedInstrumentModelFilters={selectedInstrumentModelFilters}
+            setSelectedInstrumentModelFilters={setSelectedInstrumentModelFilters}
           />
         ) : null}
 
-        {countryFilteredResults.length > 0 && (
+        {instrumentModelFilteredResults.length > 0 && (
           <Flex
             position="fixed"
             direction="column"

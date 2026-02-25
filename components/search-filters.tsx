@@ -208,6 +208,8 @@ export function SearchOrganismRail({
   results,
   journalResults,
   countryResults,
+  libraryStrategyResults,
+  instrumentModelResults,
   organismNameMode,
   setOrganismNameMode,
   selectedOrganismKey,
@@ -216,10 +218,16 @@ export function SearchOrganismRail({
   setSelectedJournalFilters,
   selectedCountryFilters,
   setSelectedCountryFilters,
+  selectedLibraryStrategyFilters,
+  setSelectedLibraryStrategyFilters,
+  selectedInstrumentModelFilters,
+  setSelectedInstrumentModelFilters,
 }: {
   results: SearchResult[];
   journalResults: SearchResult[];
   countryResults: SearchResult[];
+  libraryStrategyResults: SearchResult[];
+  instrumentModelResults: SearchResult[];
   organismNameMode: OrganismNameMode;
   setOrganismNameMode: (value: OrganismNameMode) => void;
   selectedOrganismKey: string | null;
@@ -228,10 +236,16 @@ export function SearchOrganismRail({
   setSelectedJournalFilters: (value: string[]) => void;
   selectedCountryFilters: string[];
   setSelectedCountryFilters: (value: string[]) => void;
+  selectedLibraryStrategyFilters: string[];
+  setSelectedLibraryStrategyFilters: (value: string[]) => void;
+  selectedInstrumentModelFilters: string[];
+  setSelectedInstrumentModelFilters: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [journalQuery, setJournalQuery] = useState("");
   const [countryQuery, setCountryQuery] = useState("");
+  const [libraryStrategyQuery, setLibraryStrategyQuery] = useState("");
+  const [instrumentModelQuery, setInstrumentModelQuery] = useState("");
 
   const journalCounts = new Map<string, number>();
   for (const result of journalResults) {
@@ -297,8 +311,87 @@ export function SearchOrganismRail({
     setSelectedCountryFilters([...selectedCountryFilters, countryCode]);
   };
 
+  const libraryStrategyCounts = new Map<string, number>();
+  for (const result of libraryStrategyResults) {
+    for (const strategyValue of result.library_strategies ?? []) {
+      const strategy = strategyValue.trim();
+      if (!strategy) continue;
+      libraryStrategyCounts.set(
+        strategy,
+        (libraryStrategyCounts.get(strategy) ?? 0) + 1,
+      );
+    }
+  }
+
+  const libraryStrategyOptions = Array.from(libraryStrategyCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const normalizedLibraryStrategyQuery = libraryStrategyQuery
+    .trim()
+    .toLowerCase();
+  const visibleLibraryStrategyOptions = normalizedLibraryStrategyQuery
+    ? libraryStrategyOptions.filter((option) =>
+        option.name.toLowerCase().includes(normalizedLibraryStrategyQuery),
+      )
+    : libraryStrategyOptions;
+
+  const toggleLibraryStrategySelection = (strategy: string) => {
+    if (selectedLibraryStrategyFilters.includes(strategy)) {
+      setSelectedLibraryStrategyFilters(
+        selectedLibraryStrategyFilters.filter((item) => item !== strategy),
+      );
+      return;
+    }
+    setSelectedLibraryStrategyFilters([
+      ...selectedLibraryStrategyFilters,
+      strategy,
+    ]);
+  };
+
+  const instrumentModelCounts = new Map<string, number>();
+  for (const result of instrumentModelResults) {
+    for (const modelValue of result.instrument_models ?? []) {
+      const model = modelValue.trim();
+      if (!model) continue;
+      instrumentModelCounts.set(
+        model,
+        (instrumentModelCounts.get(model) ?? 0) + 1,
+      );
+    }
+  }
+
+  const instrumentModelOptions = Array.from(instrumentModelCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const normalizedInstrumentModelQuery = instrumentModelQuery
+    .trim()
+    .toLowerCase();
+  const visibleInstrumentModelOptions = normalizedInstrumentModelQuery
+    ? instrumentModelOptions.filter((option) =>
+        option.name.toLowerCase().includes(normalizedInstrumentModelQuery),
+      )
+    : instrumentModelOptions;
+
+  const toggleInstrumentModelSelection = (model: string) => {
+    if (selectedInstrumentModelFilters.includes(model)) {
+      setSelectedInstrumentModelFilters(
+        selectedInstrumentModelFilters.filter((item) => item !== model),
+      );
+      return;
+    }
+    setSelectedInstrumentModelFilters([
+      ...selectedInstrumentModelFilters,
+      model,
+    ]);
+  };
+
   const selectedFilterCount =
-    selectedJournalFilters.length + selectedCountryFilters.length;
+    selectedJournalFilters.length +
+    selectedCountryFilters.length +
+    selectedLibraryStrategyFilters.length +
+    selectedInstrumentModelFilters.length;
 
   return (
     <Flex
@@ -327,7 +420,12 @@ export function SearchOrganismRail({
           </Button>
         </Dialog.Trigger>
         <Dialog.Content size="3">
-          <Dialog.Title>More filters</Dialog.Title>
+          <Dialog.Title>
+            <Flex align={"center"} gap={"2"}>
+              <Text>More filters</Text>
+              <Badge color="teal">Beta</Badge>
+            </Flex>
+          </Dialog.Title>
           <Dialog.Description size={"1"}>
             Filters apply only to loaded results. Scroll to load more. Selecting
             a filter also has the effect of fetching more results.
@@ -348,6 +446,22 @@ export function SearchOrganismRail({
                   <span>Countries</span>
                   {selectedCountryFilters.length > 0 ? (
                     <Badge>{selectedCountryFilters.length}</Badge>
+                  ) : null}
+                </Flex>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="library-strategy">
+                <Flex align="center" gap="1">
+                  <span>Library Strategy</span>
+                  {selectedLibraryStrategyFilters.length > 0 ? (
+                    <Badge>{selectedLibraryStrategyFilters.length}</Badge>
+                  ) : null}
+                </Flex>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="instrument-models">
+                <Flex align="center" gap="1">
+                  <span>Instrument Models</span>
+                  {selectedInstrumentModelFilters.length > 0 ? (
+                    <Badge>{selectedInstrumentModelFilters.length}</Badge>
                   ) : null}
                 </Flex>
               </Tabs.Trigger>
@@ -442,6 +556,120 @@ export function SearchOrganismRail({
                 ) : (
                   <Text size="2" color="gray">
                     No countries found.
+                  </Text>
+                )}
+              </Flex>
+            </Tabs.Content>
+
+            <Tabs.Content value="library-strategy">
+              <Flex direction="column" gap="3" pt="3">
+                <TextField.Root
+                  value={libraryStrategyQuery}
+                  onChange={(event) =>
+                    setLibraryStrategyQuery(event.target.value)
+                  }
+                  placeholder="Search library strategies"
+                  size="2"
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlassIcon height="16" width="16" />
+                  </TextField.Slot>
+                </TextField.Root>
+                {visibleLibraryStrategyOptions.length > 0 ? (
+                  <Flex
+                    direction="column"
+                    gap="2"
+                    style={{ maxHeight: "16rem", overflowY: "auto" }}
+                  >
+                    {visibleLibraryStrategyOptions.map(
+                      (libraryStrategyOption) => (
+                        <Text
+                          as="label"
+                          size="2"
+                          key={libraryStrategyOption.name}
+                        >
+                          <Flex align="center" justify="between" gap="2">
+                            <Flex align="center" gap="2">
+                              <Checkbox
+                                checked={selectedLibraryStrategyFilters.includes(
+                                  libraryStrategyOption.name,
+                                )}
+                                onCheckedChange={() =>
+                                  toggleLibraryStrategySelection(
+                                    libraryStrategyOption.name,
+                                  )
+                                }
+                              />
+                              <span>{libraryStrategyOption.name}</span>
+                            </Flex>
+                            <Badge color="gray" variant="soft">
+                              {libraryStrategyOption.count}
+                            </Badge>
+                          </Flex>
+                        </Text>
+                      ),
+                    )}
+                  </Flex>
+                ) : (
+                  <Text size="2" color="gray">
+                    No library strategies found.
+                  </Text>
+                )}
+              </Flex>
+            </Tabs.Content>
+
+            <Tabs.Content value="instrument-models">
+              <Flex direction="column" gap="3" pt="3">
+                <TextField.Root
+                  value={instrumentModelQuery}
+                  onChange={(event) =>
+                    setInstrumentModelQuery(event.target.value)
+                  }
+                  placeholder="Search instrument models"
+                  size="2"
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlassIcon height="16" width="16" />
+                  </TextField.Slot>
+                </TextField.Root>
+                {visibleInstrumentModelOptions.length > 0 ? (
+                  <Flex
+                    direction="column"
+                    gap="2"
+                    style={{ maxHeight: "16rem", overflowY: "auto" }}
+                  >
+                    {visibleInstrumentModelOptions.map(
+                      (instrumentModelOption) => (
+                        <Text
+                          as="label"
+                          size="2"
+                          key={instrumentModelOption.name}
+                        >
+                          <Flex align="center" justify="between" gap="2">
+                            <Flex align="center" gap="2">
+                              <Checkbox
+                                checked={selectedInstrumentModelFilters.includes(
+                                  instrumentModelOption.name,
+                                )}
+                                onCheckedChange={() =>
+                                  toggleInstrumentModelSelection(
+                                    instrumentModelOption.name,
+                                  )
+                                }
+                              />
+                              <span>{instrumentModelOption.name}</span>
+                            </Flex>
+                            <Badge color="gray" variant="soft">
+                              {instrumentModelOption.count}
+                            </Badge>
+                          </Flex>
+                        </Text>
+                      ),
+                    )}
+                  </Flex>
+                ) : (
+                  <Text size="2" color="gray">
+                    No instrument models found.
                   </Text>
                 )}
               </Flex>
