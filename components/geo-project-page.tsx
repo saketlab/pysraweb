@@ -165,14 +165,17 @@ type GeoSampleGridRow = {
 };
 
 type SupplementaryDataRecord = {
-  "#text": string;
+  url: string;
   "@type": string | null;
+  path: string | null;
+  size: number | null;
 };
 
 type SupplementaryDataItem = {
   id: string;
   url: string;
   fileName: string;
+  fileSizeLabel: string | null;
   curlCommand: string;
   browserDownloadUrl: string;
 };
@@ -244,15 +247,22 @@ const normalizeSupplementaryRecord = (
 
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;
-    const text = record["#text"];
-    if (typeof text !== "string" || text.trim().length === 0) {
+    const textValue =
+      typeof record["#text"] === "string" ? record["#text"] : null;
+    const urlValue = typeof record.url === "string" ? record.url : null;
+    const resolvedUrl = textValue ?? urlValue;
+    if (typeof resolvedUrl !== "string" || resolvedUrl.trim().length === 0) {
       return null;
     }
     const rawType = record["@type"];
+    const rawPath = record.path;
+    const rawSize = record.size;
     return {
-      "#text": text.trim(),
+      url: resolvedUrl.trim(),
       "@type":
         typeof rawType === "string" && rawType.trim() ? rawType.trim() : null,
+      path: typeof rawPath === "string" && rawPath.trim() ? rawPath.trim() : null,
+      size: typeof rawSize === "number" && Number.isFinite(rawSize) ? rawSize : null,
     };
   }
 
@@ -267,7 +277,7 @@ const normalizeSupplementaryRecord = (
       trimmed.startsWith("https://") ||
       trimmed.startsWith("ftp://")
     ) {
-      return { "#text": trimmed, "@type": null };
+      return { url: trimmed, "@type": null, path: null, size: null };
     }
 
     try {
@@ -353,6 +363,27 @@ const getBrowserDownloadUrl = (url: string): string => {
 
 const buildCurlCommand = (url: string): string =>
   `curl -O ${shellEscapeSingleQuotes(url)}`;
+
+const formatFileSize = (sizeInBytes: number | null): string | null => {
+  if (sizeInBytes === null || !Number.isFinite(sizeInBytes) || sizeInBytes < 0) {
+    return null;
+  }
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  }
+
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = sizeInBytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  const rounded = value >= 10 ? value.toFixed(0) : value.toFixed(1);
+  return `${rounded} ${units[unitIndex]}`;
+};
 
 const fetchSamples = async (accession: string): Promise<GeoSample[]> => {
   const res = await fetch(`${SERVER_URL}/geo/series/${accession}/samples`);
@@ -755,16 +786,17 @@ export default function GeoProjectPage() {
   const supplementaryDataItems = React.useMemo(() => {
     return parseSupplementaryData(project?.supplementary_data)
       .map((entry, index): SupplementaryDataItem | null => {
-        const url = entry["#text"]?.trim();
+        const url = entry.url?.trim();
         if (!url) {
           return null;
         }
         const browserDownloadUrl = getBrowserDownloadUrl(url);
-        const fileName = getFileNameFromUrl(url);
+        const fileName = entry.path?.trim() || getFileNameFromUrl(url);
         return {
           id: `supplementary-${index}`,
           url: browserDownloadUrl,
           fileName,
+          fileSizeLabel: formatFileSize(entry.size),
           curlCommand: buildCurlCommand(browserDownloadUrl),
           browserDownloadUrl,
         };
@@ -1280,7 +1312,14 @@ export default function GeoProjectPage() {
                       value={item.id}
                       style={{ flexShrink: 0, fontFamily: "monospace" }}
                     >
-                      {item.fileName}
+                      <Flex align="center" gap="2">
+                        <span>{item.fileName}</span>
+                        {item.fileSizeLabel && (
+                          <Badge color="gray" variant="soft" size="1">
+                            {item.fileSizeLabel}
+                          </Badge>
+                        )}
+                      </Flex>
                     </Tabs.Trigger>
                   ))}
                 </Tabs.List>
