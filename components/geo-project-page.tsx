@@ -1432,7 +1432,7 @@ export default function GeoProjectPage() {
                   {showAllSupplementaryTab && (
                     <Tabs.Trigger
                       value="supplementary-all"
-                      style={{ flexShrink: 0, fontFamily: "monospace" }}
+                      style={{ flexShrink: 0 }}
                     >
                       <Flex align="center" gap="2">
                         <span>All</span>
