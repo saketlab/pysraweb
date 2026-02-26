@@ -175,6 +175,7 @@ type SupplementaryDataItem = {
   id: string;
   url: string;
   fileName: string;
+  fileSizeBytes: number | null;
   fileSizeLabel: string | null;
   curlCommand: string;
   browserDownloadUrl: string;
@@ -361,8 +362,16 @@ const getBrowserDownloadUrl = (url: string): string => {
   }
 };
 
+const getAppDownloadUrl = (url: string, fileName: string): string =>
+  `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
+
 const buildCurlCommand = (url: string): string =>
   `curl -O ${shellEscapeSingleQuotes(url)}`;
+
+const buildCombinedCurlCommand = (urls: string[]): string => {
+  if (urls.length === 0) return "";
+  return `curl -L ${urls.map((url) => `-O ${shellEscapeSingleQuotes(url)}`).join(" ")}`;
+};
 
 const formatFileSize = (sizeInBytes: number | null): string | null => {
   if (sizeInBytes === null || !Number.isFinite(sizeInBytes) || sizeInBytes < 0) {
@@ -457,6 +466,11 @@ export default function GeoProjectPage() {
   const [copiedSupplementaryId, setCopiedSupplementaryId] = useState<
     string | null
   >(null);
+  const [isDownloadingAllSupplementary, setIsDownloadingAllSupplementary] =
+    useState(false);
+  const [downloadAllProgressPercent, setDownloadAllProgressPercent] = useState<
+    number | null
+  >(null);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
@@ -521,6 +535,83 @@ export default function GeoProjectPage() {
       }, 1500);
     } catch (error) {
       console.error("Failed to copy supplementary command:", error);
+    }
+  };
+
+  const handleDownloadAllSupplementaryFiles = async (
+    items: SupplementaryDataItem[],
+  ) => {
+    if (items.length === 0) return;
+
+    const zipFileName = `${(accession ?? "supplementary").trim()}_supplementary.zip`;
+    try {
+      setIsDownloadingAllSupplementary(true);
+      setDownloadAllProgressPercent(0);
+      const response = await fetch("/api/download-all", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          archiveName: zipFileName,
+          files: items.map((item) => ({
+            url: item.browserDownloadUrl,
+            filename: item.fileName,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`);
+      }
+
+      const contentLengthHeader = response.headers.get("content-length");
+      const totalBytes = contentLengthHeader
+        ? Number.parseInt(contentLengthHeader, 10)
+        : NaN;
+
+      let zipBlob: Blob;
+      if (response.body) {
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let receivedBytes = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          chunks.push(value);
+          receivedBytes += value.length;
+          if (Number.isFinite(totalBytes) && totalBytes > 0) {
+            const progress = Math.min(
+              100,
+              Math.round((receivedBytes / totalBytes) * 100),
+            );
+            setDownloadAllProgressPercent(progress);
+          }
+        }
+
+        zipBlob = new Blob(chunks, { type: "application/zip" });
+      } else {
+        zipBlob = await response.blob();
+      }
+
+      setDownloadAllProgressPercent(100);
+      const objectUrl = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = zipFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("Failed to download all supplementary files as zip:", error);
+    } finally {
+      setIsDownloadingAllSupplementary(false);
+      window.setTimeout(() => {
+        setDownloadAllProgressPercent(null);
+      }, 300);
     }
   };
 
@@ -796,6 +887,7 @@ export default function GeoProjectPage() {
           id: `supplementary-${index}`,
           url: browserDownloadUrl,
           fileName,
+          fileSizeBytes: entry.size,
           fileSizeLabel: formatFileSize(entry.size),
           curlCommand: buildCurlCommand(browserDownloadUrl),
           browserDownloadUrl,
@@ -803,6 +895,33 @@ export default function GeoProjectPage() {
       })
       .filter((entry): entry is SupplementaryDataItem => entry !== null);
   }, [project?.supplementary_data]);
+
+  const allSupplementaryCurlCommand = React.useMemo(
+    () =>
+      buildCombinedCurlCommand(
+        supplementaryDataItems.map((item) => item.browserDownloadUrl),
+      ),
+    [supplementaryDataItems],
+  );
+
+  const allSupplementarySizeLabel = React.useMemo(() => {
+    if (!isArrayExpress || supplementaryDataItems.length === 0) {
+      return null;
+    }
+    const missingSize = supplementaryDataItems.some(
+      (item) => item.fileSizeBytes === null,
+    );
+    if (missingSize) {
+      return null;
+    }
+    const totalSize = supplementaryDataItems.reduce(
+      (sum, item) => sum + (item.fileSizeBytes ?? 0),
+      0,
+    );
+    return formatFileSize(totalSize);
+  }, [isArrayExpress, supplementaryDataItems]);
+
+  const showAllSupplementaryTab = supplementaryDataItems.length > 1;
 
   return (
     <>
@@ -1292,7 +1411,11 @@ export default function GeoProjectPage() {
             )}
             {supplementaryDataItems.length > 0 && (
               <Tabs.Root
-                defaultValue={supplementaryDataItems[0].id}
+                defaultValue={
+                  showAllSupplementaryTab
+                    ? "supplementary-all"
+                    : supplementaryDataItems[0].id
+                }
                 style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
               >
                 <Tabs.List
@@ -1306,6 +1429,21 @@ export default function GeoProjectPage() {
                     flexWrap: "nowrap",
                   }}
                 >
+                  {showAllSupplementaryTab && (
+                    <Tabs.Trigger
+                      value="supplementary-all"
+                      style={{ flexShrink: 0, fontFamily: "monospace" }}
+                    >
+                      <Flex align="center" gap="2">
+                        <span>All</span>
+                        {allSupplementarySizeLabel && (
+                          <Badge color="gray" variant="soft" size="1">
+                            {allSupplementarySizeLabel}
+                          </Badge>
+                        )}
+                      </Flex>
+                    </Tabs.Trigger>
+                  )}
                   {supplementaryDataItems.map((item) => (
                     <Tabs.Trigger
                       key={item.id}
@@ -1323,6 +1461,113 @@ export default function GeoProjectPage() {
                     </Tabs.Trigger>
                   ))}
                 </Tabs.List>
+                {showAllSupplementaryTab && (
+                  <Tabs.Content
+                    value="supplementary-all"
+                    style={{ marginTop: "0.75rem", maxWidth: "100%" }}
+                  >
+                    <Flex direction="column" gap="2" style={{ maxWidth: "100%" }}>
+                      <div
+                        style={{
+                          width: "100%",
+                          maxWidth: "100%",
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          alignItems: "center",
+                          columnGap: "0.5rem",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            minWidth: 0,
+                            maxWidth: "100%",
+                            overflow: "hidden",
+                            display: "flex",
+                            alignItems: "center",
+                            background: "var(--gray-3)",
+                            border: "1px solid var(--gray-6)",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          <pre
+                            style={{
+                              margin: 0,
+                              width: "calc(100% - 2.5rem)",
+                              maxWidth: "calc(100% - 2.5rem)",
+                              minWidth: 0,
+                              boxSizing: "border-box",
+                              padding: "0.875rem",
+                              overflowX: "auto",
+                              overflowY: "hidden",
+                              fontSize: "12px",
+                              lineHeight: "1.5",
+                              fontFamily: "var(--default-mono-font-family)",
+                            }}
+                          >
+                            <code>{allSupplementaryCurlCommand}</code>
+                          </pre>
+                          <Tooltip content="Copy command">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopySupplementaryCommand(
+                                  "supplementary-all",
+                                  allSupplementaryCurlCommand,
+                                )
+                              }
+                              aria-label="Copy all-files curl command"
+                              style={{
+                                width: "2.5rem",
+                                minWidth: "2.5rem",
+                                border: "none",
+                                background: "transparent",
+                                color: "inherit",
+                                padding: "0.5rem",
+                                margin: 0,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {copiedSupplementaryId === "supplementary-all" ? (
+                                <CheckIcon />
+                              ) : (
+                                <CopyIcon />
+                              )}
+                            </button>
+                          </Tooltip>
+                        </div>
+                        <Tooltip content="Download all files as zip">
+                          <Button
+                            size={"3"}
+                            disabled={isDownloadingAllSupplementary}
+                            onClick={() =>
+                              handleDownloadAllSupplementaryFiles(
+                                supplementaryDataItems,
+                              )
+                            }
+                            aria-label="Download all supplementary files"
+                          >
+                            {isDownloadingAllSupplementary ? (
+                              <Flex align="center" gap="1">
+                                <Spinner size="1" />
+                                <Text size="1">
+                                  {downloadAllProgressPercent !== null
+                                    ? `${downloadAllProgressPercent}%`
+                                    : "..." }
+                                </Text>
+                              </Flex>
+                            ) : (
+                              <DownloadIcon />
+                            )}
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </Flex>
+                  </Tabs.Content>
+                )}
                 {supplementaryDataItems.map((item) => (
                   <Tabs.Content
                     key={item.id}
@@ -1409,10 +1654,11 @@ export default function GeoProjectPage() {
                         <Tooltip content="Download file to device">
                           <Button asChild size={"3"}>
                             <a
-                              href={item.browserDownloadUrl}
+                              href={getAppDownloadUrl(
+                                item.browserDownloadUrl,
+                                item.fileName,
+                              )}
                               download={item.fileName}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               aria-label={`Download ${item.fileName}`}
                             >
                               <DownloadIcon />
