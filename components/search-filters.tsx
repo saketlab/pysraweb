@@ -52,8 +52,7 @@ export function SearchFilters({
   return (
     <>
       <Flex
-        direction={"row-reverse"}
-        justify={"center"}
+        direction={"row"}
         gap={"2"}
         wrap="wrap"
         display={{ initial: "flex", md: "none" }}
@@ -88,9 +87,9 @@ export function SearchFilters({
             <Select.Group>
               <Select.Item value="any">Any time</Select.Item>
               <Select.Item value="1">Last year</Select.Item>
-              <Select.Item value="5">Last 5 yrs</Select.Item>
-              <Select.Item value="10">Last 10 yrs</Select.Item>
-              <Select.Item value="20">Last 20 yrs</Select.Item>
+              <Select.Item value="5">5 yrs</Select.Item>
+              <Select.Item value="10">10 yrs</Select.Item>
+              <Select.Item value="20">20 yrs</Select.Item>
             </Select.Group>
           </Select.Content>
         </Select.Root>
@@ -106,9 +105,9 @@ export function SearchFilters({
           <Select.Trigger />
           <Select.Content>
             <Select.Group>
-              <Select.Item value="geo">Only GEO</Select.Item>
-              <Select.Item value="sra">Only SRA</Select.Item>
-              <Select.Item value="arrayexpress">Only ArrayExpress</Select.Item>
+              <Select.Item value="geo">GEO</Select.Item>
+              <Select.Item value="sra">SRA</Select.Item>
+              <Select.Item value="arrayexpress">ArrayExpress</Select.Item>
               <Select.Item value="both">From all sources</Select.Item>
             </Select.Group>
           </Select.Content>
