@@ -221,6 +221,8 @@ export function SearchOrganismRail({
   setSelectedLibraryStrategyFilters,
   selectedInstrumentModelFilters,
   setSelectedInstrumentModelFilters,
+  showMobile = false,
+  showDesktop = true,
 }: {
   results: SearchResult[];
   journalResults: SearchResult[];
@@ -239,8 +241,11 @@ export function SearchOrganismRail({
   setSelectedLibraryStrategyFilters: (value: string[]) => void;
   selectedInstrumentModelFilters: string[];
   setSelectedInstrumentModelFilters: (value: string[]) => void;
+  showMobile?: boolean;
+  showDesktop?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [organismsOpen, setOrganismsOpen] = useState(false);
   const [journalQuery, setJournalQuery] = useState("");
   const [countryQuery, setCountryQuery] = useState("");
   const [libraryStrategyQuery, setLibraryStrategyQuery] = useState("");
@@ -393,78 +398,401 @@ export function SearchOrganismRail({
     selectedInstrumentModelFilters.length;
 
   return (
-    <Flex
-      display={{ initial: "none", md: "flex" }}
-      direction="column"
-      gap="2"
-      width={{ md: "220px", lg: "280px" }}
-      position="sticky"
-      style={{ top: "7rem", height: "fit-content" }}
-    >
-      <OrganismFilter
-        results={results}
-        mode={organismNameMode}
-        onChangeMode={setOrganismNameMode}
-        selectedKey={selectedOrganismKey}
-        onChangeSelection={setSelectedOrganismFilter}
-      />
-      <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Trigger>
-          <Button variant="surface">
-            <MixerHorizontalIcon />
-            More filters
-            {selectedFilterCount > 0 ? (
-              <Badge color="blue">{selectedFilterCount}</Badge>
-            ) : null}
-          </Button>
-        </Dialog.Trigger>
-        <Dialog.Content size="3">
-          <Dialog.Title>
-            <Flex align={"center"} gap={"2"}>
-              <Text>More filters</Text>
-              <Badge color="teal">Beta</Badge>
-            </Flex>
-          </Dialog.Title>
-          <Dialog.Description size={"1"}>
-            Filters apply only to loaded results. Scroll to load more. Selecting
-            a filter also has the effect of fetching more results.
-          </Dialog.Description>
+    <>
+      {showMobile ? (
+        <Flex display={{ initial: "flex", md: "none" }} gap="2" wrap="wrap">
+          <Dialog.Root open={organismsOpen} onOpenChange={setOrganismsOpen}>
+            <Dialog.Trigger>
+              <Button variant="surface" size="1">
+                Organisms
+                {selectedOrganismKey ? <Badge color="blue">1</Badge> : null}
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content
+              size="2"
+              style={{
+                width: "calc(100vw - 1rem)",
+                maxWidth: "calc(100vw - 1rem)",
+              }}
+            >
+              <Dialog.Title>Organisms</Dialog.Title>
+              <Dialog.Description size="1">
+                Narrow results by organism.
+              </Dialog.Description>
+              <Flex
+                mt="3"
+                width="100%"
+                style={{ height: "24rem", overflowY: "auto" }}
+              >
+                <div style={{ width: "100%" }}>
+                  <OrganismFilter
+                    results={results}
+                    mode={organismNameMode}
+                    onChangeMode={setOrganismNameMode}
+                    selectedKey={selectedOrganismKey}
+                    onChangeSelection={setSelectedOrganismFilter}
+                  />
+                </div>
+              </Flex>
+            </Dialog.Content>
+          </Dialog.Root>
 
-          <Tabs.Root defaultValue="journals" style={{ marginTop: "0.5rem" }}>
-            <Tabs.List>
-              <Tabs.Trigger value="journals">
-                <Flex align="center" gap="1">
-                  <span>Journals</span>
-                  {selectedJournalFilters.length > 0 ? (
-                    <Badge>{selectedJournalFilters.length}</Badge>
-                  ) : null}
+          <Dialog.Root open={moreFiltersOpen} onOpenChange={setMoreFiltersOpen}>
+            <Dialog.Trigger>
+              <Button variant="surface" size="1">
+                <MixerHorizontalIcon />
+                More filters
+                {selectedFilterCount > 0 ? (
+                  <Badge color="blue">{selectedFilterCount}</Badge>
+                ) : null}
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content
+              size="3"
+              style={{
+                width: "calc(100vw - 1rem)",
+                maxWidth: "calc(100vw - 1rem)",
+              }}
+            >
+              <Dialog.Title>
+                <Flex align={"center"} gap={"2"}>
+                  <Text>More filters</Text>
+                  <Badge color="teal">Beta</Badge>
                 </Flex>
-              </Tabs.Trigger>
-              <Tabs.Trigger value="countries">
-                <Flex align="center" gap="1">
-                  <span>Countries</span>
-                  {selectedCountryFilters.length > 0 ? (
-                    <Badge>{selectedCountryFilters.length}</Badge>
-                  ) : null}
+              </Dialog.Title>
+              <Dialog.Description size={"1"}>
+                Filters apply only to loaded results. Scroll to load more.
+                Selecting a filter also has the effect of fetching more results.
+              </Dialog.Description>
+
+              <Tabs.Root defaultValue="journals" style={{ marginTop: "0.5rem" }}>
+                <Tabs.List
+                  style={{
+                    overflowX: "auto",
+                    maxWidth: "100%",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Tabs.Trigger value="journals">
+                    <Flex align="center" gap="1">
+                      <span>Journals</span>
+                      {selectedJournalFilters.length > 0 ? (
+                        <Badge>{selectedJournalFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="countries">
+                    <Flex align="center" gap="1">
+                      <span>Countries</span>
+                      {selectedCountryFilters.length > 0 ? (
+                        <Badge>{selectedCountryFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="library-strategy">
+                    <Flex align="center" gap="1">
+                      <span>Library Strategy</span>
+                      {selectedLibraryStrategyFilters.length > 0 ? (
+                        <Badge>{selectedLibraryStrategyFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="instrument-models">
+                    <Flex align="center" gap="1">
+                      <span>Instrument Models</span>
+                      {selectedInstrumentModelFilters.length > 0 ? (
+                        <Badge>{selectedInstrumentModelFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                </Tabs.List>
+
+                <Tabs.Content value="journals">
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={journalQuery}
+                      onChange={(event) => setJournalQuery(event.target.value)}
+                      placeholder="Search journals"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleJournalOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleJournalOptions.map((journalOption) => (
+                          <Text as="label" size="2" key={journalOption.name}>
+                            <Flex align="center" justify="between" gap="2">
+                              <Flex align="center" gap="2">
+                                <Checkbox
+                                  checked={selectedJournalFilters.includes(
+                                    journalOption.name,
+                                  )}
+                                  onCheckedChange={() =>
+                                    toggleJournalSelection(journalOption.name)
+                                  }
+                                />
+                                <span>{journalOption.name}</span>
+                              </Flex>
+                              <Badge color="gray" variant="soft">
+                                {journalOption.count}
+                              </Badge>
+                            </Flex>
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No journals found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+
+                <Tabs.Content value="countries">
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={countryQuery}
+                      onChange={(event) => setCountryQuery(event.target.value)}
+                      placeholder="Search countries"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleCountryOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleCountryOptions.map((countryOption) => (
+                          <Text as="label" size="2" key={countryOption.code}>
+                            <Flex align="center" justify="between" gap="2">
+                              <Flex align="center" gap="2">
+                                <Checkbox
+                                  checked={selectedCountryFilters.includes(
+                                    countryOption.code,
+                                  )}
+                                  onCheckedChange={() =>
+                                    toggleCountrySelection(countryOption.code)
+                                  }
+                                />
+                                <span>{countryOption.label}</span>
+                              </Flex>
+                              <Badge color="gray" variant="soft">
+                                {countryOption.count}
+                              </Badge>
+                            </Flex>
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No countries found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+
+                <Tabs.Content value="library-strategy">
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={libraryStrategyQuery}
+                      onChange={(event) =>
+                        setLibraryStrategyQuery(event.target.value)
+                      }
+                      placeholder="Search library strategies"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleLibraryStrategyOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleLibraryStrategyOptions.map(
+                          (libraryStrategyOption) => (
+                            <Text
+                              as="label"
+                              size="2"
+                              key={libraryStrategyOption.name}
+                            >
+                              <Flex align="center" justify="between" gap="2">
+                                <Flex align="center" gap="2">
+                                  <Checkbox
+                                    checked={selectedLibraryStrategyFilters.includes(
+                                      libraryStrategyOption.name,
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleLibraryStrategySelection(
+                                        libraryStrategyOption.name,
+                                      )
+                                    }
+                                  />
+                                  <span>{libraryStrategyOption.name}</span>
+                                </Flex>
+                                <Badge color="gray" variant="soft">
+                                  {libraryStrategyOption.count}
+                                </Badge>
+                              </Flex>
+                            </Text>
+                          ),
+                        )}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No library strategies found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+
+                <Tabs.Content value="instrument-models">
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={instrumentModelQuery}
+                      onChange={(event) =>
+                        setInstrumentModelQuery(event.target.value)
+                      }
+                      placeholder="Search instrument models"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleInstrumentModelOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleInstrumentModelOptions.map(
+                          (instrumentModelOption) => (
+                            <Text
+                              as="label"
+                              size="2"
+                              key={instrumentModelOption.name}
+                            >
+                              <Flex align="center" justify="between" gap="2">
+                                <Flex align="center" gap="2">
+                                  <Checkbox
+                                    checked={selectedInstrumentModelFilters.includes(
+                                      instrumentModelOption.name,
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleInstrumentModelSelection(
+                                        instrumentModelOption.name,
+                                      )
+                                    }
+                                  />
+                                  <span>{instrumentModelOption.name}</span>
+                                </Flex>
+                                <Badge color="gray" variant="soft">
+                                  {instrumentModelOption.count}
+                                </Badge>
+                              </Flex>
+                            </Text>
+                          ),
+                        )}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No instrument models found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+              </Tabs.Root>
+            </Dialog.Content>
+          </Dialog.Root>
+        </Flex>
+      ) : null}
+
+      {showDesktop ? (
+        <Flex
+          display={{ initial: "none", md: "flex" }}
+          direction="column"
+          gap="2"
+          width={{ md: "220px", lg: "280px" }}
+          position="sticky"
+          style={{ top: "7rem", height: "fit-content" }}
+        >
+          <OrganismFilter
+            results={results}
+            mode={organismNameMode}
+            onChangeMode={setOrganismNameMode}
+            selectedKey={selectedOrganismKey}
+            onChangeSelection={setSelectedOrganismFilter}
+          />
+          <Dialog.Root open={moreFiltersOpen} onOpenChange={setMoreFiltersOpen}>
+            <Dialog.Trigger>
+              <Button variant="surface">
+                <MixerHorizontalIcon />
+                More filters
+                {selectedFilterCount > 0 ? (
+                  <Badge color="blue">{selectedFilterCount}</Badge>
+                ) : null}
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content size="3">
+              <Dialog.Title>
+                <Flex align={"center"} gap={"2"}>
+                  <Text>More filters</Text>
+                  <Badge color="teal">Beta</Badge>
                 </Flex>
-              </Tabs.Trigger>
-              <Tabs.Trigger value="library-strategy">
-                <Flex align="center" gap="1">
-                  <span>Library Strategy</span>
-                  {selectedLibraryStrategyFilters.length > 0 ? (
-                    <Badge>{selectedLibraryStrategyFilters.length}</Badge>
-                  ) : null}
-                </Flex>
-              </Tabs.Trigger>
-              <Tabs.Trigger value="instrument-models">
-                <Flex align="center" gap="1">
-                  <span>Instrument Models</span>
-                  {selectedInstrumentModelFilters.length > 0 ? (
-                    <Badge>{selectedInstrumentModelFilters.length}</Badge>
-                  ) : null}
-                </Flex>
-              </Tabs.Trigger>
-            </Tabs.List>
+              </Dialog.Title>
+              <Dialog.Description size={"1"}>
+                Filters apply only to loaded results. Scroll to load more.
+                Selecting a filter also has the effect of fetching more results.
+              </Dialog.Description>
+
+              <Tabs.Root defaultValue="journals" style={{ marginTop: "0.5rem" }}>
+                <Tabs.List>
+                  <Tabs.Trigger value="journals">
+                    <Flex align="center" gap="1">
+                      <span>Journals</span>
+                      {selectedJournalFilters.length > 0 ? (
+                        <Badge>{selectedJournalFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="countries">
+                    <Flex align="center" gap="1">
+                      <span>Countries</span>
+                      {selectedCountryFilters.length > 0 ? (
+                        <Badge>{selectedCountryFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="library-strategy">
+                    <Flex align="center" gap="1">
+                      <span>Library Strategy</span>
+                      {selectedLibraryStrategyFilters.length > 0 ? (
+                        <Badge>{selectedLibraryStrategyFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="instrument-models">
+                    <Flex align="center" gap="1">
+                      <span>Instrument Models</span>
+                      {selectedInstrumentModelFilters.length > 0 ? (
+                        <Badge>{selectedInstrumentModelFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                </Tabs.List>
 
             <Tabs.Content value="journals">
               <Flex direction="column" gap="3" pt="3">
@@ -673,9 +1001,11 @@ export function SearchOrganismRail({
                 )}
               </Flex>
             </Tabs.Content>
-          </Tabs.Root>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Flex>
+              </Tabs.Root>
+            </Dialog.Content>
+          </Dialog.Root>
+        </Flex>
+      ) : null}
+    </>
   );
 }

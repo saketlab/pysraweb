@@ -344,6 +344,29 @@ export default function SearchPageBody() {
           setCustomYearRange={setCustomYearRange}
           onDatabaseChange={handleDatabaseChange}
         />
+        {shouldShowOrganismRail ? (
+          <SearchOrganismRail
+            results={searchResults}
+            journalResults={organismFilteredResults}
+            countryResults={organismFilteredResults}
+            libraryStrategyResults={organismFilteredResults}
+            instrumentModelResults={organismFilteredResults}
+            organismNameMode={organismNameMode}
+            setOrganismNameMode={setOrganismNameMode}
+            selectedOrganismKey={selectedOrganismKey}
+            setSelectedOrganismFilter={setSelectedOrganismKey}
+            selectedJournalFilters={selectedJournalFilters}
+            setSelectedJournalFilters={setSelectedJournalFilters}
+            selectedCountryFilters={selectedCountryFilters}
+            setSelectedCountryFilters={setSelectedCountryFilters}
+            selectedLibraryStrategyFilters={selectedLibraryStrategyFilters}
+            setSelectedLibraryStrategyFilters={setSelectedLibraryStrategyFilters}
+            selectedInstrumentModelFilters={selectedInstrumentModelFilters}
+            setSelectedInstrumentModelFilters={setSelectedInstrumentModelFilters}
+            showMobile
+            showDesktop={false}
+          />
+        ) : null}
 
         {/* Child Flex-3 : handles middle col */}
         <Flex
@@ -482,6 +505,8 @@ export default function SearchPageBody() {
             setSelectedLibraryStrategyFilters={setSelectedLibraryStrategyFilters}
             selectedInstrumentModelFilters={selectedInstrumentModelFilters}
             setSelectedInstrumentModelFilters={setSelectedInstrumentModelFilters}
+            showMobile={false}
+            showDesktop
           />
         ) : null}
 
