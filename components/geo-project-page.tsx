@@ -399,7 +399,7 @@ const getBrowserDownloadUrl = (url: string): string => {
 };
 
 const getAppDownloadUrl = (url: string, fileName: string): string =>
-  `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
+  `/web-api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
 
 const buildCurlCommand = (url: string): string =>
   `curl -O ${shellEscapeSingleQuotes(url)}`;
@@ -614,7 +614,7 @@ export default function GeoProjectPage() {
     try {
       setIsDownloadingAllSupplementary(true);
       setDownloadAllProgressPercent(0);
-      const response = await fetch("/api/download-all", {
+      const response = await fetch("/web-api/download-all", {
         method: "POST",
         headers: {
           "content-type": "application/json",
