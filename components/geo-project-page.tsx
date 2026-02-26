@@ -179,6 +179,7 @@ type SupplementaryDataItem = {
   fileSizeLabel: string | null;
   curlCommand: string;
   browserDownloadUrl: string;
+  downloadUrl: string;
 };
 
 const toDisplayText = (value: unknown): string => {
@@ -401,6 +402,32 @@ const getBrowserDownloadUrl = (url: string): string => {
 const getAppDownloadUrl = (url: string, fileName: string): string =>
   `/web-api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
 
+const INLINE_PREVIEW_EXTENSIONS = new Set([
+  ".txt",
+  ".tsv",
+  ".csv",
+  ".json",
+  ".xml",
+  ".html",
+  ".htm",
+  ".md",
+  ".yaml",
+  ".yml",
+  ".log",
+]);
+
+const shouldUseProxyDownload = (url: string, fileName: string): boolean => {
+  const normalizedName = fileName.toLowerCase();
+  const nameMatch = normalizedName.match(/(\.[a-z0-9]+)$/);
+  if (nameMatch) {
+    return INLINE_PREVIEW_EXTENSIONS.has(nameMatch[1]);
+  }
+
+  const normalizedUrl = url.toLowerCase().split("?")[0].split("#")[0];
+  const urlMatch = normalizedUrl.match(/(\.[a-z0-9]+)$/);
+  return urlMatch ? INLINE_PREVIEW_EXTENSIONS.has(urlMatch[1]) : false;
+};
+
 const buildCurlCommand = (url: string): string =>
   `curl -O ${shellEscapeSingleQuotes(url)}`;
 
@@ -610,70 +637,23 @@ export default function GeoProjectPage() {
   ) => {
     if (items.length === 0) return;
 
-    const zipFileName = `${(accession ?? "supplementary").trim()}_supplementary.zip`;
     try {
       setIsDownloadingAllSupplementary(true);
       setDownloadAllProgressPercent(0);
-      const response = await fetch("/web-api/download-all", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          archiveName: zipFileName,
-          files: items.map((item) => ({
-            url: item.browserDownloadUrl,
-            filename: item.fileName,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed with status ${response.status}`);
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        const link = document.createElement("a");
+        link.href = item.downloadUrl;
+        link.download = item.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        const progress = Math.round(((index + 1) / items.length) * 100);
+        setDownloadAllProgressPercent(progress);
+        await new Promise((resolve) => window.setTimeout(resolve, 150));
       }
-
-      const contentLengthHeader = response.headers.get("content-length");
-      const totalBytes = contentLengthHeader
-        ? Number.parseInt(contentLengthHeader, 10)
-        : NaN;
-
-      let zipBlob: Blob;
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks: BlobPart[] = [];
-        let receivedBytes = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (!value) continue;
-          chunks.push(new Uint8Array(value));
-          receivedBytes += value.length;
-          if (Number.isFinite(totalBytes) && totalBytes > 0) {
-            const progress = Math.min(
-              100,
-              Math.round((receivedBytes / totalBytes) * 100),
-            );
-            setDownloadAllProgressPercent(progress);
-          }
-        }
-
-        zipBlob = new Blob(chunks, { type: "application/zip" });
-      } else {
-        zipBlob = await response.blob();
-      }
-
-      setDownloadAllProgressPercent(100);
-      const objectUrl = window.URL.createObjectURL(zipBlob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = zipFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
     } catch (error) {
-      console.error("Failed to download all supplementary files as zip:", error);
+      console.error("Failed to download all supplementary files:", error);
     } finally {
       setIsDownloadingAllSupplementary(false);
       window.setTimeout(() => {
@@ -958,6 +938,9 @@ export default function GeoProjectPage() {
           fileSizeLabel: formatFileSize(entry.size),
           curlCommand: buildCurlCommand(browserDownloadUrl),
           browserDownloadUrl,
+          downloadUrl: shouldUseProxyDownload(browserDownloadUrl, fileName)
+            ? getAppDownloadUrl(browserDownloadUrl, fileName)
+            : browserDownloadUrl,
         };
       })
       .filter((entry): entry is SupplementaryDataItem => entry !== null);
@@ -1613,7 +1596,7 @@ export default function GeoProjectPage() {
                             </button>
                           </Tooltip>
                         </div>
-                        <Tooltip content="Download all files as zip">
+                        <Tooltip content="Download all files">
                           <Button
                             size={"3"}
                             disabled={isDownloadingAllSupplementary}
@@ -1728,10 +1711,7 @@ export default function GeoProjectPage() {
                         <Tooltip content="Download file to device">
                           <Button asChild size={"3"}>
                             <a
-                              href={getAppDownloadUrl(
-                                item.browserDownloadUrl,
-                                item.fileName,
-                              )}
+                              href={item.downloadUrl}
                               download={item.fileName}
                               aria-label={`Download ${item.fileName}`}
                             >
