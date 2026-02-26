@@ -99,6 +99,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     compression: "DEFLATE",
     compressionOptions: { level: 6 },
   });
+  const zipBytes = new Uint8Array(zipBuffer);
 
   const archiveNameBase = sanitizeFileName(
     payload.archiveName?.trim() || "supplementary_files.zip",
@@ -107,11 +108,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     ? archiveNameBase
     : `${archiveNameBase}.zip`;
 
-  return new Response(zipBuffer, {
+  return new Response(zipBytes, {
     status: 200,
     headers: {
       "content-type": "application/zip",
-      "content-length": String(zipBuffer.byteLength),
+      "content-length": String(zipBytes.byteLength),
       "content-disposition": `attachment; filename="${archiveName}"`,
       "x-content-type-options": "nosniff",
     },

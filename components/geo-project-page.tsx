@@ -93,7 +93,7 @@ type Project = {
   coords_2d?: number[] | null;
   coords_3d?: number[] | null;
   neighbors?: SimilarNeighbor[] | null;
-  alias?: string | null;
+  alias?: string | string[] | null;
   pubmed_id: string[];
   samples_ref: string | null;
   series_type: string | null;
@@ -239,6 +239,42 @@ const parsePostgresTextArray = (value: string): string[] => {
   }
 
   return items;
+};
+
+const normalizeAliases = (value: Project["alias"]): string[] => {
+  if (!value) return [];
+
+  const candidates = Array.isArray(value)
+    ? value
+    : (() => {
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+
+        try {
+          const parsed = JSON.parse(trimmed) as unknown;
+          if (Array.isArray(parsed)) {
+            return parsed
+              .filter((item): item is string => typeof item === "string")
+              .map((item) => item.trim());
+          }
+        } catch {
+          // fall through to postgres/text parsing
+        }
+
+        const postgresArrayItems = parsePostgresTextArray(trimmed);
+        if (postgresArrayItems.length > 0) {
+          return postgresArrayItems;
+        }
+
+        return [trimmed];
+      })();
+
+  const deduped = new Set<string>();
+  candidates
+    .map((alias) => alias.trim())
+    .filter((alias) => alias.length > 0)
+    .forEach((alias) => deduped.add(alias));
+  return Array.from(deduped);
 };
 
 const normalizeSupplementaryRecord = (
@@ -492,17 +528,48 @@ export default function GeoProjectPage() {
   // });
 
   const publications = project?.publications ?? null;
-  const linkedGeoSeriesAlias = React.useMemo(() => {
-    const alias = project?.alias?.trim().toUpperCase();
-    if (!alias || !alias.startsWith("GSE")) return null;
-    return alias;
-  }, [project?.alias]);
-  const linkedArrayExpressAlias = React.useMemo(() => {
-    if (isArrayExpress) return null;
-    const alias = project?.alias?.trim();
-    if (!alias || alias.toUpperCase().startsWith("SRP")) return null;
-    return alias;
-  }, [isArrayExpress, project?.alias]);
+  const projectAliases = React.useMemo(
+    () => normalizeAliases(project?.alias ?? null),
+    [project?.alias],
+  );
+  const linkedGeoSeriesAliases = React.useMemo(
+    () =>
+      projectAliases.filter((alias) => {
+        const normalized = alias.toUpperCase();
+        return (
+          normalized.startsWith("GSE") &&
+          normalized !== (accession ?? "").toUpperCase()
+        );
+      }),
+    [projectAliases, accession],
+  );
+  const linkedArrayExpressAliases = React.useMemo(
+    () =>
+      projectAliases.filter((alias) =>
+        alias.toUpperCase().startsWith("E-"),
+      ),
+    [projectAliases],
+  );
+  const linkedSraAliases = React.useMemo(
+    () =>
+      projectAliases.filter((alias) => {
+        const normalized = alias.toUpperCase();
+        return (
+          normalized.startsWith("SRP") ||
+          normalized.startsWith("ERP") ||
+          normalized.startsWith("DRP")
+        );
+      }),
+    [projectAliases],
+  );
+  const linkedBioProjectAliases = React.useMemo(
+    () =>
+      projectAliases.filter((alias) => {
+        const normalized = alias.toUpperCase();
+        return normalized.startsWith("PRJ") || normalized.startsWith("P");
+      }),
+    [projectAliases],
+  );
 
   const { data: samples, isLoading: isSamplesLoading } = useQuery({
     queryKey: ["samples", accession],
@@ -573,14 +640,14 @@ export default function GeoProjectPage() {
       let zipBlob: Blob;
       if (response.body) {
         const reader = response.body.getReader();
-        const chunks: Uint8Array[] = [];
+        const chunks: BlobPart[] = [];
         let receivedBytes = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           if (!value) continue;
-          chunks.push(value);
+          chunks.push(new Uint8Array(value));
           receivedBytes += value.length;
           if (Number.isFinite(totalBytes) && totalBytes > 0) {
             const progress = Math.min(
@@ -1039,9 +1106,10 @@ export default function GeoProjectPage() {
                   {samples.length} {samples.length === 1 ? "Sample" : "Samples"}
                 </Badge>
               )}
-              {project.alias?.startsWith("P") && (
+              {linkedBioProjectAliases.map((alias) => (
                 <a
-                  href={`https://www.ncbi.nlm.nih.gov/bioproject/${project.alias}`}
+                  key={`bioproject-${alias}`}
+                  href={`https://www.ncbi.nlm.nih.gov/bioproject/${alias}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -1050,47 +1118,53 @@ export default function GeoProjectPage() {
                     color="green"
                     style={{ cursor: "pointer" }}
                   >
-                    {project.alias}
+                    {alias}
                     <ExternalLinkIcon />
                   </Badge>
                 </a>
-              )}
-              {project.alias?.startsWith("S") && (
-                <a href={`/p/${project.alias}`}>
+              ))}
+              {linkedSraAliases.map((alias) => (
+                <a key={`sra-${alias}`} href={`/p/${alias}`}>
                   <Badge
                     size={{ initial: "1", md: "3" }}
                     color="brown"
                     style={{ cursor: "pointer" }}
                   >
-                    {project.alias}
+                    {alias}
                     <EnterIcon />
                   </Badge>
                 </a>
-              )}
-              {linkedArrayExpressAlias && (
-                <a href={`/p/${linkedArrayExpressAlias}`}>
-                  <Badge
-                    size={{ initial: "1", md: "3" }}
-                    color="gold"
-                    variant="solid"
-                    style={{ cursor: "pointer" }}
-                  >
-                    {linkedArrayExpressAlias}
-                    <EnterIcon />
-                  </Badge>
-                </a>
-              )}
-              {isArrayExpress && linkedGeoSeriesAlias && (
-                <a href={`/p/${linkedGeoSeriesAlias}`}>
-                  <Badge
-                    size={{ initial: "1", md: "3" }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {linkedGeoSeriesAlias}
-                    <EnterIcon />
-                  </Badge>
-                </a>
-              )}
+              ))}
+              {linkedArrayExpressAliases
+                .filter(
+                  (alias) =>
+                    alias.toUpperCase() !== (accession ?? "").toUpperCase(),
+                )
+                .map((alias) => (
+                  <a key={`ae-${alias}`} href={`/p/${alias}`}>
+                    <Badge
+                      size={{ initial: "1", md: "3" }}
+                      color="gold"
+                      variant="solid"
+                      style={{ cursor: "pointer" }}
+                    >
+                      {alias}
+                      <EnterIcon />
+                    </Badge>
+                  </a>
+                ))}
+              {isArrayExpress &&
+                linkedGeoSeriesAliases.map((alias) => (
+                  <a key={`gse-${alias}`} href={`/p/${alias}`}>
+                    <Badge
+                      size={{ initial: "1", md: "3" }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      {alias}
+                      <EnterIcon />
+                    </Badge>
+                  </a>
+                ))}
               {project.relation &&
                 (() => {
                   const relations = project.relation as unknown as {
