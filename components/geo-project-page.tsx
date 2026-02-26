@@ -17,6 +17,8 @@ import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
 import {
   CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   EnterIcon,
@@ -534,6 +536,11 @@ export default function GeoProjectPage() {
   const [downloadAllProgressPercent, setDownloadAllProgressPercent] = useState<
     number | null
   >(null);
+  const [canScrollSupplementaryTabsLeft, setCanScrollSupplementaryTabsLeft] =
+    useState(false);
+  const [canScrollSupplementaryTabsRight, setCanScrollSupplementaryTabsRight] =
+    useState(false);
+  const supplementaryTabsListRef = React.useRef<HTMLDivElement | null>(null);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
@@ -660,6 +667,30 @@ export default function GeoProjectPage() {
         setDownloadAllProgressPercent(null);
       }, 300);
     }
+  };
+
+  const updateSupplementaryTabsScrollState = React.useCallback(() => {
+    const tabsListElement = supplementaryTabsListRef.current;
+    if (!tabsListElement) {
+      setCanScrollSupplementaryTabsLeft(false);
+      setCanScrollSupplementaryTabsRight(false);
+      return;
+    }
+    const maxScrollLeft =
+      tabsListElement.scrollWidth - tabsListElement.clientWidth;
+    setCanScrollSupplementaryTabsLeft(tabsListElement.scrollLeft > 4);
+    setCanScrollSupplementaryTabsRight(
+      maxScrollLeft - tabsListElement.scrollLeft > 4,
+    );
+  }, []);
+
+  const scrollSupplementaryTabs = (direction: "left" | "right") => {
+    const tabsListElement = supplementaryTabsListRef.current;
+    if (!tabsListElement) return;
+    tabsListElement.scrollBy({
+      left: direction === "left" ? -220 : 220,
+      behavior: "smooth",
+    });
   };
 
   // Collect all unique characteristic tags across all samples and channels
@@ -972,6 +1003,22 @@ export default function GeoProjectPage() {
   }, [isArrayExpress, supplementaryDataItems]);
 
   const showAllSupplementaryTab = supplementaryDataItems.length > 1;
+
+  React.useEffect(() => {
+    updateSupplementaryTabsScrollState();
+    const frameId = window.requestAnimationFrame(
+      updateSupplementaryTabsScrollState,
+    );
+    window.addEventListener("resize", updateSupplementaryTabsScrollState);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updateSupplementaryTabsScrollState);
+    };
+  }, [
+    updateSupplementaryTabsScrollState,
+    supplementaryDataItems,
+    showAllSupplementaryTab,
+  ]);
 
   return (
     <>
@@ -1475,49 +1522,73 @@ export default function GeoProjectPage() {
                 }
                 style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
               >
-                <Tabs.List
-                  style={{
-                    width: "100%",
-                    maxWidth: "100%",
-                    overflowX: "auto",
-                    overflowY: "hidden",
-                    whiteSpace: "nowrap",
-                    display: "flex",
-                    flexWrap: "nowrap",
-                  }}
-                >
-                  {showAllSupplementaryTab && (
-                    <Tabs.Trigger
-                      value="supplementary-all"
-                      style={{ flexShrink: 0 }}
+                <Flex align="center" gap="2">
+                  {canScrollSupplementaryTabsLeft && (
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() => scrollSupplementaryTabs("left")}
+                      aria-label="Scroll supplementary tabs left"
                     >
-                      <Flex align="center" gap="2">
-                        <span>All</span>
-                        {allSupplementarySizeLabel && (
-                          <Badge color="gray" variant="soft" size="1">
-                            {allSupplementarySizeLabel}
-                          </Badge>
-                        )}
-                      </Flex>
-                    </Tabs.Trigger>
+                      <ChevronLeftIcon />
+                    </Button>
                   )}
-                  {supplementaryDataItems.map((item) => (
-                    <Tabs.Trigger
-                      key={item.id}
-                      value={item.id}
-                      style={{ flexShrink: 0, fontFamily: "monospace" }}
+                  <Tabs.List
+                    ref={supplementaryTabsListRef}
+                    onScroll={updateSupplementaryTabsScrollState}
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      overflowX: "auto",
+                      overflowY: "hidden",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      flexWrap: "nowrap",
+                    }}
+                  >
+                    {showAllSupplementaryTab && (
+                      <Tabs.Trigger
+                        value="supplementary-all"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <Flex align="center" gap="2">
+                          <span>All</span>
+                          {allSupplementarySizeLabel && (
+                            <Badge color="gray" variant="soft" size="1">
+                              {allSupplementarySizeLabel}
+                            </Badge>
+                          )}
+                        </Flex>
+                      </Tabs.Trigger>
+                    )}
+                    {supplementaryDataItems.map((item) => (
+                      <Tabs.Trigger
+                        key={item.id}
+                        value={item.id}
+                        style={{ flexShrink: 0, fontFamily: "monospace" }}
+                      >
+                        <Flex align="center" gap="2">
+                          <span>{item.fileName}</span>
+                          {item.fileSizeLabel && (
+                            <Badge color="gray" variant="soft" size="1">
+                              {item.fileSizeLabel}
+                            </Badge>
+                          )}
+                        </Flex>
+                      </Tabs.Trigger>
+                    ))}
+                  </Tabs.List>
+                  {canScrollSupplementaryTabsRight && (
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() => scrollSupplementaryTabs("right")}
+                      aria-label="Scroll supplementary tabs right"
                     >
-                      <Flex align="center" gap="2">
-                        <span>{item.fileName}</span>
-                        {item.fileSizeLabel && (
-                          <Badge color="gray" variant="soft" size="1">
-                            {item.fileSizeLabel}
-                          </Badge>
-                        )}
-                      </Flex>
-                    </Tabs.Trigger>
-                  ))}
-                </Tabs.List>
+                      <ChevronRightIcon />
+                    </Button>
+                  )}
+                </Flex>
                 {showAllSupplementaryTab && (
                   <Tabs.Content
                     value="supplementary-all"
