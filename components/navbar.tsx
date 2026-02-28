@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Saket Lab", href: "https://saketlab.in/", external: true },
   { label: "Contact", href: "mailto:saketc@iitb.ac.in", mailto: true },
   { label: "About", href: "/faq" },
+  { label: "Stats", href: "/stats" },
 ];
 
 export default function Navabar() {
@@ -40,7 +41,11 @@ export default function Navabar() {
 
   return (
     <Flex justify="between" align="center" p="3">
-      <Flex gap={"4"} align={"center"} display={{ initial: "none", sm: "flex" }}>
+      <Flex
+        gap={"4"}
+        align={"center"}
+        display={{ initial: "none", sm: "flex" }}
+      >
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.label}
@@ -81,7 +86,7 @@ export default function Navabar() {
                 window.open(
                   "https://github.com/saketlab/pysraweb",
                   "_blank",
-                  "noopener,noreferrer"
+                  "noopener,noreferrer",
                 )
               }
             >

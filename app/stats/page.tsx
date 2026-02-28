@@ -1,0 +1,29 @@
+import SearchBar from "@/components/search-bar";
+import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
+import { Flex, Text } from "@radix-ui/themes";
+
+export default function StatsPage() {
+  return (
+    <>
+      <SearchBar />
+      <Flex
+        gap="4"
+        py={{ initial: "4", md: "4" }}
+        px={{ initial: "4", md: "0" }}
+        ml={{ initial: "0", md: "13rem" }}
+        mr={{ initial: "0", md: "16rem" }}
+        direction="column"
+      >
+        <Text size={{ initial: "6", md: "8" }} weight={"bold"}>
+          Key statistics
+        </Text>
+        <Text color="gray">
+          pysraweb currently indexes roughly 2 million projects and over 87
+          million samples across SRA, GEO, ArrayExpress, and ENA for fast search
+          and discovery.
+        </Text>
+        <StatsSourceHistogramCard />
+      </Flex>
+    </>
+  );
+}
