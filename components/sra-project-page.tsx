@@ -447,7 +447,12 @@ function DownloadFastqSection({
     }, 0);
   };
 
-  const wgetCmd = `curl -sS "${SERVER_URL}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q -x -nH --cut-dirs=6 "{}"`;
+  const apiBase = SERVER_URL.startsWith("http")
+    ? SERVER_URL
+    : typeof window !== "undefined"
+      ? `${window.location.origin}${SERVER_URL}`
+      : SERVER_URL;
+  const wgetCmd = `curl -sS "${apiBase}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q -x -nH --cut-dirs=6 "{}"`;
 
   const copyCommand = async () => {
     await navigator.clipboard.writeText(wgetCmd);
