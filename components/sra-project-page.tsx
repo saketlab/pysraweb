@@ -428,7 +428,7 @@ function DownloadFastqSection({
       "set -euo pipefail",
       "",
       ...urls.map(
-        (u) => `mkdir -p "${u.dirpath}" && wget -q -O "${u.dirpath}/${u.filename}" "${u.url}"`,
+        (u) => `mkdir -p "${u.dirpath}" && wget -q --show-progress -O "${u.dirpath}/${u.filename}" "${u.url}"`,
       ),
       "",
       `echo "Done. Files saved under ./${accession}/"`,
@@ -452,7 +452,7 @@ function DownloadFastqSection({
     : typeof window !== "undefined"
       ? `${window.location.origin}${SERVER_URL}`
       : SERVER_URL;
-  const wgetCmd = `curl -sS "${apiBase}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q -x -nH --cut-dirs=6 "{}"`;
+  const wgetCmd = `curl -sS "${apiBase}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q --show-progress -x -nH --cut-dirs=6 "{}"`;
 
   const copyCommand = async () => {
     await navigator.clipboard.writeText(wgetCmd);
