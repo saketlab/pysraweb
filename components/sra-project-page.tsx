@@ -15,10 +15,12 @@ import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
 import {
   CheckIcon,
+  ClipboardCopyIcon,
   CopyIcon,
   DownloadIcon,
   EnterIcon,
   ExternalLinkIcon,
+  FileTextIcon,
   HomeIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
@@ -34,6 +36,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import type {
   ColDef,
+  GridApi,
   ICellRendererParams,
   ValueGetterParams,
 } from "ag-grid-community";
@@ -41,7 +44,7 @@ import { AgGridReact } from "ag-grid-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import React, { useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 ensureAgGridModules();
 
@@ -81,13 +84,6 @@ const normalizeCoords3d = (value: unknown): number[] | null => {
     .filter((item) => Number.isFinite(item));
   return parsed.length > 0 ? parsed : null;
 };
-
-// type SimilarProject = {
-//   accession: string;
-//   title: string | null;
-//   summary: string | null;
-//   updated_at: Date | null;
-// };
 
 type Experiment = {
   accession: string;
@@ -131,22 +127,47 @@ type ExperimentGridRow = {
   attributes: Record<string, string>;
 };
 
+type RunRow = {
+  run_accession: string;
+  experiment_accession: string | null;
+  library_layout: string | null;
+  fastq_ftp: string | null;
+  fastq_bytes: string | null;
+  fastq_md5: string | null;
+  sra_ftp: string | null;
+  sra_bytes: string | null;
+  sra_md5: string | null;
+};
+
+type RunsData = {
+  total_runs: number;
+  paired_runs: number;
+  single_runs: number;
+  total_fastq_bytes: number;
+  runs: RunRow[];
+};
+
 const toDisplayText = (value: unknown): string => {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
 };
 
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
+};
+
 const fetchProject = async (
   accession: string | null,
 ): Promise<Project | null> => {
-  if (!accession) {
-    return null;
-  }
+  if (!accession) return null;
 
   const res = await fetch(`${SERVER_URL}/project/${accession}`);
-  if (!res.ok) {
-    throw new Error("Network error");
-  }
+  if (!res.ok) throw new Error("Network error");
+
   const data = (await res.json()) as Project & {
     neighbors?: SimilarNeighbor[] | string | null;
   };
@@ -253,38 +274,20 @@ const normalizeExternalIds = (
   return entries;
 };
 
-// const fetchSimilarProjects = async (
-//   searchText: string,
-//   currentAccession: string,
-// ): Promise<SimilarProject[]> => {
-//   const res = await fetch(
-//     `${SERVER_URL}/search?q=${encodeURIComponent(searchText)}&db=sra`,
-//   );
-//   if (!res.ok) {
-//     throw new Error("Network error");
-//   }
-//   const data = await res.json();
-//   // Filter out the current project and return top 5
-//   return (data.results as SimilarProject[])
-//     .filter((p) => p.accession !== currentAccession)
-//     .slice(0, 5);
-// };
-
 const fetchExperiments = async (
   accession: string | null,
 ): Promise<Experiment[]> => {
   if (!accession) return [];
   const res = await fetch(`${SERVER_URL}/project/${accession}/experiments`);
   if (!res.ok) throw new Error("Network error");
-  const data = await res.json();
-  return data as Experiment[];
+  return (await res.json()) as Experiment[];
 };
+
 const fetchSample = async (accession: string): Promise<Sample | null> => {
   const res = await fetch(`${SERVER_URL}/sample/${accession}`);
   if (!res.ok) return null;
 
   const s = (await res.json()) as Sample | { attributes_json: unknown };
-
   if (typeof s.attributes_json === "string") {
     try {
       s.attributes_json = JSON.parse(s.attributes_json);
@@ -292,7 +295,6 @@ const fetchSample = async (accession: string): Promise<Sample | null> => {
       s.attributes_json = null;
     }
   }
-
   return s as Sample;
 };
 
@@ -312,7 +314,380 @@ const fetchSamplesForExperiments = async (
   return sampleMap;
 };
 
+const fetchRuns = async (accession: string | null): Promise<RunsData | null> => {
+  if (!accession) return null;
+  const res = await fetch(`${SERVER_URL}/project/${accession}/runs`);
+  if (!res.ok) return null;
+  return (await res.json()) as RunsData;
+};
+
 const ABSTRACT_CHAR_LIMIT = 350;
+
+function DownloadFastqSection({
+  accession,
+  runsData,
+  agGridThemeClassName,
+  experiments,
+}: {
+  accession: string;
+  runsData: RunsData;
+  agGridThemeClassName: string;
+  experiments?: Experiment[] | null;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [selectedCount, setSelectedCount] = useState(0);
+  const gridRef = useRef<GridApi<RunRow> | null>(null);
+
+  const expTitleMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    if (experiments) {
+      for (const exp of experiments) {
+        if (exp.title) map.set(exp.accession, exp.title);
+      }
+    }
+    return map;
+  }, [experiments]);
+
+  const onGridReady = useCallback(
+    (params: { api: GridApi<RunRow> }) => {
+      gridRef.current = params.api;
+    },
+    [],
+  );
+
+  const onSelectionChanged = useCallback(() => {
+    const selected = gridRef.current?.getSelectedRows() ?? [];
+    setSelectedCount(selected.length);
+  }, []);
+
+  const getDownloadRows = (): RunRow[] => {
+    const selected = gridRef.current?.getSelectedRows() ?? [];
+    return selected.length > 0 ? selected : runsData.runs;
+  };
+
+  const buildTsvContent = (runs: RunRow[]): string => {
+    const header = "run_accession\texperiment_accession\tlibrary_layout\turl\tbytes\tmd5\tfilename\tdirpath";
+    const lines = runs.flatMap((run) => {
+      const urls = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
+      const bytes = run.fastq_bytes ? run.fastq_bytes.split(";").filter(Boolean) : [];
+      const md5s = run.fastq_md5 ? run.fastq_md5.split(";").filter(Boolean) : [];
+      if (urls.length === 0) return [];
+      return urls.map((url, i) => {
+        const filename = url.split("/").pop() || url;
+        const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+        return [
+          run.run_accession,
+          run.experiment_accession || "",
+          run.library_layout || "",
+          `https://${url}`,
+          bytes[i] || "",
+          md5s[i] || "",
+          filename,
+          dirpath,
+        ].join("\t");
+      });
+    });
+    return [header, ...lines].join("\n") + "\n";
+  };
+
+  const downloadTsv = () => {
+    const runs = getDownloadRows();
+    const tsv = buildTsvContent(runs);
+    const blob = new Blob([tsv], { type: "text/tab-separated-values" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${accession}_fastq_links.tsv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  };
+
+  const downloadScript = () => {
+    const runs = getDownloadRows();
+    const urls = runs.flatMap((run) => {
+      const ftps = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
+      return ftps.map((ftp) => {
+        const filename = ftp.split("/").pop() || ftp;
+        const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+        return { url: `https://${ftp}`, filename, dirpath };
+      });
+    });
+    const totalBytes = runs.reduce((sum, r) => {
+      const bytes = r.fastq_bytes ? r.fastq_bytes.split(";").filter(Boolean) : [];
+      return sum + bytes.reduce((s, b) => s + (parseInt(b, 10) || 0), 0);
+    }, 0);
+    const script = [
+      "#!/usr/bin/env bash",
+      `# Download FASTQ files for ${accession}${selectedCount > 0 ? ` (${selectedCount} selected runs)` : ""}`,
+      `# ${runs.length} runs · ${formatBytes(totalBytes)}`,
+      "",
+      "set -euo pipefail",
+      "",
+      ...urls.map(
+        (u) => `mkdir -p "${u.dirpath}" && wget -q -O "${u.dirpath}/${u.filename}" "${u.url}"`,
+      ),
+      "",
+      `echo "Done. Files saved under ./${accession}/"`,
+      "",
+    ].join("\n");
+    const blob = new Blob([script], { type: "text/x-shellscript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `download_${accession}.sh`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  };
+
+  const wgetCmd = `curl -sS "${SERVER_URL}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q -x -nH --cut-dirs=6 "{}"`;
+
+  const copyCommand = async () => {
+    await navigator.clipboard.writeText(wgetCmd);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const runColDefs = React.useMemo<ColDef<RunRow>[]>(
+    () => [
+      {
+        headerName: "Run",
+        field: "run_accession",
+        minWidth: 110,
+        maxWidth: 140,
+        pinned: "left",
+      },
+      {
+        headerName: "Experiment",
+        field: "experiment_accession",
+        minWidth: 110,
+        maxWidth: 140,
+        valueFormatter: (params) => params.value || "-",
+      },
+      {
+        headerName: "Title",
+        flex: 1,
+        minWidth: 200,
+        valueGetter: (params: ValueGetterParams<RunRow>) => {
+          const exp = params.data?.experiment_accession;
+          return exp ? expTitleMap.get(exp) ?? "-" : "-";
+        },
+      },
+      {
+        headerName: "Layout",
+        field: "library_layout",
+        minWidth: 80,
+        maxWidth: 110,
+        cellRenderer: (params: ICellRendererParams<RunRow>) => {
+          const layout = params.value;
+          if (!layout) return "-";
+          return (
+            <Badge
+              size="1"
+              color={layout === "PAIRED" ? "blue" : "gray"}
+              variant="soft"
+            >
+              {layout}
+            </Badge>
+          );
+        },
+      },
+      {
+        headerName: "FASTQ Files",
+        field: "fastq_ftp",
+        minWidth: 280,
+        autoHeight: true,
+        wrapText: true,
+        cellRenderer: (params: ICellRendererParams<RunRow>) => {
+          const row = params.data;
+          if (!row) return "-";
+          const urls = row.fastq_ftp
+            ? row.fastq_ftp.split(";").filter(Boolean)
+            : [];
+          const bytes = row.fastq_bytes
+            ? row.fastq_bytes.split(";").filter(Boolean)
+            : [];
+          if (urls.length > 0) {
+            return (
+              <Flex direction="column" gap="1" py="1">
+                {urls.map((ftp, i) => {
+                  const filename = ftp.split("/").pop() || ftp;
+                  const size = parseInt(bytes[i], 10) || 0;
+                  return (
+                    <Flex key={ftp} align="center" gap="2">
+                      <Link
+                        href={`https://${ftp}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="1"
+                        style={{ fontFamily: "var(--code-font-family)" }}
+                      >
+                        {filename}
+                      </Link>
+                      {size > 0 && (
+                        <Text size="1" color="gray">
+                          {formatBytes(size)}
+                        </Text>
+                      )}
+                    </Flex>
+                  );
+                })}
+              </Flex>
+            );
+          }
+          if (row.sra_ftp) {
+            return (
+              <Link
+                href={`https://${row.sra_ftp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                size="1"
+                color="gray"
+                style={{ fontFamily: "var(--code-font-family)" }}
+              >
+                {row.sra_ftp.split("/").pop() || "SRA"}
+              </Link>
+            );
+          }
+          return <Text size="1" color="gray">-</Text>;
+        },
+      },
+      {
+        headerName: "Size",
+        minWidth: 70,
+        maxWidth: 100,
+        valueGetter: (params: ValueGetterParams<RunRow>) => {
+          const bytes = params.data?.fastq_bytes
+            ? params.data.fastq_bytes.split(";").filter(Boolean)
+            : [];
+          return bytes.reduce((sum, b) => sum + (parseInt(b, 10) || 0), 0);
+        },
+        valueFormatter: (params) =>
+          params.value > 0 ? formatBytes(params.value as number) : "-",
+      },
+    ],
+    [expTitleMap],
+  );
+
+  const defaultColDef = React.useMemo<ColDef<RunRow>>(
+    () => ({ filter: true, resizable: true, sortable: true }),
+    [],
+  );
+
+  const downloadLabel = selectedCount > 0
+    ? `Download ${selectedCount} selected`
+    : "Download all";
+
+  return (
+    <>
+      <Flex justify="between" align="center">
+        <Flex align="center" gap="2">
+          <Text weight="medium" size="6">
+            Download FASTQ files
+          </Text>
+          <Badge size="2" color="gray">
+            {runsData.total_runs.toLocaleString()} runs
+          </Badge>
+        </Flex>
+        <Flex gap="2">
+          <Button size="2" variant="surface" onClick={downloadTsv}>
+            <DownloadIcon /> {downloadLabel} (TSV)
+          </Button>
+          <Button size="2" variant="surface" onClick={downloadScript}>
+            <FileTextIcon /> {downloadLabel} (Script)
+          </Button>
+        </Flex>
+      </Flex>
+
+      <Flex gap="3" wrap="wrap">
+        <Badge size="2" color="blue" variant="soft">
+          {runsData.paired_runs > 0 &&
+            `${runsData.paired_runs.toLocaleString()} paired-end`}
+          {runsData.paired_runs > 0 && runsData.single_runs > 0 && " · "}
+          {runsData.single_runs > 0 &&
+            `${runsData.single_runs.toLocaleString()} single-end`}
+        </Badge>
+        {runsData.total_fastq_bytes > 0 && (
+          <Badge size="2" color="orange" variant="soft">
+            {formatBytes(runsData.total_fastq_bytes)} total
+          </Badge>
+        )}
+        {runsData.total_runs > runsData.runs.length && (
+          <Badge size="2" color="gray" variant="soft">
+            Showing first {runsData.runs.length} of{" "}
+            {runsData.total_runs.toLocaleString()}
+          </Badge>
+        )}
+      </Flex>
+
+      <div
+        className={agGridThemeClassName}
+        style={{ width: "100%", height: "400px" }}
+      >
+        <AgGridReact<RunRow>
+          columnDefs={runColDefs}
+          defaultColDef={defaultColDef}
+          rowData={runsData.runs}
+          getRowId={(params) => params.data.run_accession}
+          rowSelection={{ mode: "multiRow", checkboxes: true, headerCheckbox: true }}
+          onGridReady={onGridReady}
+          onSelectionChanged={onSelectionChanged}
+          theme="legacy"
+        />
+      </div>
+
+      <Flex direction="column" gap="2">
+        <Text size="2" weight="medium" color="gray">
+          Quick download (all runs)
+        </Text>
+        <Flex
+          align="center"
+          gap="2"
+          style={{
+            background: "var(--gray-a2)",
+            borderRadius: "var(--radius-2)",
+            padding: "8px 12px",
+            fontFamily: "var(--code-font-family)",
+            fontSize: "var(--font-size-2)",
+            overflowX: "auto",
+          }}
+        >
+          <code
+            style={{ flex: 1, whiteSpace: "pre", color: "var(--gray-12)" }}
+          >
+            {wgetCmd}
+          </code>
+          <Tooltip content={copied ? "Copied!" : "Copy command"}>
+            <button
+              type="button"
+              onClick={copyCommand}
+              aria-label="Copy download command"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "var(--gray-11)",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              {copied ? <CheckIcon /> : <ClipboardCopyIcon />}
+            </button>
+          </Tooltip>
+        </Flex>
+      </Flex>
+    </>
+  );
+}
 
 export default function ProjectPage() {
   const params = useParams();
@@ -323,7 +698,7 @@ export default function ProjectPage() {
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
-  // abstract expansion handled by ProjectSummary component
+
   const {
     data: project,
     isLoading,
@@ -350,6 +725,12 @@ export default function ProjectPage() {
     enabled: !!experiments && experiments.length > 0,
   });
 
+  const { data: runsData } = useQuery({
+    queryKey: ["project-runs", accession],
+    queryFn: () => fetchRuns(accession ?? null),
+    enabled: !!accession,
+  });
+
   const externalIds = React.useMemo(
     () => normalizeExternalIds(project?.external_id),
     [project?.external_id],
@@ -368,17 +749,14 @@ export default function ProjectPage() {
     }
   };
 
-  // Compute unique attribute keys from all samples
   const attributeKeys = React.useMemo(() => {
     if (!samplesMap) return [];
     const keys = new Set<string>();
-
     samplesMap.forEach((s) => {
       if (s.attributes_json) {
         Object.keys(s.attributes_json).forEach((k) => keys.add(k));
       }
     });
-
     return Array.from(keys);
   }, [samplesMap]);
 
@@ -568,11 +946,6 @@ export default function ProjectPage() {
     [attributeKeys],
   );
 
-  // const { data: similarProjects, isLoading: isSimilarLoading } = useQuery({
-  //   queryKey: ["similarProjects", project?.abstract],
-  //   queryFn: () => fetchSimilarProjects(project!.abstract, project!.accession),
-  //   enabled: !!project?.abstract,
-  // });
   return (
     <>
       <SearchBar initialQuery={""} />
@@ -599,7 +972,6 @@ export default function ProjectPage() {
         </Flex>
       )}
 
-      {/* Loading state */}
       {accession && isLoading && (
         <Flex
           gap="2"
@@ -614,7 +986,6 @@ export default function ProjectPage() {
         </Flex>
       )}
 
-      {/* Error state */}
       {accession && isError && (
         <Flex
           gap="2"
@@ -639,7 +1010,6 @@ export default function ProjectPage() {
         </Flex>
       )}
 
-      {/* Data state */}
       {accession && !isLoading && !isError && project && (
         <>
           <Flex
@@ -819,7 +1189,6 @@ export default function ProjectPage() {
               <Button
                 onClick={() => {
                   if (!experiments || !samplesMap) return;
-                  // Compose CSV header
                   const baseHeaders = [
                     "Accession",
                     "Title",
@@ -835,7 +1204,6 @@ export default function ProjectPage() {
                     "Taxon ID",
                   ];
                   const allHeaders = baseHeaders.concat(attributeKeys);
-                  // Compose CSV rows
                   const rows = experiments.map((e) => {
                     const sampleAcc = e.samples[0];
                     const sample =
@@ -861,14 +1229,12 @@ export default function ProjectPage() {
                     );
                     return [...baseRow, ...attrRow];
                   });
-                  // Convert to CSV string
                   const escape = (val: string) =>
                     `"${String(val).replace(/"/g, '""')}"`;
                   const csv = [
                     allHeaders.map(escape).join(","),
                     ...rows.map((row) => row.map(escape).join(",")),
                   ].join("\n");
-                  // Download
                   const blob = new Blob([csv], { type: "text/csv" });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
@@ -885,14 +1251,11 @@ export default function ProjectPage() {
                 <DownloadIcon /> CSV
               </Button>
             </Flex>
-            {/* Experiments table */}
             <Flex
               align="start"
               gap="2"
               direction="column"
-              style={{
-                width: "100%",
-              }}
+              style={{ width: "100%" }}
             >
               {isExperimentsLoading && (
                 <Flex gap="2" align="center">
@@ -915,10 +1278,7 @@ export default function ProjectPage() {
                 experiments.length > 0 && (
                   <div
                     className={agGridThemeClassName}
-                    style={{
-                      width: "100%",
-                      height: "500px",
-                    }}
+                    style={{ width: "100%", height: "500px" }}
                   >
                     <AgGridReact<ExperimentGridRow>
                       columnDefs={experimentColumnDefs}
@@ -967,6 +1327,15 @@ export default function ProjectPage() {
               neighbors={project.neighbors}
             />
             <SubmittingOrgPanel center={project.center} />
+
+            {runsData && runsData.total_runs > 0 && (
+              <DownloadFastqSection
+                accession={accession}
+                runsData={runsData}
+                agGridThemeClassName={agGridThemeClassName}
+                experiments={experiments}
+              />
+            )}
           </Flex>
         </>
       )}

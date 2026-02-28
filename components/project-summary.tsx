@@ -1,9 +1,40 @@
 "use client";
+import DOMPurify from "dompurify";
 import { Link, Text } from "@radix-ui/themes";
-import { useState } from "react";
-import TextWithLineBreaks, {
-  normalizeLineBreakText,
-} from "@/components/text-with-line-breaks";
+import { useMemo, useState } from "react";
+
+const ALLOWED_TAGS = [
+  "a",
+  "b",
+  "i",
+  "em",
+  "strong",
+  "p",
+  "br",
+  "sup",
+  "sub",
+  "u",
+];
+
+function sanitizeHtml(html: string): string {
+  if (typeof window === "undefined") return stripTags(html);
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A") {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+  const clean = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR: ["href", "target", "rel"],
+  });
+  DOMPurify.removeHook("afterSanitizeAttributes");
+  return clean;
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]*>/g, "");
+}
 
 type ProjectSummaryProps = {
   text?: string | null;
@@ -16,18 +47,23 @@ export default function ProjectSummary({
 }: ProjectSummaryProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!text) return null;
-  const normalizedText = normalizeLineBreakText(text);
+  const { plainText, sanitized } = useMemo(() => {
+    if (!text) return { plainText: "", sanitized: "" };
+    const clean = sanitizeHtml(text);
+    return { plainText: stripTags(text), sanitized: clean };
+  }, [text]);
 
-  const shouldTruncate = normalizedText.length > charLimit;
-  const display =
-    expanded || !shouldTruncate
-      ? normalizedText
-      : `${normalizedText.slice(0, charLimit)}...`;
+  if (!text) return null;
+
+  const shouldTruncate = plainText.length > charLimit;
 
   return (
     <Text>
-      <TextWithLineBreaks text={display} />
+      {expanded || !shouldTruncate ? (
+        <span dangerouslySetInnerHTML={{ __html: sanitized }} />
+      ) : (
+        <>{plainText.slice(0, charLimit)}...</>
+      )}
       {shouldTruncate && (
         <Link
           ml="1"
