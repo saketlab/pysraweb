@@ -1,7 +1,7 @@
 "use client";
 
 import { SERVER_URL } from "@/utils/constants";
-import { Card, Flex, SegmentedControl, Skeleton, Text, Tooltip } from "@radix-ui/themes";
+import { Card, Flex, SegmentedControl, Skeleton, Text } from "@radix-ui/themes";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
@@ -189,26 +189,18 @@ export default function StatsGrowthChartCard() {
           Database growth
         </Text>
         <Flex gap="3" align="center" wrap="wrap">
-          <Tooltip content="Toggle logarithmic Y-axis">
-            <button
-              onClick={() => setLogScale((v) => !v)}
-              style={{
-                background: logScale
-                  ? (isDark ? "#3f3f46" : "#e4e4e7")
-                  : "transparent",
-                border: `1px solid ${isDark ? "#52525b" : "#d4d4d8"}`,
-                borderRadius: 6,
-                padding: "4px 10px",
-                cursor: "pointer",
-                fontSize: 13,
-                fontFamily: "system-ui, sans-serif",
-                color: isDark ? "#d4d4d8" : "#3f3f46",
-                fontWeight: logScale ? 600 : 400,
-              }}
-            >
+          <SegmentedControl.Root
+            value={logScale ? "log" : "linear"}
+            onValueChange={(v) => setLogScale(v === "log")}
+            size="1"
+          >
+            <SegmentedControl.Item value="linear">
+              Linear
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="log">
               Log
-            </button>
-          </Tooltip>
+            </SegmentedControl.Item>
+          </SegmentedControl.Root>
           <SegmentedControl.Root
             value={view}
             onValueChange={(v) => setView(v as View)}
