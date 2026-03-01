@@ -3,6 +3,7 @@
 import { Card, Flex, SegmentedControl, Text } from "@radix-ui/themes";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { useMemo, useState } from "react";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -31,12 +32,15 @@ function humanizeCount(value: number): string {
 
 export default function StatsSourceHistogramCard() {
   const [metric, setMetric] = useState<Metric>("Projects");
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const chartOptions = useMemo<ApexOptions>(
     () => ({
       chart: {
         type: "bar",
         toolbar: { show: false },
+        foreColor: isDark ? "#a1a1aa" : "#71717a",
       },
       xaxis: {
         categories: SOURCES,
@@ -53,6 +57,7 @@ export default function StatsSourceHistogramCard() {
           fontSize: "12px",
           fontWeight: "600",
           fontFamily: "system-ui, sans-serif",
+          colors: [isDark ? "#e4e4e7" : "#18181b"],
         },
       },
       plotOptions: {
@@ -67,14 +72,16 @@ export default function StatsSourceHistogramCard() {
       colors: ["#3b82f6"],
       grid: {
         strokeDashArray: 4,
+        borderColor: isDark ? "#3f3f46" : "#e4e4e7",
       },
       tooltip: {
+        theme: isDark ? "dark" : "light",
         y: {
           formatter: (value) => `${value.toLocaleString()} ${metric}`,
         },
       },
     }),
-    [metric],
+    [metric, isDark],
   );
 
   const series = useMemo(
