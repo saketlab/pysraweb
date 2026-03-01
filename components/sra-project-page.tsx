@@ -653,19 +653,23 @@ function DownloadFastqSection({
           Quick download (all runs)
         </Text>
         <Flex
-          align="center"
-          gap="2"
+          align="stretch"
+          gap="0"
           style={{
             background: "var(--gray-a2)",
             borderRadius: "var(--radius-2)",
-            padding: "8px 12px",
             fontFamily: "var(--code-font-family)",
             fontSize: "var(--font-size-2)",
-            overflowX: "auto",
           }}
         >
           <code
-            style={{ flex: 1, whiteSpace: "pre", color: "var(--gray-12)" }}
+            style={{
+              flex: 1,
+              whiteSpace: "pre",
+              color: "var(--gray-12)",
+              overflowX: "auto",
+              padding: "8px 12px",
+            }}
           >
             {wgetCmd}
           </code>
@@ -676,10 +680,11 @@ function DownloadFastqSection({
               aria-label="Copy download command"
               style={{
                 border: "none",
+                borderLeft: "1px solid var(--gray-a5)",
                 background: "transparent",
                 color: "var(--gray-11)",
                 cursor: "pointer",
-                padding: "4px",
+                padding: "8px 10px",
                 display: "flex",
                 alignItems: "center",
                 flexShrink: 0,
