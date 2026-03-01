@@ -1,4 +1,5 @@
 import SearchBar from "@/components/search-bar";
+import StatsGrowthChartCard from "@/components/stats-growth-chart-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
 import { Flex, Text } from "@radix-ui/themes";
 
@@ -23,6 +24,7 @@ export default function StatsPage() {
           and discovery.
         </Text>
         <StatsSourceHistogramCard />
+        <StatsGrowthChartCard />
       </Flex>
     </>
   );
