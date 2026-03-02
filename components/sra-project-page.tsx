@@ -137,6 +137,8 @@ type RunRow = {
   sra_ftp: string | null;
   sra_bytes: string | null;
   sra_md5: string | null;
+  ncbi_sra_url: string | null;
+  ncbi_sra_url_aws: string | null;
 };
 
 type RunsData = {
@@ -371,21 +373,38 @@ function DownloadFastqSection({
       const urls = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
       const bytes = run.fastq_bytes ? run.fastq_bytes.split(";").filter(Boolean) : [];
       const md5s = run.fastq_md5 ? run.fastq_md5.split(";").filter(Boolean) : [];
-      if (urls.length === 0) return [];
-      return urls.map((url, i) => {
-        const filename = url.split("/").pop() || url;
-        const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
-        return [
+      const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+      if (urls.length > 0) {
+        return urls.map((url, i) => {
+          const filename = url.split("/").pop() || url;
+          return [
+            run.run_accession,
+            run.experiment_accession || "",
+            run.library_layout || "",
+            `https://${url}`,
+            bytes[i] || "",
+            md5s[i] || "",
+            filename,
+            dirpath,
+          ].join("\t");
+        });
+      }
+      // NCBI fallback (already full URLs)
+      const ncbiUrl = run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      if (ncbiUrl) {
+        const filename = ncbiUrl.split("/").pop() || run.run_accession;
+        return [[
           run.run_accession,
           run.experiment_accession || "",
           run.library_layout || "",
-          `https://${url}`,
-          bytes[i] || "",
-          md5s[i] || "",
+          ncbiUrl,
+          "",
+          "",
           filename,
           dirpath,
-        ].join("\t");
-      });
+        ].join("\t")];
+      }
+      return [];
     });
     return [header, ...lines].join("\n") + "\n";
   };
@@ -410,11 +429,20 @@ function DownloadFastqSection({
     const runs = getDownloadRows();
     const urls = runs.flatMap((run) => {
       const ftps = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
-      return ftps.map((ftp) => {
-        const filename = ftp.split("/").pop() || ftp;
-        const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
-        return { url: `https://${ftp}`, filename, dirpath };
-      });
+      const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+      if (ftps.length > 0) {
+        return ftps.map((ftp) => {
+          const filename = ftp.split("/").pop() || ftp;
+          return { url: `https://${ftp}`, filename, dirpath };
+        });
+      }
+      // NCBI fallback
+      const ncbiUrl = run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      if (ncbiUrl) {
+        const filename = ncbiUrl.split("/").pop() || run.run_accession;
+        return [{ url: ncbiUrl, filename, dirpath }];
+      }
+      return [];
     });
     const totalBytes = runs.reduce((sum, r) => {
       const bytes = r.fastq_bytes ? r.fastq_bytes.split(";").filter(Boolean) : [];
@@ -560,6 +588,27 @@ function DownloadFastqSection({
                 {row.sra_ftp.split("/").pop() || "SRA"}
               </Link>
             );
+          }
+          {
+            const ncbiUrl = row.ncbi_sra_url || row.ncbi_sra_url_aws;
+            if (ncbiUrl) {
+              const label = ncbiUrl.split("/").pop() || row.run_accession;
+              return (
+                <Flex align="center" gap="2">
+                  <Link
+                    href={ncbiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    size="1"
+                    color="gray"
+                    style={{ fontFamily: "var(--code-font-family)" }}
+                  >
+                    {label}
+                  </Link>
+                  <Badge size="1" color="orange" variant="soft">NCBI</Badge>
+                </Flex>
+              );
+            }
           }
           return <Text size="1" color="gray">-</Text>;
         },

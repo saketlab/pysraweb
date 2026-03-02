@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-type Mode = "projects" | "experiments";
+type Mode = "projects" | "experiments" | "bases";
 type View = "cumulative" | "monthly";
 
 interface GrowthPoint {
@@ -29,6 +29,8 @@ const DB_LABELS: Record<string, string> = {
   sra: "SRA",
   arrayexpress: "ArrayExpress",
   ena: "ENA",
+  sra_fastq_bytes: "SRA (FASTQ)",
+  sra_sra_bytes: "SRA (SRA archive)",
 };
 
 const DB_COLORS: Record<string, string> = {
@@ -36,9 +38,15 @@ const DB_COLORS: Record<string, string> = {
   sra: "#8b5cf6",
   arrayexpress: "#f59e0b",
   ena: "#10b981",
+  sra_fastq_bytes: "#8b5cf6",
+  sra_sra_bytes: "#6366f1",
 };
 
-const DB_ORDER = ["geo", "sra", "arrayexpress", "ena"];
+const DB_ORDER: Record<Mode, string[]> = {
+  projects: ["geo", "sra", "arrayexpress", "ena"],
+  experiments: ["geo", "sra", "arrayexpress", "ena"],
+  bases: ["ena", "sra_fastq_bytes", "sra_sra_bytes"],
+};
 
 async function fetchGrowth(mode: Mode): Promise<GrowthResponse> {
   const res = await fetch(`${SERVER_URL}/stats/growth?mode=${mode}`);
@@ -55,7 +63,7 @@ function buildCumulative(points: GrowthPoint[]): GrowthPoint[] {
 }
 
 export default function StatsGrowthChartCard() {
-  const [mode, setMode] = useState<Mode>("projects");
+  const [mode, setMode] = useState<Mode>("bases");
   const [view, setView] = useState<View>("cumulative");
   const [logScale, setLogScale] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -69,11 +77,12 @@ export default function StatsGrowthChartCard() {
 
   const chartSeries = useMemo(() => {
     if (!data?.series) return [];
-    return DB_ORDER.filter((db) => db in data.series).map((db) => {
+    const order = DB_ORDER[mode];
+    return order.filter((db) => db in data.series).map((db) => {
       const raw = data.series[db];
       const points = view === "cumulative" ? buildCumulative(raw) : raw;
       return {
-        name: DB_LABELS[db],
+        name: DB_LABELS[db] ?? db,
         data: points.map((p) => ({
           x: new Date(p.month + "-01").getTime(),
           y: p.count,
@@ -81,7 +90,7 @@ export default function StatsGrowthChartCard() {
         color: DB_COLORS[db],
       };
     });
-  }, [data, view]);
+  }, [data, view, mode]);
 
   // Build Jan + Jul tick positions from data range
   const xaxisTicks = useMemo(() => {
@@ -153,10 +162,18 @@ export default function StatsGrowthChartCard() {
       yaxis: {
         logarithmic: logScale,
         labels: {
-          formatter: (value) => humanize(Math.round(value)),
+          formatter: (value) =>
+            mode === "bases"
+              ? humanizeBytes(Math.round(value))
+              : humanize(Math.round(value)),
         },
         title: {
-          text: mode === "projects" ? "Projects" : "Experiments",
+          text:
+            mode === "projects"
+              ? "Projects"
+              : mode === "experiments"
+                ? "Experiments"
+                : "Bases / Bytes",
         },
       },
       dataLabels: { enabled: false },
@@ -175,7 +192,10 @@ export default function StatsGrowthChartCard() {
         theme: isDark ? "dark" : "light",
         x: { format: "MMM yyyy" },
         y: {
-          formatter: (value) => value.toLocaleString(),
+          formatter: (value) =>
+            mode === "bases"
+              ? humanizeBytes(value)
+              : value.toLocaleString(),
         },
       },
     }),
@@ -218,6 +238,9 @@ export default function StatsGrowthChartCard() {
             onValueChange={(v) => setMode(v as Mode)}
             size="1"
           >
+            <SegmentedControl.Item value="bases">
+              Data volume
+            </SegmentedControl.Item>
             <SegmentedControl.Item value="projects">
               Projects
             </SegmentedControl.Item>
@@ -249,5 +272,20 @@ function humanize(value: number): string {
     return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (value >= 1_000)
     return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return `${value}`;
+}
+
+const EB = 1e18;
+const PB = 1e15;
+const TB = 1e12;
+const GB = 1e9;
+const MB = 1e6;
+
+function humanizeBytes(value: number): string {
+  if (value >= EB) return `${(value / EB).toFixed(1).replace(/\.0$/, "")} EB`;
+  if (value >= PB) return `${(value / PB).toFixed(1).replace(/\.0$/, "")} PB`;
+  if (value >= TB) return `${(value / TB).toFixed(1).replace(/\.0$/, "")} TB`;
+  if (value >= GB) return `${(value / GB).toFixed(1).replace(/\.0$/, "")} GB`;
+  if (value >= MB) return `${(value / MB).toFixed(1).replace(/\.0$/, "")} MB`;
   return `${value}`;
 }
