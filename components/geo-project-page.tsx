@@ -1104,9 +1104,10 @@ export default function GeoProjectPage() {
             </Flex>
             <Flex justify={"start"} align="center" gap="2" wrap="wrap">
               <Badge
-                size={{ initial: "1", md: "3" }}
+                size={{ initial: "2", md: "3" }}
                 color={isArrayExpress ? "gold" : undefined}
                 variant={isArrayExpress ? "solid" : undefined}
+                style={{ whiteSpace: "nowrap" }}
               >
                 <Flex align="center" gap="1">
                   <Text>{accession}</Text>
@@ -1132,7 +1133,11 @@ export default function GeoProjectPage() {
                 </Flex>
               </Badge>
               {samples && samples.length > 0 && (
-                <Badge size={{ initial: "1", md: "3" }} color="gray">
+                <Badge
+                  size={{ initial: "2", md: "3" }}
+                  color="gray"
+                  style={{ whiteSpace: "nowrap" }}
+                >
                   {samples.length} {samples.length === 1 ? "Sample" : "Samples"}
                 </Badge>
               )}
@@ -1144,9 +1149,9 @@ export default function GeoProjectPage() {
                   rel="noopener noreferrer"
                 >
                   <Badge
-                    size={{ initial: "1", md: "3" }}
+                    size={{ initial: "2", md: "3" }}
                     color="green"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {alias}
                     <ExternalLinkIcon />
@@ -1156,9 +1161,9 @@ export default function GeoProjectPage() {
               {linkedSraAliases.map((alias) => (
                 <a key={`sra-${alias}`} href={`/p/${alias}`}>
                   <Badge
-                    size={{ initial: "1", md: "3" }}
+                    size={{ initial: "2", md: "3" }}
                     color="brown"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {alias}
                     <EnterIcon />
@@ -1173,10 +1178,10 @@ export default function GeoProjectPage() {
                 .map((alias) => (
                   <a key={`ae-${alias}`} href={`/p/${alias}`}>
                     <Badge
-                      size={{ initial: "1", md: "3" }}
+                      size={{ initial: "2", md: "3" }}
                       color="gold"
                       variant="solid"
-                      style={{ cursor: "pointer" }}
+                      style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                       {alias}
                       <EnterIcon />
@@ -1187,8 +1192,8 @@ export default function GeoProjectPage() {
                 linkedGeoSeriesAliases.map((alias) => (
                   <a key={`gse-${alias}`} href={`/p/${alias}`}>
                     <Badge
-                      size={{ initial: "1", md: "3" }}
-                      style={{ cursor: "pointer" }}
+                      size={{ initial: "2", md: "3" }}
+                      style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                       {alias}
                       <EnterIcon />
@@ -1212,9 +1217,9 @@ export default function GeoProjectPage() {
                       rel="noopener noreferrer"
                     >
                       <Badge
-                        size={{ initial: "1", md: "3" }}
+                        size={{ initial: "2", md: "3" }}
                         color="green"
-                        style={{ cursor: "pointer" }}
+                        style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         {bioProject["@target"].split("/").pop()}
                         <ExternalLinkIcon />
@@ -1231,7 +1236,11 @@ export default function GeoProjectPage() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Badge size={{ initial: "1", md: "3" }} color="sky">
+                <Badge
+                  size={{ initial: "2", md: "3" }}
+                  color="sky"
+                  style={{ whiteSpace: "nowrap" }}
+                >
                   {isArrayExpress
                     ? "Visit ArrayExpress page"
                     : "Visit GEO page"}{" "}

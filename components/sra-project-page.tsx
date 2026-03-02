@@ -1173,9 +1173,10 @@ export default function ProjectPage() {
             </Flex>
             <Flex justify="start" align={"center"} gap="2" wrap={"wrap"}>
               <Badge
-                size={{ initial: "1", md: "3" }}
+                size={{ initial: "2", md: "3" }}
                 color={isArrayExpressAccession ? "gold" : "brown"}
                 variant={isArrayExpressAccession ? "solid" : undefined}
+                style={{ whiteSpace: "nowrap" }}
               >
                 <Flex align="center" gap="1">
                   <Text>{accession}</Text>
@@ -1200,7 +1201,11 @@ export default function ProjectPage() {
                   </Tooltip>
                 </Flex>
               </Badge>
-              <Badge size={{ initial: "1", md: "3" }} color="gray">
+              <Badge
+                size={{ initial: "2", md: "3" }}
+                color="gray"
+                style={{ whiteSpace: "nowrap" }}
+              >
                 {isExperimentsLoading
                   ? "Loading..."
                   : experiments
@@ -1214,9 +1219,9 @@ export default function ProjectPage() {
                   rel="noopener noreferrer"
                 >
                   <Badge
-                    size={{ initial: "1", md: "3" }}
+                    size={{ initial: "2", md: "3" }}
                     color="green"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {project.alias}
                     <ExternalLinkIcon />
@@ -1226,8 +1231,8 @@ export default function ProjectPage() {
               {project.alias?.startsWith("G") && (
                 <a href={`/p/${project.alias}`}>
                   <Badge
-                    size={{ initial: "1", md: "3" }}
-                    style={{ cursor: "pointer" }}
+                    size={{ initial: "2", md: "3" }}
+                    style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {project.alias}
                     <EnterIcon />
@@ -1248,9 +1253,9 @@ export default function ProjectPage() {
                         rel="noopener noreferrer"
                       >
                         <Badge
-                          size={{ initial: "1", md: "3" }}
+                          size={{ initial: "2", md: "3" }}
                           color="green"
-                          style={{ cursor: "pointer" }}
+                          style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {value}
                           <ExternalLinkIcon />
@@ -1267,9 +1272,9 @@ export default function ProjectPage() {
                         rel="noopener noreferrer"
                       >
                         <Badge
-                          size={{ initial: "1", md: "3" }}
+                          size={{ initial: "2", md: "3" }}
                           color="gray"
-                          style={{ cursor: "pointer" }}
+                          style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {value}
                           <ExternalLinkIcon />
@@ -1281,8 +1286,8 @@ export default function ProjectPage() {
                     return (
                       <a key={`${entry.key}:${value}`} href={`/p/${value}`}>
                         <Badge
-                          size={{ initial: "1", md: "3" }}
-                          style={{ cursor: "pointer" }}
+                          size={{ initial: "2", md: "3" }}
+                          style={{ cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {value}
                           <EnterIcon />
@@ -1294,8 +1299,9 @@ export default function ProjectPage() {
                   return (
                     <Badge
                       key={`${entry.key}:${value}`}
-                      size={{ initial: "1", md: "3" }}
+                      size={{ initial: "2", md: "3" }}
                       color="gray"
+                      style={{ whiteSpace: "nowrap" }}
                     >
                       {entry.key}: {value}
                     </Badge>
@@ -1306,7 +1312,11 @@ export default function ProjectPage() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Badge size={{ initial: "1", md: "3" }} color="sky">
+                <Badge
+                  size={{ initial: "2", md: "3" }}
+                  color="sky"
+                  style={{ whiteSpace: "nowrap" }}
+                >
                   Visit SRA page <ExternalLinkIcon />
                 </Badge>
               </a>
