@@ -92,10 +92,7 @@ const getSearchResults = async (
 // Pagination helpers
 // ---------------------------------------------------------------------------
 
-function getPageRange(
-  current: number,
-  total: number,
-): (number | "ellipsis")[] {
+function getPageRange(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
@@ -219,7 +216,6 @@ function Paginator({
           </Button>
         </Flex>
       )}
-
     </Flex>
   );
 }
@@ -396,8 +392,7 @@ export default function SearchPageBody() {
 
   // Flatten & deduplicate all loaded results
   const allResults = useMemo(() => {
-    const flat =
-      data?.pages.flatMap((page) => page?.results ?? []) ?? [];
+    const flat = data?.pages.flatMap((page) => page?.results ?? []) ?? [];
     const seen = new Set<string>();
     return flat.filter((result) => {
       const id = `${result.source}:${result.accession}`;
@@ -425,7 +420,8 @@ export default function SearchPageBody() {
   const allLoadedRef = useRef(false);
 
   const sidebarResults = useMemo(() => {
-    const allLoaded = !hasNextPage && !isFetchingNextPage && allResults.length > 0;
+    const allLoaded =
+      !hasNextPage && !isFetchingNextPage && allResults.length > 0;
 
     if (allLoaded && !allLoadedRef.current) {
       // All pages loaded — do one final update
@@ -485,13 +481,13 @@ export default function SearchPageBody() {
 
   // Handle page change — scroll to top of results
   const resultsTopRef = useRef<HTMLDivElement>(null);
-  const handlePageChange = useCallback(
-    (page: number) => {
-      setCurrentPage(page);
-      resultsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-    [],
-  );
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    resultsTopRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, []);
 
   // --- Adapter: wrap single-select state as string[] for SearchOrganismRail ---
   const journalFiltersArray = useMemo(
@@ -648,7 +644,7 @@ export default function SearchPageBody() {
 
       <Flex
         gap={"4"}
-        p={"4"}
+        px={"4"}
         justify={{ initial: "start", md: "between" }}
         direction={{ initial: "column", md: "row" }}
       >

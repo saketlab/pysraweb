@@ -10,7 +10,7 @@ export default function SearchPageSkeleton() {
         justify={{ initial: "center", md: "between" }}
         align="center"
         p={{ initial: "0", md: "3" }}
-        pb={"3"}
+        pb={"2"}
         gap={"4"}
         style={{
           position: "sticky",
