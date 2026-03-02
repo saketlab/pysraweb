@@ -139,6 +139,12 @@ type RunRow = {
   sra_md5: string | null;
   ncbi_sra_url: string | null;
   ncbi_sra_url_aws: string | null;
+  ncbi_sra_normalized_url: string | null;
+  ncbi_sra_normalized_bytes: string | null;
+  ncbi_sra_lite_url: string | null;
+  ncbi_sra_lite_bytes: string | null;
+  ncbi_sra_lite_s3_url: string | null;
+  ncbi_sra_lite_gs_url: string | null;
 };
 
 type RunsData = {
@@ -340,6 +346,11 @@ function DownloadFastqSection({
   const [selectedCount, setSelectedCount] = useState(0);
   const gridRef = useRef<GridApi<RunRow> | null>(null);
 
+  const hasMissingFastq = React.useMemo(
+    () => runsData.runs.some((r) => !r.fastq_ftp),
+    [runsData.runs],
+  );
+
   const expTitleMap = React.useMemo(() => {
     const map = new Map<string, string>();
     if (experiments) {
@@ -389,16 +400,19 @@ function DownloadFastqSection({
           ].join("\t");
         });
       }
-      // NCBI fallback (already full URLs)
-      const ncbiUrl = run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
+      const ncbiUrl = run.ncbi_sra_normalized_url || run.ncbi_sra_lite_url || run.ncbi_sra_url || run.ncbi_sra_url_aws;
       if (ncbiUrl) {
+        const ncbiBytes = run.ncbi_sra_normalized_url
+          ? (run.ncbi_sra_normalized_bytes || "")
+          : (run.ncbi_sra_lite_bytes || "");
         const filename = ncbiUrl.split("/").pop() || run.run_accession;
         return [[
           run.run_accession,
           run.experiment_accession || "",
           run.library_layout || "",
           ncbiUrl,
-          "",
+          ncbiBytes,
           "",
           filename,
           dirpath,
@@ -436,8 +450,8 @@ function DownloadFastqSection({
           return { url: `https://${ftp}`, filename, dirpath };
         });
       }
-      // NCBI fallback
-      const ncbiUrl = run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
+      const ncbiUrl = run.ncbi_sra_normalized_url || run.ncbi_sra_lite_url || run.ncbi_sra_url || run.ncbi_sra_url_aws;
       if (ncbiUrl) {
         const filename = ncbiUrl.split("/").pop() || run.run_accession;
         return [{ url: ncbiUrl, filename, dirpath }];
@@ -575,44 +589,117 @@ function DownloadFastqSection({
               </Flex>
             );
           }
-          if (row.sra_ftp) {
-            return (
-              <Link
-                href={`https://${row.sra_ftp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                size="1"
-                color="gray"
-                style={{ fontFamily: "var(--code-font-family)" }}
-              >
-                {row.sra_ftp.split("/").pop() || "SRA"}
-              </Link>
-            );
-          }
-          {
-            const ncbiUrl = row.ncbi_sra_url || row.ncbi_sra_url_aws;
-            if (ncbiUrl) {
-              const label = ncbiUrl.split("/").pop() || row.run_accession;
-              return (
-                <Flex align="center" gap="2">
-                  <Link
-                    href={ncbiUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="1"
-                    color="gray"
-                    style={{ fontFamily: "var(--code-font-family)" }}
-                  >
-                    {label}
-                  </Link>
-                  <Badge size="1" color="orange" variant="soft">NCBI</Badge>
-                </Flex>
-              );
-            }
-          }
           return <Text size="1" color="gray">-</Text>;
         },
       },
+      ...(hasMissingFastq
+        ? [
+            {
+              headerName: "Cloud / SRAlite",
+              minWidth: 260,
+              autoHeight: true,
+              wrapText: true,
+              cellRenderer: (params: ICellRendererParams<RunRow>) => {
+                const row = params.data;
+                if (!row) return "-";
+
+                const entries: { url: string; bytes: string | null; badge: string; color: "orange" | "blue" | "gray" | "violet" }[] = [];
+
+                // SRA Normalized (AWS S3 HTTPS — full SRA)
+                if (row.ncbi_sra_normalized_url) {
+                  entries.push({
+                    url: row.ncbi_sra_normalized_url,
+                    bytes: row.ncbi_sra_normalized_bytes,
+                    badge: "SRA",
+                    color: "orange",
+                  });
+                }
+
+                // SRA Lite (NCBI HTTPS — smaller)
+                if (row.ncbi_sra_lite_url) {
+                  entries.push({
+                    url: row.ncbi_sra_lite_url,
+                    bytes: row.ncbi_sra_lite_bytes,
+                    badge: "Lite",
+                    color: "blue",
+                  });
+                }
+
+                // SRA Lite S3 (s3:// URI)
+                if (row.ncbi_sra_lite_s3_url) {
+                  entries.push({
+                    url: row.ncbi_sra_lite_s3_url,
+                    bytes: null,
+                    badge: "S3",
+                    color: "violet",
+                  });
+                }
+
+                // SRA Lite GCS (gs:// URI)
+                if (row.ncbi_sra_lite_gs_url) {
+                  entries.push({
+                    url: row.ncbi_sra_lite_gs_url,
+                    bytes: null,
+                    badge: "GCS",
+                    color: "gray",
+                  });
+                }
+
+                // Legacy fallback: old ncbi_sra_url / ncbi_sra_url_aws columns
+                if (entries.length === 0) {
+                  const awsUrl = row.ncbi_sra_url_aws;
+                  const ncbiUrl = row.ncbi_sra_url;
+                  if (awsUrl) entries.push({ url: awsUrl, bytes: null, badge: "AWS", color: "orange" });
+                  if (ncbiUrl) entries.push({ url: ncbiUrl, bytes: null, badge: "NCBI", color: "blue" });
+                }
+
+                // SRA FTP fallback
+                if (entries.length === 0 && row.sra_ftp) {
+                  entries.push({
+                    url: row.sra_ftp.startsWith("ftp://") ? row.sra_ftp : `https://${row.sra_ftp}`,
+                    bytes: row.sra_bytes,
+                    badge: "SRA",
+                    color: "gray",
+                  });
+                }
+
+                if (entries.length === 0) {
+                  return <Text size="1" color="gray">-</Text>;
+                }
+
+                return (
+                  <Flex direction="column" gap="1" py="1">
+                    {entries.map((e) => {
+                      const label = e.url.split("/").pop() || row.run_accession;
+                      const size = e.bytes ? parseInt(e.bytes, 10) : 0;
+                      return (
+                        <Flex key={e.url} align="center" gap="2">
+                          <Link
+                            href={e.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            size="1"
+                            style={{ fontFamily: "var(--code-font-family)" }}
+                          >
+                            {label}
+                          </Link>
+                          {size > 0 && (
+                            <Text size="1" color="gray">
+                              {formatBytes(size)}
+                            </Text>
+                          )}
+                          <Badge size="1" color={e.color} variant="soft">
+                            {e.badge}
+                          </Badge>
+                        </Flex>
+                      );
+                    })}
+                  </Flex>
+                );
+              },
+            } satisfies ColDef<RunRow>,
+          ]
+        : []),
       {
         headerName: "Size",
         minWidth: 70,
@@ -627,7 +714,7 @@ function DownloadFastqSection({
           params.value > 0 ? formatBytes(params.value as number) : "-",
       },
     ],
-    [expTitleMap],
+    [expTitleMap, hasMissingFastq],
   );
 
   const defaultColDef = React.useMemo<ColDef<RunRow>>(

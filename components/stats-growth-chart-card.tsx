@@ -251,7 +251,11 @@ export default function StatsGrowthChartCard() {
         </Flex>
       </Flex>
       {isLoading ? (
-        <Skeleton height="360px" />
+        <Flex direction="column" align="center" justify="center" gap="3" style={{ height: 400 }}>
+          <Skeleton width="60%" height="16px" />
+          <Text size="2" color="gray">Crunching latest numbers…</Text>
+          <Skeleton width="100%" height="300px" />
+        </Flex>
       ) : (
         <Chart
           type={view === "cumulative" ? "area" : "line"}
