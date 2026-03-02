@@ -15,7 +15,6 @@ import { ensureAgGridModules } from "@/lib/ag-grid";
 import { SERVER_URL } from "@/utils/constants";
 import {
   CheckIcon,
-  ClipboardCopyIcon,
   CopyIcon,
   DownloadIcon,
   EnterIcon,
@@ -27,6 +26,7 @@ import {
 import {
   Badge,
   Button,
+  Dialog,
   Flex,
   Link,
   Spinner,
@@ -322,7 +322,9 @@ const fetchSamplesForExperiments = async (
   return sampleMap;
 };
 
-const fetchRuns = async (accession: string | null): Promise<RunsData | null> => {
+const fetchRuns = async (
+  accession: string | null,
+): Promise<RunsData | null> => {
   if (!accession) return null;
   const res = await fetch(`${SERVER_URL}/project/${accession}/runs`);
   if (!res.ok) return null;
@@ -343,6 +345,8 @@ function DownloadFastqSection({
   experiments?: Experiment[] | null;
 }) {
   const [copied, setCopied] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
+  const [scriptContent, setScriptContent] = useState("");
   const [selectedCount, setSelectedCount] = useState(0);
   const gridRef = useRef<GridApi<RunRow> | null>(null);
 
@@ -361,12 +365,9 @@ function DownloadFastqSection({
     return map;
   }, [experiments]);
 
-  const onGridReady = useCallback(
-    (params: { api: GridApi<RunRow> }) => {
-      gridRef.current = params.api;
-    },
-    [],
-  );
+  const onGridReady = useCallback((params: { api: GridApi<RunRow> }) => {
+    gridRef.current = params.api;
+  }, []);
 
   const onSelectionChanged = useCallback(() => {
     const selected = gridRef.current?.getSelectedRows() ?? [];
@@ -379,11 +380,18 @@ function DownloadFastqSection({
   };
 
   const buildTsvContent = (runs: RunRow[]): string => {
-    const header = "run_accession\texperiment_accession\tlibrary_layout\turl\tbytes\tmd5\tfilename\tdirpath";
+    const header =
+      "run_accession\texperiment_accession\tlibrary_layout\turl\tbytes\tmd5\tfilename\tdirpath";
     const lines = runs.flatMap((run) => {
-      const urls = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
-      const bytes = run.fastq_bytes ? run.fastq_bytes.split(";").filter(Boolean) : [];
-      const md5s = run.fastq_md5 ? run.fastq_md5.split(";").filter(Boolean) : [];
+      const urls = run.fastq_ftp
+        ? run.fastq_ftp.split(";").filter(Boolean)
+        : [];
+      const bytes = run.fastq_bytes
+        ? run.fastq_bytes.split(";").filter(Boolean)
+        : [];
+      const md5s = run.fastq_md5
+        ? run.fastq_md5.split(";").filter(Boolean)
+        : [];
       const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
       if (urls.length > 0) {
         return urls.map((url, i) => {
@@ -401,22 +409,28 @@ function DownloadFastqSection({
         });
       }
       // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
-      const ncbiUrl = run.ncbi_sra_normalized_url || run.ncbi_sra_lite_url || run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      const ncbiUrl =
+        run.ncbi_sra_normalized_url ||
+        run.ncbi_sra_lite_url ||
+        run.ncbi_sra_url ||
+        run.ncbi_sra_url_aws;
       if (ncbiUrl) {
         const ncbiBytes = run.ncbi_sra_normalized_url
-          ? (run.ncbi_sra_normalized_bytes || "")
-          : (run.ncbi_sra_lite_bytes || "");
+          ? run.ncbi_sra_normalized_bytes || ""
+          : run.ncbi_sra_lite_bytes || "";
         const filename = ncbiUrl.split("/").pop() || run.run_accession;
-        return [[
-          run.run_accession,
-          run.experiment_accession || "",
-          run.library_layout || "",
-          ncbiUrl,
-          ncbiBytes,
-          "",
-          filename,
-          dirpath,
-        ].join("\t")];
+        return [
+          [
+            run.run_accession,
+            run.experiment_accession || "",
+            run.library_layout || "",
+            ncbiUrl,
+            ncbiBytes,
+            "",
+            filename,
+            dirpath,
+          ].join("\t"),
+        ];
       }
       return [];
     });
@@ -439,10 +453,11 @@ function DownloadFastqSection({
     }, 0);
   };
 
-  const downloadScript = () => {
-    const runs = getDownloadRows();
+  const buildDownloadScript = (runs: RunRow[]) => {
     const urls = runs.flatMap((run) => {
-      const ftps = run.fastq_ftp ? run.fastq_ftp.split(";").filter(Boolean) : [];
+      const ftps = run.fastq_ftp
+        ? run.fastq_ftp.split(";").filter(Boolean)
+        : [];
       const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
       if (ftps.length > 0) {
         return ftps.map((ftp) => {
@@ -451,7 +466,11 @@ function DownloadFastqSection({
         });
       }
       // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
-      const ncbiUrl = run.ncbi_sra_normalized_url || run.ncbi_sra_lite_url || run.ncbi_sra_url || run.ncbi_sra_url_aws;
+      const ncbiUrl =
+        run.ncbi_sra_normalized_url ||
+        run.ncbi_sra_lite_url ||
+        run.ncbi_sra_url ||
+        run.ncbi_sra_url_aws;
       if (ncbiUrl) {
         const filename = ncbiUrl.split("/").pop() || run.run_accession;
         return [{ url: ncbiUrl, filename, dirpath }];
@@ -459,10 +478,12 @@ function DownloadFastqSection({
       return [];
     });
     const totalBytes = runs.reduce((sum, r) => {
-      const bytes = r.fastq_bytes ? r.fastq_bytes.split(";").filter(Boolean) : [];
+      const bytes = r.fastq_bytes
+        ? r.fastq_bytes.split(";").filter(Boolean)
+        : [];
       return sum + bytes.reduce((s, b) => s + (parseInt(b, 10) || 0), 0);
     }, 0);
-    const script = [
+    return [
       "#!/usr/bin/env bash",
       `# Download FASTQ files for ${accession}${selectedCount > 0 ? ` (${selectedCount} selected runs)` : ""}`,
       `# ${runs.length} runs · ${formatBytes(totalBytes)}`,
@@ -470,23 +491,19 @@ function DownloadFastqSection({
       "set -euo pipefail",
       "",
       ...urls.map(
-        (u) => `mkdir -p "${u.dirpath}" && wget -q --show-progress -O "${u.dirpath}/${u.filename}" "${u.url}"`,
+        (u) =>
+          `mkdir -p "${u.dirpath}" && wget -q --show-progress -O "${u.dirpath}/${u.filename}" "${u.url}"`,
       ),
       "",
       `echo "Done. Files saved under ./${accession}/"`,
       "",
     ].join("\n");
-    const blob = new Blob([script], { type: "text/x-shellscript" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `download_${accession}.sh`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+  };
+
+  const copyScript = async () => {
+    await navigator.clipboard.writeText(scriptContent);
+    setScriptCopied(true);
+    setTimeout(() => setScriptCopied(false), 1500);
   };
 
   const apiBase = SERVER_URL.startsWith("http")
@@ -524,7 +541,7 @@ function DownloadFastqSection({
         minWidth: 200,
         valueGetter: (params: ValueGetterParams<RunRow>) => {
           const exp = params.data?.experiment_accession;
-          return exp ? expTitleMap.get(exp) ?? "-" : "-";
+          return exp ? (expTitleMap.get(exp) ?? "-") : "-";
         },
       },
       {
@@ -589,7 +606,11 @@ function DownloadFastqSection({
               </Flex>
             );
           }
-          return <Text size="1" color="gray">-</Text>;
+          return (
+            <Text size="1" color="gray">
+              -
+            </Text>
+          );
         },
       },
       ...(hasMissingFastq
@@ -603,7 +624,12 @@ function DownloadFastqSection({
                 const row = params.data;
                 if (!row) return "-";
 
-                const entries: { url: string; bytes: string | null; badge: string; color: "orange" | "blue" | "gray" | "violet" }[] = [];
+                const entries: {
+                  url: string;
+                  bytes: string | null;
+                  badge: string;
+                  color: "orange" | "blue" | "gray" | "violet";
+                }[] = [];
 
                 // SRA Normalized (AWS S3 HTTPS — full SRA)
                 if (row.ncbi_sra_normalized_url) {
@@ -649,14 +675,28 @@ function DownloadFastqSection({
                 if (entries.length === 0) {
                   const awsUrl = row.ncbi_sra_url_aws;
                   const ncbiUrl = row.ncbi_sra_url;
-                  if (awsUrl) entries.push({ url: awsUrl, bytes: null, badge: "AWS", color: "orange" });
-                  if (ncbiUrl) entries.push({ url: ncbiUrl, bytes: null, badge: "NCBI", color: "blue" });
+                  if (awsUrl)
+                    entries.push({
+                      url: awsUrl,
+                      bytes: null,
+                      badge: "AWS",
+                      color: "orange",
+                    });
+                  if (ncbiUrl)
+                    entries.push({
+                      url: ncbiUrl,
+                      bytes: null,
+                      badge: "NCBI",
+                      color: "blue",
+                    });
                 }
 
                 // SRA FTP fallback
                 if (entries.length === 0 && row.sra_ftp) {
                   entries.push({
-                    url: row.sra_ftp.startsWith("ftp://") ? row.sra_ftp : `https://${row.sra_ftp}`,
+                    url: row.sra_ftp.startsWith("ftp://")
+                      ? row.sra_ftp
+                      : `https://${row.sra_ftp}`,
                     bytes: row.sra_bytes,
                     badge: "SRA",
                     color: "gray",
@@ -664,7 +704,11 @@ function DownloadFastqSection({
                 }
 
                 if (entries.length === 0) {
-                  return <Text size="1" color="gray">-</Text>;
+                  return (
+                    <Text size="1" color="gray">
+                      -
+                    </Text>
+                  );
                 }
 
                 return (
@@ -722,50 +766,106 @@ function DownloadFastqSection({
     [],
   );
 
-  const downloadLabel = selectedCount > 0
-    ? `Download ${selectedCount} selected`
-    : "Download all";
+  const downloadLabel =
+    selectedCount > 0 ? `Download ${selectedCount} selected` : "Download all";
 
   return (
     <>
       <Flex justify="between" align="center">
         <Flex align="center" gap="2">
           <Text weight="medium" size="6">
-            Download FASTQ files
+            FASTQ files
           </Text>
           <Badge size="2" color="gray">
             {runsData.total_runs.toLocaleString()} runs
           </Badge>
         </Flex>
+      </Flex>
+
+      <Flex gap="3" justify={"between"} wrap="wrap">
+        <Flex gap={"2"}>
+          <Badge size="3" color="blue" variant="soft">
+            {runsData.paired_runs > 0 &&
+              `${runsData.paired_runs.toLocaleString()} paired-end`}
+            {runsData.paired_runs > 0 && runsData.single_runs > 0 && " · "}
+            {runsData.single_runs > 0 &&
+              `${runsData.single_runs.toLocaleString()} single-end`}
+          </Badge>
+          {runsData.total_fastq_bytes > 0 && (
+            <Badge size="3" variant="soft">
+              {formatBytes(runsData.total_fastq_bytes)} total
+            </Badge>
+          )}
+          {runsData.total_runs > runsData.runs.length && (
+            <Badge size="3" color="gray" variant="soft">
+              Showing first {runsData.runs.length} of{" "}
+              {runsData.total_runs.toLocaleString()}
+            </Badge>
+          )}
+        </Flex>
+
         <Flex gap="2">
           <Button size="2" variant="surface" onClick={downloadTsv}>
             <DownloadIcon /> {downloadLabel} (TSV)
           </Button>
-          <Button size="2" variant="surface" onClick={downloadScript}>
-            <FileTextIcon /> {downloadLabel} (Script)
-          </Button>
-        </Flex>
-      </Flex>
+          <Dialog.Root
+            onOpenChange={(open) => {
+              if (open) {
+                setScriptContent(buildDownloadScript(getDownloadRows()));
+                setScriptCopied(false);
+              }
+            }}
+          >
+            <Dialog.Trigger>
+              <Button
+                size="2"
+                variant="surface"
+                onClick={() =>
+                  setScriptContent(buildDownloadScript(getDownloadRows()))
+                }
+              >
+                <FileTextIcon /> {downloadLabel}
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content size="4">
+              <Dialog.Title>
+                <Flex align="center" justify="between">
+                  <Text>FASTQ download script</Text>
+                  <Button size="2" variant="soft" onClick={copyScript}>
+                    {scriptCopied ? <CheckIcon /> : <CopyIcon />}
+                    Copy
+                  </Button>
+                </Flex>
+              </Dialog.Title>
 
-      <Flex gap="3" wrap="wrap">
-        <Badge size="2" color="blue" variant="soft">
-          {runsData.paired_runs > 0 &&
-            `${runsData.paired_runs.toLocaleString()} paired-end`}
-          {runsData.paired_runs > 0 && runsData.single_runs > 0 && " · "}
-          {runsData.single_runs > 0 &&
-            `${runsData.single_runs.toLocaleString()} single-end`}
-        </Badge>
-        {runsData.total_fastq_bytes > 0 && (
-          <Badge size="2" color="orange" variant="soft">
-            {formatBytes(runsData.total_fastq_bytes)} total
-          </Badge>
-        )}
-        {runsData.total_runs > runsData.runs.length && (
-          <Badge size="2" color="gray" variant="soft">
-            Showing first {runsData.runs.length} of{" "}
-            {runsData.total_runs.toLocaleString()}
-          </Badge>
-        )}
+              <div
+                style={{
+                  height: "300px",
+                  overflowY: "auto",
+                  overflowX: "auto",
+                  background: "var(--gray-a2)",
+                  borderRadius: "var(--radius-2)",
+                  border: "1px solid var(--gray-a5)",
+                  padding: "10px 12px",
+                }}
+              >
+                <code
+                  style={{
+                    display: "block",
+                    width: "max-content",
+                    minWidth: "100%",
+                    whiteSpace: "pre",
+                    fontFamily: "var(--code-font-family)",
+                    fontSize: "var(--font-size-1)",
+                    color: "var(--gray-12)",
+                  }}
+                >
+                  {scriptContent}
+                </code>
+              </div>
+            </Dialog.Content>
+          </Dialog.Root>
+        </Flex>
       </Flex>
 
       <div
@@ -777,7 +877,11 @@ function DownloadFastqSection({
           defaultColDef={defaultColDef}
           rowData={runsData.runs}
           getRowId={(params) => params.data.run_accession}
-          rowSelection={{ mode: "multiRow", checkboxes: true, headerCheckbox: true }}
+          rowSelection={{
+            mode: "multiRow",
+            checkboxes: true,
+            headerCheckbox: true,
+          }}
           onGridReady={onGridReady}
           onSelectionChanged={onSelectionChanged}
           theme="legacy"
@@ -785,51 +889,46 @@ function DownloadFastqSection({
       </div>
 
       <Flex direction="column" gap="2">
-        <Text size="2" weight="medium" color="gray">
-          Quick download (all runs)
+        <Text size="4" weight="medium">
+          Download all runs
         </Text>
-        <Flex
-          align="stretch"
-          gap="0"
+        <div
           style={{
-            background: "var(--gray-a2)",
-            borderRadius: "var(--radius-2)",
-            fontFamily: "var(--code-font-family)",
-            fontSize: "var(--font-size-2)",
+            width: "100%",
+            maxWidth: "100%",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            background: "var(--gray-3)",
+            border: "1px solid var(--gray-6)",
+            borderRadius: "8px",
           }}
         >
-          <code
+          <pre
             style={{
-              flex: 1,
-              whiteSpace: "pre",
-              color: "var(--gray-12)",
+              margin: 0,
+              width: "calc(100% - 2.5rem)",
+              maxWidth: "calc(100% - 2.5rem)",
+              minWidth: 0,
+              boxSizing: "border-box",
+              padding: "0.875rem",
               overflowX: "auto",
-              padding: "8px 12px",
+              overflowY: "hidden",
+              fontSize: "12px",
+              lineHeight: "1.5",
+              fontFamily: "var(--default-mono-font-family)",
             }}
           >
-            {wgetCmd}
-          </code>
-          <Tooltip content={copied ? "Copied!" : "Copy command"}>
-            <button
-              type="button"
-              onClick={copyCommand}
-              aria-label="Copy download command"
-              style={{
-                border: "none",
-                borderLeft: "1px solid var(--gray-a5)",
-                background: "transparent",
-                color: "var(--gray-11)",
-                cursor: "pointer",
-                padding: "8px 10px",
-                display: "flex",
-                alignItems: "center",
-                flexShrink: 0,
-              }}
-            >
-              {copied ? <CheckIcon /> : <ClipboardCopyIcon />}
-            </button>
-          </Tooltip>
-        </Flex>
+            <code>{wgetCmd}</code>
+          </pre>
+          <Button
+            size="2"
+            onClick={copyCommand}
+            aria-label="Copy download command"
+          >
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </Button>
+        </div>
       </Flex>
     </>
   );
