@@ -97,6 +97,7 @@ async function fetchOrganismGrowth(
 
 export default function StatsOrganismGrowthCard() {
   const [organism, setOrganism] = useState<string>("");
+  const [commonName, setCommonName] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("absolute");
   const [view, setView] = useState<View>("cumulative");
   const [logScale, setLogScale] = useState(false);
@@ -128,17 +129,8 @@ export default function StatsOrganismGrowthCard() {
   const selectedOrganism =
     organism || totalsData?.organisms?.[0]?.organism || "";
 
-  const selectedCommonName = useMemo(() => {
-    if (!selectedOrganism) return null;
-    const fromTotals = totalsData?.organisms?.find(
-      (o) => o.organism === selectedOrganism,
-    );
-    if (fromTotals?.common_name) return fromTotals.common_name;
-    const fromSearch = searchData?.organisms?.find(
-      (o) => o.organism === selectedOrganism,
-    );
-    return fromSearch?.common_name ?? null;
-  }, [selectedOrganism, totalsData, searchData]);
+  const selectedCommonName =
+    commonName ?? totalsData?.organisms?.[0]?.common_name ?? null;
 
   const { data: growthData, isLoading: growthLoading } = useQuery({
     queryKey: ["organism-growth", selectedOrganism, mode],
@@ -213,7 +205,7 @@ export default function StatsOrganismGrowthCard() {
       },
       title: {
         text: selectedCommonName
-          ? `Organism Growth — ${selectedOrganism} (${selectedCommonName})`
+          ? `Organism Growth — ${selectedCommonName.charAt(0).toUpperCase() + selectedCommonName.slice(1)} (${selectedOrganism})`
           : `Organism Growth — ${selectedOrganism}`,
         align: "left",
         style: {
@@ -309,6 +301,7 @@ export default function StatsOrganismGrowthCard() {
     if (!totalsData?.organisms) return [];
     return totalsData.organisms.map((o) => ({
       value: o.organism,
+      commonName: o.common_name,
       label: formatLabel(o),
     }));
   }, [totalsData]);
@@ -317,6 +310,7 @@ export default function StatsOrganismGrowthCard() {
     if (!searchData?.organisms) return [];
     return searchData.organisms.map((o) => ({
       value: o.organism,
+      commonName: o.common_name,
       label: formatLabel(o),
     }));
   }, [searchData]);
@@ -402,6 +396,7 @@ export default function StatsOrganismGrowthCard() {
                             key={item.value}
                             onClick={() => {
                               setOrganism(item.value);
+                              setCommonName(item.commonName);
                               setOrganismOpen(false);
                               setOrganismQuery("");
                               setDebouncedQuery("");
