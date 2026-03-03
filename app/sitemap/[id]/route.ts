@@ -1,4 +1,6 @@
-import { SERVER_URL, SITE_URL } from "@/utils/constants";
+import { SITE_URL } from "@/utils/constants";
+
+const API_BASE = process.env.PYSRAWEB_API_BASE ?? "https://seqout.org/api";
 
 const STATIC_PATHS = ["/", "/faq", "/map", "/mcp", "/stats", "/search"];
 
@@ -45,7 +47,7 @@ function buildStaticSitemap() {
 
 async function buildAccessionSitemap(page: number) {
   const res = await fetch(
-    `${SERVER_URL}/sitemap/accessions?page=${page}&limit=50000`,
+    `${API_BASE}/sitemap/accessions?page=${page}&limit=50000`,
     { next: { revalidate: 2592000 } },
   );
   if (!res.ok) {

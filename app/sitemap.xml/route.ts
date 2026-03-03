@@ -1,9 +1,12 @@
-import { SERVER_URL, SITE_URL } from "@/utils/constants";
+import { SITE_URL } from "@/utils/constants";
 
+export const dynamic = "force-dynamic";
+
+const API_BASE = process.env.PYSRAWEB_API_BASE ?? "https://seqout.org/api";
 const LIMIT = 50_000;
 
 export async function GET() {
-  const res = await fetch(`${SERVER_URL}/sitemap/counts`, {
+  const res = await fetch(`${API_BASE}/sitemap/counts`, {
     next: { revalidate: 2592000 },
   });
   if (!res.ok) {
