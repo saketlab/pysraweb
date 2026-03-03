@@ -1,17 +1,14 @@
-import { SITE_URL } from "@/utils/constants";
+import {
+  API_BASE,
+  LIMIT,
+  SITE_URL,
+  VALID_SOURCES,
+  xmlResponse,
+} from "../_utils";
 
-const API_BASE = process.env.PYSRAWEB_API_BASE ?? "https://seqout.org/api";
+export const revalidate = 2592000;
 
 const STATIC_PATHS = ["/", "/faq", "/map", "/mcp", "/stats", "/search"];
-
-function xmlResponse(body: string) {
-  return new Response(body, {
-    headers: {
-      "Content-Type": "application/xml",
-      "Cache-Control": "public, max-age=2592000",
-    },
-  });
-}
 
 export async function GET(
   _request: Request,
@@ -24,12 +21,19 @@ export async function GET(
     return buildStaticSitemap();
   }
 
-  const page = parseInt(slug, 10);
-  if (isNaN(page) || page < 0) {
+  const dashIdx = slug.lastIndexOf("-");
+  if (dashIdx === -1) {
     return new Response("Not found", { status: 404 });
   }
 
-  return buildAccessionSitemap(page);
+  const source = slug.slice(0, dashIdx);
+  const page = parseInt(slug.slice(dashIdx + 1), 10);
+
+  if (!VALID_SOURCES.has(source) || isNaN(page) || page < 0) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  return buildAccessionSitemap(source, page);
 }
 
 function buildStaticSitemap() {
@@ -45,9 +49,9 @@ function buildStaticSitemap() {
   return xmlResponse(xml);
 }
 
-async function buildAccessionSitemap(page: number) {
+async function buildAccessionSitemap(source: string, page: number) {
   const res = await fetch(
-    `${API_BASE}/sitemap/accessions?page=${page}&limit=50000`,
+    `${API_BASE}/sitemap/accessions?source=${source}&page=${page}&limit=${LIMIT}`,
     { next: { revalidate: 2592000 } },
   );
   if (!res.ok) {

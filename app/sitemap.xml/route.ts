@@ -1,9 +1,6 @@
-import { SITE_URL } from "@/utils/constants";
+import { API_BASE, LIMIT, SITE_URL, SOURCES, xmlResponse } from "../sitemap/_utils";
 
-export const dynamic = "force-dynamic";
-
-const API_BASE = process.env.PYSRAWEB_API_BASE ?? "https://seqout.org/api";
-const LIMIT = 50_000;
+export const revalidate = 2592000;
 
 export async function GET() {
   const res = await fetch(`${API_BASE}/sitemap/counts`, {
@@ -13,24 +10,21 @@ export async function GET() {
     return new Response("Failed to fetch sitemap counts", { status: 502 });
   }
 
-  const { total } = (await res.json()) as { total: number };
-  const chunks = Math.ceil(total / LIMIT);
+  const counts = (await res.json()) as Record<string, number>;
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
   xml += `  <sitemap><loc>${SITE_URL}/sitemap/static.xml</loc></sitemap>\n`;
 
-  for (let i = 0; i < chunks; i++) {
-    xml += `  <sitemap><loc>${SITE_URL}/sitemap/${i}.xml</loc></sitemap>\n`;
+  for (const source of SOURCES) {
+    const chunks = Math.ceil((counts[source] ?? 0) / LIMIT);
+    for (let i = 0; i < chunks; i++) {
+      xml += `  <sitemap><loc>${SITE_URL}/sitemap/${source}-${i}.xml</loc></sitemap>\n`;
+    }
   }
 
   xml += `</sitemapindex>\n`;
 
-  return new Response(xml, {
-    headers: {
-      "Content-Type": "application/xml",
-      "Cache-Control": "public, max-age=2592000",
-    },
-  });
+  return xmlResponse(xml);
 }
