@@ -12,6 +12,7 @@ import SubmittingOrgPanel, {
 } from "@/components/submitting-org-panel";
 import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
+import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
 import {
   CheckIcon,
@@ -19,16 +20,15 @@ import {
   DownloadIcon,
   EnterIcon,
   ExternalLinkIcon,
-  FileTextIcon,
   HomeIcon,
   InfoCircledIcon,
 } from "@radix-ui/react-icons";
 import {
   Badge,
   Button,
-  Dialog,
   Flex,
   Link,
+  Select,
   Spinner,
   Text,
   Tooltip,
@@ -154,6 +154,14 @@ type RunsData = {
   total_fastq_bytes: number;
   runs: RunRow[];
 };
+
+const getBestCloudUrl = (run: RunRow): string =>
+  run.ncbi_sra_normalized_url ||
+  run.ncbi_sra_lite_url ||
+  run.ncbi_sra_url ||
+  run.ncbi_sra_url_aws ||
+  "";
+
 
 const toDisplayText = (value: unknown): string => {
   if (value === null || value === undefined || value === "") return "-";
@@ -331,6 +339,16 @@ const fetchRuns = async (
   return (await res.json()) as RunsData;
 };
 
+type DownloadSource = "fastq" | "sra" | "sra_lite" | "s3" | "gcs";
+
+const DOWNLOAD_SOURCE_LABELS: Record<DownloadSource, string> = {
+  fastq: "FASTQ files (wget)",
+  sra: "SRA format (wget)",
+  sra_lite: "SRA Lite (wget)",
+  s3: "AWS S3 (aws cli)",
+  gcs: "Google Cloud (gsutil)",
+};
+
 const ABSTRACT_CHAR_LIMIT = 350;
 
 function DownloadFastqSection({
@@ -346,14 +364,33 @@ function DownloadFastqSection({
 }) {
   const [copied, setCopied] = useState(false);
   const [scriptCopied, setScriptCopied] = useState(false);
-  const [scriptContent, setScriptContent] = useState("");
+  const [selectedSource, setSelectedSource] = useState<DownloadSource>("fastq");
   const [selectedCount, setSelectedCount] = useState(0);
   const gridRef = useRef<GridApi<RunRow> | null>(null);
 
-  const hasMissingFastq = React.useMemo(
-    () => runsData.runs.some((r) => !r.fastq_ftp),
-    [runsData.runs],
-  );
+  /** Which download sources have URLs + whether any run lacks FASTQ. */
+  const { availableSources, hasMissingFastq } = React.useMemo(() => {
+    const sources = new Set<DownloadSource>();
+    let missing = false;
+    for (const r of runsData.runs) {
+      if (r.fastq_ftp) sources.add("fastq");
+      else missing = true;
+      if (r.ncbi_sra_normalized_url) sources.add("sra");
+      if (r.ncbi_sra_lite_url) sources.add("sra_lite");
+      if (r.ncbi_sra_lite_s3_url) sources.add("s3");
+      if (r.ncbi_sra_lite_gs_url) sources.add("gcs");
+    }
+    return { availableSources: sources, hasMissingFastq: missing };
+  }, [runsData.runs]);
+
+  React.useEffect(() => {
+    if (!availableSources.has(selectedSource)) {
+      const first = (
+        Object.keys(DOWNLOAD_SOURCE_LABELS) as DownloadSource[]
+      ).find((s) => availableSources.has(s));
+      if (first) setSelectedSource(first);
+    }
+  }, [availableSources, selectedSource]);
 
   const expTitleMap = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -381,7 +418,12 @@ function DownloadFastqSection({
 
   const buildTsvContent = (runs: RunRow[]): string => {
     const header =
-      "run_accession\texperiment_accession\tlibrary_layout\turl\tbytes\tmd5\tfilename\tdirpath";
+      "run_accession\texperiment_accession\tlibrary_layout\t" +
+      "fastq_url\tfastq_bytes\tfastq_md5\t" +
+      "sra_lite_url\tsra_lite_bytes\t" +
+      "sra_url\tsra_bytes\t" +
+      "s3_url\tgs_url\t" +
+      "filename\tdirectory_path";
     const lines = runs.flatMap((run) => {
       const urls = run.fastq_ftp
         ? run.fastq_ftp.split(";").filter(Boolean)
@@ -393,6 +435,15 @@ function DownloadFastqSection({
         ? run.fastq_md5.split(";").filter(Boolean)
         : [];
       const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+
+      // Cloud / SRA URLs (per-run)
+      const sraLiteUrl = run.ncbi_sra_lite_url || "";
+      const sraLiteBytes = run.ncbi_sra_lite_bytes || "";
+      const sraUrl = run.ncbi_sra_normalized_url || "";
+      const sraBytes = run.ncbi_sra_normalized_bytes || "";
+      const s3Url = run.ncbi_sra_lite_s3_url || "";
+      const gsUrl = run.ncbi_sra_lite_gs_url || "";
+
       if (urls.length > 0) {
         return urls.map((url, i) => {
           const filename = url.split("/").pop() || url;
@@ -403,36 +454,42 @@ function DownloadFastqSection({
             `https://${url}`,
             bytes[i] || "",
             md5s[i] || "",
+            sraLiteUrl,
+            sraLiteBytes,
+            sraUrl,
+            sraBytes,
+            s3Url,
+            gsUrl,
             filename,
             dirpath,
           ].join("\t");
         });
       }
-      // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
-      const ncbiUrl =
-        run.ncbi_sra_normalized_url ||
-        run.ncbi_sra_lite_url ||
-        run.ncbi_sra_url ||
-        run.ncbi_sra_url_aws;
-      if (ncbiUrl) {
-        const ncbiBytes = run.ncbi_sra_normalized_url
-          ? run.ncbi_sra_normalized_bytes || ""
-          : run.ncbi_sra_lite_bytes || "";
-        const filename = ncbiUrl.split("/").pop() || run.run_accession;
-        return [
-          [
-            run.run_accession,
-            run.experiment_accession || "",
-            run.library_layout || "",
-            ncbiUrl,
-            ncbiBytes,
-            "",
-            filename,
-            dirpath,
-          ].join("\t"),
-        ];
-      }
-      return [];
+
+      // No FASTQ — emit one row with cloud URLs
+      const bestUrl = getBestCloudUrl(run);
+      if (!bestUrl && !s3Url && !gsUrl) return [];
+      const filename = bestUrl
+        ? bestUrl.split("/").pop() || run.run_accession
+        : run.run_accession;
+      return [
+        [
+          run.run_accession,
+          run.experiment_accession || "",
+          run.library_layout || "",
+          "",
+          "",
+          "",
+          sraLiteUrl,
+          sraLiteBytes,
+          sraUrl,
+          sraBytes,
+          s3Url,
+          gsUrl,
+          filename,
+          dirpath,
+        ].join("\t"),
+      ];
     });
     return [header, ...lines].join("\n") + "\n";
   };
@@ -453,57 +510,111 @@ function DownloadFastqSection({
     }, 0);
   };
 
-  const buildDownloadScript = (runs: RunRow[]) => {
-    const urls = runs.flatMap((run) => {
+  type ResolvedEntry = {
+    url: string;
+    filename: string;
+    dirpath: string;
+    md5: string;
+  };
+
+  const resolveRunUrls = (
+    run: RunRow,
+    source: DownloadSource,
+  ): ResolvedEntry[] => {
+    const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
+    const sraMd5 = run.sra_md5 || "";
+
+    if (source === "fastq") {
       const ftps = run.fastq_ftp
         ? run.fastq_ftp.split(";").filter(Boolean)
         : [];
-      const dirpath = `${accession}/${run.experiment_accession || "unknown"}/${run.run_accession}`;
       if (ftps.length > 0) {
-        return ftps.map((ftp) => {
+        const md5s = run.fastq_md5
+          ? run.fastq_md5.split(";").filter(Boolean)
+          : [];
+        return ftps.map((ftp, i) => {
           const filename = ftp.split("/").pop() || ftp;
-          return { url: `https://${ftp}`, filename, dirpath };
+          return { url: `https://${ftp}`, filename, dirpath, md5: md5s[i] || "" };
         });
       }
-      // NCBI fallback: prefer SRA Normalized, then SRA Lite, then legacy
-      const ncbiUrl =
-        run.ncbi_sra_normalized_url ||
-        run.ncbi_sra_lite_url ||
-        run.ncbi_sra_url ||
-        run.ncbi_sra_url_aws;
-      if (ncbiUrl) {
-        const filename = ncbiUrl.split("/").pop() || run.run_accession;
-        return [{ url: ncbiUrl, filename, dirpath }];
+      // Fall through to best cloud URL if no FASTQ available
+      const fallback = getBestCloudUrl(run);
+      if (fallback) {
+        const filename = fallback.split("/").pop() || run.run_accession;
+        return [{ url: fallback, filename, dirpath, md5: sraMd5 }];
       }
       return [];
-    });
+    }
+
+    const urlMap: Record<Exclude<DownloadSource, "fastq">, string | null> = {
+      sra: run.ncbi_sra_normalized_url,
+      sra_lite: run.ncbi_sra_lite_url,
+      s3: run.ncbi_sra_lite_s3_url,
+      gcs: run.ncbi_sra_lite_gs_url,
+    };
+    const url = urlMap[source];
+    if (!url) return [];
+    const filename = url.split("/").pop() || run.run_accession;
+    return [{ url, filename, dirpath, md5: sraMd5 }];
+  };
+
+  const buildDownloadScript = (
+    runs: RunRow[],
+    source: DownloadSource = "fastq",
+  ) => {
+    const entries = runs.flatMap((run) => resolveRunUrls(run, source));
+    if (entries.length === 0) return "";
+
     const totalBytes = runs.reduce((sum, r) => {
       const bytes = r.fastq_bytes
         ? r.fastq_bytes.split(";").filter(Boolean)
         : [];
       return sum + bytes.reduce((s, b) => s + (parseInt(b, 10) || 0), 0);
     }, 0);
-    return [
+
+    type Entry = (typeof entries)[0];
+    let downloadCmd: (u: Entry) => string;
+    if (source === "s3") {
+      downloadCmd = (u) =>
+        `mkdir -p "${u.dirpath}" && aws s3 cp "${u.url}" "${u.dirpath}/${u.filename}"`;
+    } else if (source === "gcs") {
+      downloadCmd = (u) =>
+        `mkdir -p "${u.dirpath}" && gsutil cp "${u.url}" "${u.dirpath}/${u.filename}"`;
+    } else {
+      downloadCmd = (u) =>
+        `mkdir -p "${u.dirpath}" && wget -q --show-progress -O "${u.dirpath}/${u.filename}" "${u.url}"`;
+    }
+
+    const sourceLabel = DOWNLOAD_SOURCE_LABELS[source];
+    const checksums = entries
+      .filter((u) => u.md5)
+      .map((u) => `${u.md5}  ${u.dirpath}/${u.filename}`);
+
+    const lines = [
       "#!/usr/bin/env bash",
-      `# Download FASTQ files for ${accession}${selectedCount > 0 ? ` (${selectedCount} selected runs)` : ""}`,
-      `# ${runs.length} runs · ${formatBytes(totalBytes)}`,
+      `# Download ${sourceLabel.split(" (")[0]} for ${accession}${selectedCount > 0 ? ` (${selectedCount} selected runs)` : ""}`,
+      `# ${entries.length} files from ${runs.length} runs${totalBytes > 0 ? ` · ${formatBytes(totalBytes)}` : ""}`,
       "",
       "set -euo pipefail",
       "",
-      ...urls.map(
-        (u) =>
-          `mkdir -p "${u.dirpath}" && wget -q --show-progress -O "${u.dirpath}/${u.filename}" "${u.url}"`,
-      ),
+      ...entries.map(downloadCmd),
       "",
       `echo "Done. Files saved under ./${accession}/"`,
-      "",
-    ].join("\n");
-  };
+    ];
 
-  const copyScript = async () => {
-    await navigator.clipboard.writeText(scriptContent);
-    setScriptCopied(true);
-    setTimeout(() => setScriptCopied(false), 1500);
+    if (checksums.length > 0) {
+      lines.push(
+        "",
+        "# Verify checksums",
+        'echo "Verifying MD5 checksums..."',
+        "md5sum -c <<'MD5SUMS'",
+        ...checksums,
+        "MD5SUMS",
+      );
+    }
+
+    lines.push("");
+    return lines.join("\n");
   };
 
   const apiBase = SERVER_URL.startsWith("http")
@@ -511,10 +622,13 @@ function DownloadFastqSection({
     : typeof window !== "undefined"
       ? `${window.location.origin}${SERVER_URL}`
       : SERVER_URL;
-  const wgetCmd = `curl -sS "${apiBase}/project/${accession}/runs/download" | tail -n +2 | cut -f4 | xargs -P4 -I{} wget -q --show-progress -x -nH --cut-dirs=6 "{}"`;
+  // TSV columns: 1=run 2=exp 3=layout 4=fastq_url 5=fastq_bytes 6=fastq_md5
+  //   7=sra_lite_url 8=sra_lite_bytes 9=sra_url 10=sra_bytes 11=s3_url 12=gs_url 13=filename 14=directory_path
+  // awk picks best URL: fastq($4) → sra($9) → sra_lite($7) → s3($11)
+  const wgetCmd = `curl -sS "${apiBase}/project/${accession}/runs/download" | tail -n +2 | awk -F'\\t' '{u=$4; if(u=="") u=$9; if(u=="") u=$7; if(u=="") u=$11; if(u!="") print u}' | xargs -P4 -I{} wget -q --show-progress -x -nH --cut-dirs=6 "{}"`;
 
-  const copyCommand = async () => {
-    await navigator.clipboard.writeText(wgetCmd);
+  const copyCommand = () => {
+    copyToClipboard(wgetCmd);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -808,63 +922,41 @@ function DownloadFastqSection({
           <Button size="2" variant="surface" onClick={downloadTsv}>
             <DownloadIcon /> {downloadLabel} (TSV)
           </Button>
-          <Dialog.Root
-            onOpenChange={(open) => {
-              if (open) {
-                setScriptContent(buildDownloadScript(getDownloadRows()));
-                setScriptCopied(false);
-              }
+          <Select.Root
+            size="2"
+            value={selectedSource}
+            onValueChange={(v) => setSelectedSource(v as DownloadSource)}
+          >
+            <Select.Trigger variant="surface" />
+            <Select.Content>
+              {(
+                Object.keys(DOWNLOAD_SOURCE_LABELS) as DownloadSource[]
+              )
+                .filter((src) => availableSources.has(src))
+                .map((src) => (
+                  <Select.Item key={src} value={src}>
+                    {DOWNLOAD_SOURCE_LABELS[src]}
+                  </Select.Item>
+                ))}
+            </Select.Content>
+          </Select.Root>
+          <Button
+            size="2"
+            variant="surface"
+            onClick={() => {
+              const script = buildDownloadScript(
+                getDownloadRows(),
+                selectedSource,
+              );
+              if (!script) return;
+              copyToClipboard(script);
+              setScriptCopied(true);
+              setTimeout(() => setScriptCopied(false), 1500);
             }}
           >
-            <Dialog.Trigger>
-              <Button
-                size="2"
-                variant="surface"
-                onClick={() =>
-                  setScriptContent(buildDownloadScript(getDownloadRows()))
-                }
-              >
-                <FileTextIcon /> {downloadLabel}
-              </Button>
-            </Dialog.Trigger>
-            <Dialog.Content size="4">
-              <Dialog.Title>
-                <Flex align="center" justify="between">
-                  <Text>FASTQ download script</Text>
-                  <Button size="2" variant="soft" onClick={copyScript}>
-                    {scriptCopied ? <CheckIcon /> : <CopyIcon />}
-                    Copy
-                  </Button>
-                </Flex>
-              </Dialog.Title>
-
-              <div
-                style={{
-                  height: "300px",
-                  overflowY: "auto",
-                  overflowX: "auto",
-                  background: "var(--gray-a2)",
-                  borderRadius: "var(--radius-2)",
-                  border: "1px solid var(--gray-a5)",
-                  padding: "10px 12px",
-                }}
-              >
-                <code
-                  style={{
-                    display: "block",
-                    width: "max-content",
-                    minWidth: "100%",
-                    whiteSpace: "pre",
-                    fontFamily: "var(--code-font-family)",
-                    fontSize: "var(--font-size-1)",
-                    color: "var(--gray-12)",
-                  }}
-                >
-                  {scriptContent}
-                </code>
-              </div>
-            </Dialog.Content>
-          </Dialog.Root>
+            {scriptCopied ? <CheckIcon /> : <CopyIcon />}{" "}
+            {scriptCopied ? "Copied!" : "Copy script"}
+          </Button>
         </Flex>
       </Flex>
 
@@ -983,15 +1075,11 @@ export default function ProjectPage() {
 
   const publications = project?.publications ?? null;
 
-  const handleCopyAccession = async () => {
+  const handleCopyAccession = () => {
     if (!accession) return;
-    try {
-      await navigator.clipboard.writeText(accession);
-      setIsAccessionCopied(true);
-      window.setTimeout(() => setIsAccessionCopied(false), 1500);
-    } catch (error) {
-      console.error("Failed to copy accession:", error);
-    }
+    copyToClipboard(accession);
+    setIsAccessionCopied(true);
+    window.setTimeout(() => setIsAccessionCopied(false), 1500);
   };
 
   const attributeKeys = React.useMemo(() => {

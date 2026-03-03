@@ -14,6 +14,7 @@ import TextWithLineBreaks, {
   normalizeLineBreakText,
 } from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
+import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
 import {
   CheckIcon,
@@ -611,32 +612,24 @@ export default function GeoProjectPage() {
     enabled: !!accession,
   });
 
-  const handleCopyAccession = async () => {
+  const handleCopyAccession = () => {
     if (!accession) return;
-    try {
-      await navigator.clipboard.writeText(accession);
-      setIsAccessionCopied(true);
-      window.setTimeout(() => setIsAccessionCopied(false), 1500);
-    } catch (error) {
-      console.error("Failed to copy accession:", error);
-    }
+    copyToClipboard(accession);
+    setIsAccessionCopied(true);
+    window.setTimeout(() => setIsAccessionCopied(false), 1500);
   };
 
-  const handleCopySupplementaryCommand = async (
+  const handleCopySupplementaryCommand = (
     itemId: string,
     command: string,
   ) => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopiedSupplementaryId(itemId);
-      window.setTimeout(() => {
-        setCopiedSupplementaryId((current) =>
-          current === itemId ? null : current,
-        );
-      }, 1500);
-    } catch (error) {
-      console.error("Failed to copy supplementary command:", error);
-    }
+    copyToClipboard(command);
+    setCopiedSupplementaryId(itemId);
+    window.setTimeout(() => {
+      setCopiedSupplementaryId((current) =>
+        current === itemId ? null : current,
+      );
+    }, 1500);
   };
 
   const handleDownloadAllSupplementaryFiles = async (

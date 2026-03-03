@@ -1,5 +1,6 @@
 "use client";
 
+import { copyToClipboard } from "@/utils/clipboard";
 import { cleanJournalName } from "@/utils/format";
 import { SERVER_URL } from "@/utils/constants";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
@@ -92,21 +93,6 @@ function formatCellCitation(pub: StudyPublication): string {
   return parts.join(" ");
 }
 
-function copyToClipboard(text: string): boolean {
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).catch(() => {});
-    return true;
-  }
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  const ok = document.execCommand("copy");
-  document.body.removeChild(textarea);
-  return ok;
-}
 
 const copyBtnStyle: React.CSSProperties = {
   display: "inline-flex",
