@@ -15,7 +15,7 @@ export default function Wrapper({
   const queryClient = new QueryClient();
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute={"class"}>
+      <ThemeProvider attribute={"class"} defaultTheme="dark">
         <DynamicFavicon />
         <GlobalSearchShortcut />
         <SearchQueryProvider>

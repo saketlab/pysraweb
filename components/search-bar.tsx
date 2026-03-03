@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   },
   { label: "MCP", href: "/mcp" },
   { label: "Map", href: "/map" },
-  { label: "Saket Lab", href: "https://saketlab.in/", external: true },
+  { label: "Saket Lab", href: "https://saketlab.org", external: true },
   { label: "Contact", href: "mailto:saketc@iitb.ac.in", mailto: true },
   { label: "About", href: "/faq" },
 ];

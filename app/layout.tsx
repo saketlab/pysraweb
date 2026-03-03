@@ -1,3 +1,4 @@
+import Footer from "@/components/footer";
 import Wrapper from "@/components/wrapper";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
@@ -160,7 +161,10 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
-        <Wrapper>{children}</Wrapper>
+        <Wrapper>
+          {children}
+          <Footer />
+        </Wrapper>
       </body>
     </html>
   );

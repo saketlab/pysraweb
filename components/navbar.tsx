@@ -8,17 +8,14 @@ import GitHubButton from "./github-button";
 import ThemeToggle from "./theme-toggle";
 
 const NAV_ITEMS = [
+  { label: "About", href: "/faq" },
   {
     label: "CLI",
     href: "https://saket-choudhary.me/pysradb/index.html",
     external: true,
   },
-  { label: "MCP", href: "/mcp" },
   { label: "Map", href: "/map" },
-  // { label: "Paper", href: "#" },
-  { label: "Saket Lab", href: "https://saketlab.in/", external: true },
-  { label: "Contact", href: "mailto:saketc@iitb.ac.in", mailto: true },
-  { label: "About", href: "/faq" },
+  { label: "MCP", href: "/mcp" },
   { label: "Stats", href: "/stats" },
 ];
 
@@ -26,11 +23,6 @@ export default function Navabar() {
   const router = useRouter();
 
   const handleMenuSelect = (item: (typeof NAV_ITEMS)[number]) => {
-    if (item.mailto) {
-      window.location.assign(item.href);
-      return;
-    }
-
     if (item.external) {
       window.open(item.href, "_blank", "noopener,noreferrer");
       return;
@@ -90,7 +82,7 @@ export default function Navabar() {
                 )
               }
             >
-              Star on GitHub
+              GitHub
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>

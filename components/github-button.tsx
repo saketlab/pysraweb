@@ -1,12 +1,16 @@
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
-import { Button } from "@radix-ui/themes";
+import { IconButton } from "@radix-ui/themes";
 
 export default function GitHubButton() {
   return (
-    <Button variant="outline" asChild>
-      <a target="_blank" href="https://github.com/saketlab/seqout">
-        <GitHubLogoIcon /> Star on GitHub
+    <IconButton variant="ghost" size="3" asChild>
+      <a
+        target="_blank"
+        href="https://github.com/saketlab/seqout"
+        aria-label="GitHub"
+      >
+        <GitHubLogoIcon width={20} height={20} />
       </a>
-    </Button>
+    </IconButton>
   );
 }
