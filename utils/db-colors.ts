@@ -7,3 +7,13 @@ export const DB_COLORS: Record<string, string> = {
   sra_fastq_bytes: "#8b5cf6",
   sra_sra_bytes: "#6366f1",
 };
+
+/** Human-readable labels for database keys. */
+export const DB_LABELS: Record<string, string> = {
+  geo: "GEO",
+  sra: "SRA",
+  arrayexpress: "ArrayExpress",
+  ena: "ENA",
+  sra_fastq_bytes: "SRA (FASTQ)",
+  sra_sra_bytes: "SRA (SRA archive)",
+};

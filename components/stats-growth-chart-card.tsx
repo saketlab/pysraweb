@@ -1,7 +1,9 @@
 "use client";
 
 import { SERVER_URL } from "@/utils/constants";
-import { DB_COLORS } from "@/utils/db-colors";
+import { DB_COLORS, DB_LABELS } from "@/utils/db-colors";
+import { humanize, humanizeBytes } from "@/utils/format";
+import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import { Card, Flex, SegmentedControl, Skeleton, Text } from "@radix-ui/themes";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
@@ -24,16 +26,6 @@ interface GrowthResponse {
   series: Record<string, GrowthPoint[]>;
   took_ms: number;
 }
-
-const DB_LABELS: Record<string, string> = {
-  geo: "GEO",
-  sra: "SRA",
-  arrayexpress: "ArrayExpress",
-  ena: "ENA",
-  sra_fastq_bytes: "SRA (FASTQ)",
-  sra_sra_bytes: "SRA (SRA archive)",
-};
-
 
 const DB_ORDER: Record<Mode, string[]> = {
   projects: ["geo", "sra", "arrayexpress", "ena"],
@@ -107,7 +99,9 @@ export default function StatsGrowthChartCard() {
   const chartOptions = useMemo<ApexOptions>(
     () => ({
       chart: {
+        id: "seqout-db-growth",
         type: view === "cumulative" ? "area" : "line",
+        background: isDark ? "#111113" : "#ffffff",
         toolbar: {
           show: true,
           tools: {
@@ -119,10 +113,34 @@ export default function StatsGrowthChartCard() {
             pan: true,
             reset: true,
           },
+          export: {
+            png: { filename: `seqout-database-growth-${mode}-${view}` },
+            svg: { filename: `seqout-database-growth-${mode}-${view}` },
+          },
         },
         foreColor: isDark ? "#a1a1aa" : "#71717a",
         zoom: { enabled: true },
         animations: { enabled: false },
+        events: chartFooterEvents,
+      },
+      title: {
+        text: `Database Growth — ${mode === "bases" ? "Data Volume" : mode === "projects" ? "Projects" : "Experiments"}`,
+        align: "left",
+        style: {
+          fontSize: "16px",
+          fontWeight: "600",
+          fontFamily: "system-ui, sans-serif",
+          color: isDark ? "#fafafa" : "#000000",
+        },
+      },
+      subtitle: {
+        text: `${view === "cumulative" ? "Cumulative" : "Monthly"} counts across GEO, SRA, ArrayExpress & ENA`,
+        align: "left",
+        style: {
+          fontSize: "12px",
+          fontFamily: "system-ui, sans-serif",
+          color: isDark ? "#a1a1aa" : "#555555",
+        },
       },
       stroke: {
         curve: "smooth",
@@ -142,10 +160,7 @@ export default function StatsGrowthChartCard() {
           datetimeUTC: false,
           formatter: (_value, timestamp) => {
             if (timestamp == null) return "";
-            const d = new Date(timestamp);
-            const mo = d.getMonth(); // 0=Jan, 6=Jul
-            const yr = d.getFullYear();
-            return `Jan ${yr}`;
+            return `Jan ${new Date(timestamp).getFullYear()}`;
           },
           rotate: -45,
           rotateAlways: false,
@@ -180,6 +195,7 @@ export default function StatsGrowthChartCard() {
       grid: {
         strokeDashArray: 4,
         borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        padding: { bottom: 16 },
       },
       tooltip: {
         theme: isDark ? "dark" : "light",
@@ -250,39 +266,17 @@ export default function StatsGrowthChartCard() {
           <Skeleton width="100%" height="300px" />
         </Flex>
       ) : (
-        <Chart
-          type={view === "cumulative" ? "area" : "line"}
-          options={chartOptions}
-          series={chartSeries}
-          height={400}
-          width="100%"
-        />
+        <>
+          <Chart
+            type={view === "cumulative" ? "area" : "line"}
+            options={chartOptions}
+            series={chartSeries}
+            height={400}
+            width="100%"
+          />
+          <ChartFooter chartId="seqout-db-growth" />
+        </>
       )}
     </Card>
   );
-}
-
-function humanize(value: number): string {
-  if (value >= 1_000_000_000)
-    return `${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
-  if (value >= 1_000_000)
-    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (value >= 1_000)
-    return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  return `${value}`;
-}
-
-const EB = 1e18;
-const PB = 1e15;
-const TB = 1e12;
-const GB = 1e9;
-const MB = 1e6;
-
-function humanizeBytes(value: number): string {
-  if (value >= EB) return `${(value / EB).toFixed(1).replace(/\.0$/, "")} EB`;
-  if (value >= PB) return `${(value / PB).toFixed(1).replace(/\.0$/, "")} PB`;
-  if (value >= TB) return `${(value / TB).toFixed(1).replace(/\.0$/, "")} TB`;
-  if (value >= GB) return `${(value / GB).toFixed(1).replace(/\.0$/, "")} GB`;
-  if (value >= MB) return `${(value / MB).toFixed(1).replace(/\.0$/, "")} MB`;
-  return `${value}`;
 }

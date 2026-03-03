@@ -1,6 +1,8 @@
 "use client";
 
+import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import { DB_COLORS } from "@/utils/db-colors";
+import { humanize } from "@/utils/format";
 import { Card, Flex, SegmentedControl, Text } from "@radix-ui/themes";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
@@ -18,19 +20,6 @@ const COUNTS: Record<Metric, number[]> = {
   Samples: [39381658, 8183901, 4144991, 35585152],
 };
 
-function humanizeCount(value: number): string {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
-  }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  }
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  }
-  return `${value}`;
-}
-
 export default function StatsSourceHistogramCard() {
   const [metric, setMetric] = useState<Metric>("Projects");
   const { resolvedTheme } = useTheme();
@@ -39,9 +28,31 @@ export default function StatsSourceHistogramCard() {
   const chartOptions = useMemo<ApexOptions>(
     () => ({
       chart: {
+        id: "seqout-source-dist",
         type: "bar",
+        background: isDark ? "#111113" : "#ffffff",
         toolbar: { show: false },
         foreColor: isDark ? "#a1a1aa" : "#71717a",
+        events: chartFooterEvents,
+      },
+      title: {
+        text: `Source Distribution — ${metric}`,
+        align: "left",
+        style: {
+          fontSize: "16px",
+          fontWeight: "600",
+          fontFamily: "system-ui, sans-serif",
+          color: isDark ? "#fafafa" : "#000000",
+        },
+      },
+      subtitle: {
+        text: `Total ${metric.toLowerCase()} across SRA, GEO, ArrayExpress & ENA`,
+        align: "left",
+        style: {
+          fontSize: "12px",
+          fontFamily: "system-ui, sans-serif",
+          color: isDark ? "#a1a1aa" : "#555555",
+        },
       },
       xaxis: {
         categories: SOURCES,
@@ -52,7 +63,7 @@ export default function StatsSourceHistogramCard() {
       },
       dataLabels: {
         enabled: true,
-        formatter: (value) => humanizeCount(Number(value)),
+        formatter: (value) => humanize(Number(value)),
         offsetY: -20,
         style: {
           fontSize: "12px",
@@ -76,6 +87,7 @@ export default function StatsSourceHistogramCard() {
       grid: {
         strokeDashArray: 4,
         borderColor: isDark ? "#3f3f46" : "#e4e4e7",
+        padding: { bottom: 16 },
       },
       tooltip: {
         theme: isDark ? "dark" : "light",
@@ -121,6 +133,7 @@ export default function StatsSourceHistogramCard() {
         height={360}
         width="100%"
       />
+      <ChartFooter chartId="seqout-source-dist" />
     </Card>
   );
 }
