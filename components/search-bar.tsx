@@ -4,7 +4,16 @@ import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
 import { useSearchQuery } from "@/context/search_query";
 import { useSearchHistory } from "@/utils/useSearchHistory";
-import { HamburgerMenuIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import {
+  BarChartIcon,
+  GitHubLogoIcon,
+  HamburgerMenuIcon,
+  InfoCircledIcon,
+  KeyboardIcon,
+  MagicWandIcon,
+  MagnifyingGlassIcon,
+  PinTopIcon,
+} from "@radix-ui/react-icons";
 import {
   Box,
   DropdownMenu,
@@ -23,16 +32,16 @@ interface SearchBarProps {
 }
 
 const NAV_ITEMS = [
+  { label: "About", href: "/faq", icon: <InfoCircledIcon /> },
   {
     label: "CLI",
     href: "https://saket-choudhary.me/pysradb/index.html",
     external: true,
+    icon: <KeyboardIcon />,
   },
-  { label: "MCP", href: "/mcp" },
-  { label: "Map", href: "/map" },
-  { label: "Saket Lab", href: "https://saketlab.org", external: true },
-  { label: "Contact", href: "mailto:saketc@iitb.ac.in", mailto: true },
-  { label: "About", href: "/faq" },
+  { label: "Map", href: "/map", icon: <PinTopIcon /> },
+  { label: "MCP", href: "/mcp", icon: <MagicWandIcon /> },
+  { label: "Stats", href: "/stats", icon: <BarChartIcon /> },
 ];
 
 export default function SearchBar({ initialQuery }: SearchBarProps) {
@@ -60,11 +69,6 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
   const currentDb = searchParams.get("db");
 
   const handleMenuSelect = (item: (typeof NAV_ITEMS)[number]) => {
-    if (item.mailto) {
-      window.location.assign(item.href);
-      return;
-    }
-
     if (item.external) {
       window.open(item.href, "_blank", "noopener,noreferrer");
       return;
@@ -144,15 +148,27 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
               <HamburgerMenuIcon width={20} height={20} />
             </IconButton>
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="start">
+          <DropdownMenu.Content align="start" style={{ minWidth: "8rem" }}>
             {NAV_ITEMS.map((item) => (
               <DropdownMenu.Item
                 key={item.label}
                 onSelect={() => handleMenuSelect(item)}
               >
-                {item.label}
+                {item.icon} {item.label}
               </DropdownMenu.Item>
             ))}
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              onSelect={() =>
+                window.open(
+                  "https://github.com/saketlab/seqout",
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+            >
+              <GitHubLogoIcon /> GitHub
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </Box>
