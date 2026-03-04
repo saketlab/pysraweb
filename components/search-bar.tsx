@@ -181,7 +181,7 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
       >
         <Link href="/" style={{ textDecoration: "none" }}>
           <Box
-            width={{ initial: "10rem", md: "11rem" }}
+            width="10rem"
             style={{
               position: "relative",
               aspectRatio: "794/186",
