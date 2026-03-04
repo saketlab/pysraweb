@@ -47,7 +47,7 @@ export default function HeroSearchBar() {
     : [];
 
   return (
-    <Box width={{ initial: "85%", md: "50%" }}>
+    <Box width={{ initial: "92%", md: "50%" }}>
       <Flex direction={"column"} gap={"4"}>
         <form onSubmit={handleSubmit}>
           <TextField.Root
