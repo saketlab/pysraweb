@@ -1132,6 +1132,13 @@ export default function ProjectPage() {
     });
   }, [experiments, samplesMap]);
 
+  const experimentsGridHeight = React.useMemo(() => {
+    const headerHeight = 48;
+    const rowHeight = 42;
+    const maxHeight = 500;
+    return Math.min(maxHeight, headerHeight + experimentRows.length * rowHeight);
+  }, [experimentRows.length]);
+
   const experimentsGridDefaultColDef = React.useMemo<ColDef<ExperimentGridRow>>(
     () => ({
       filter: true,
@@ -1647,7 +1654,7 @@ export default function ProjectPage() {
                 experiments.length > 0 && (
                   <div
                     className={agGridThemeClassName}
-                    style={{ width: "100%", height: "500px" }}
+                    style={{ width: "100%", height: `${experimentsGridHeight}px` }}
                   >
                     <AgGridReact<ExperimentGridRow>
                       columnDefs={experimentColumnDefs}
