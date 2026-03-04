@@ -24,7 +24,9 @@ export default function ResultCard({
   citation_count,
 }: ResultCardProps) {
   const router = useRouter();
-  const isArrayExpressAccession = accesssion.toUpperCase().startsWith("E-");
+  const accessionUpper = accesssion.toUpperCase();
+  const isArrayExpressAccession = accessionUpper.startsWith("E-");
+  const isPrjAccession = accessionUpper.startsWith("PRJ");
 
   const handleClick = () => {
     router.push(getProjectShortUrl(accesssion));
@@ -48,13 +50,20 @@ export default function ResultCard({
           <Badge
             size={"2"}
             color={
-              isArrayExpressAccession
-                ? "gold"
-                : accesssion.startsWith("G")
-                  ? undefined
-                  : "brown"
+              isPrjAccession
+                ? undefined
+                : isArrayExpressAccession
+                  ? "gold"
+                  : accessionUpper.startsWith("G")
+                    ? undefined
+                    : "brown"
             }
-            variant={isArrayExpressAccession ? "solid" : undefined}
+            variant={isArrayExpressAccession || isPrjAccession ? "solid" : undefined}
+            style={
+              isPrjAccession
+                ? { backgroundColor: "#6bb4b5", color: "white" }
+                : undefined
+            }
           >
             {accesssion}
           </Badge>
