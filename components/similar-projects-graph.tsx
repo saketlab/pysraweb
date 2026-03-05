@@ -13,6 +13,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type SimilarNeighbor = {
@@ -677,7 +678,7 @@ export default function SimilarProjectsGraph({
               }}
             >
               <Table.Row>
-                <Table.ColumnHeaderCell style={{ width: "20%" }}>
+                <Table.ColumnHeaderCell style={{ width: "10%" }}>
                   <Text size="2" weight="medium">
                     Accession
                   </Text>
@@ -700,7 +701,14 @@ export default function SimilarProjectsGraph({
                   <Table.Cell
                     style={{ verticalAlign: "top", wordBreak: "break-word" }}
                   >
-                    <Text size="2">{row.accession}</Text>
+                    <Text size="2">
+                      <Link
+                        target="_blank"
+                        href={`/p/${encodeURIComponent(row.accession)}`}
+                      >
+                        {row.accession}
+                      </Link>
+                    </Text>
                   </Table.Cell>
                   <Table.Cell
                     style={{ verticalAlign: "top", wordBreak: "break-word" }}
