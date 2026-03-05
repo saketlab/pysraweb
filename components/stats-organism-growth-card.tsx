@@ -1,10 +1,10 @@
 "use client";
 
+import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import { SERVER_URL } from "@/utils/constants";
 import { DB_COLORS, DB_LABELS } from "@/utils/db-colors";
 import { humanize } from "@/utils/format";
 import { fetchJsonWithIndexedDbCache } from "@/utils/indexeddb-cache";
-import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import {
   Card,
@@ -16,11 +16,11 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { ApexOptions } from "apexcharts";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -75,9 +75,7 @@ async function fetchOrganismTotals(): Promise<OrganismTotalsResponse> {
   );
 }
 
-async function fetchOrganismSearch(
-  q: string,
-): Promise<OrganismSearchResponse> {
+async function fetchOrganismSearch(q: string): Promise<OrganismSearchResponse> {
   return fetchJsonWithIndexedDbCache<OrganismSearchResponse>(
     `${SERVER_URL}/stats/organism-search?q=${encodeURIComponent(q)}&limit=20`,
   );
@@ -191,8 +189,12 @@ export default function StatsOrganismGrowthCard() {
             reset: true,
           },
           export: {
-            png: { filename: `seqout-organism-growth-${selectedOrganism.replace(/\s+/g, "-").toLowerCase()}` },
-            svg: { filename: `seqout-organism-growth-${selectedOrganism.replace(/\s+/g, "-").toLowerCase()}` },
+            png: {
+              filename: `seqout-organism-growth-${selectedOrganism.replace(/\s+/g, "-").toLowerCase()}`,
+            },
+            svg: {
+              filename: `seqout-organism-growth-${selectedOrganism.replace(/\s+/g, "-").toLowerCase()}`,
+            },
           },
         },
         foreColor: isDark ? "#a1a1aa" : "#71717a",
@@ -257,9 +259,7 @@ export default function StatsOrganismGrowthCard() {
         },
         title: {
           text:
-            mode === "percentage"
-              ? "% of total experiments"
-              : "Experiments",
+            mode === "percentage" ? "% of total experiments" : "Experiments",
         },
       },
       dataLabels: { enabled: false },
@@ -286,10 +286,22 @@ export default function StatsOrganismGrowthCard() {
         },
       },
     }),
-    [mode, view, logScale, isDark, xaxisTicks, selectedOrganism, selectedCommonName],
+    [
+      mode,
+      view,
+      logScale,
+      isDark,
+      xaxisTicks,
+      selectedOrganism,
+      selectedCommonName,
+    ],
   );
 
-  const formatLabel = (o: { organism: string; common_name: string | null; total: number }) =>
+  const formatLabel = (o: {
+    organism: string;
+    common_name: string | null;
+    total: number;
+  }) =>
     o.common_name
       ? `${o.organism} (${o.common_name}) - ${humanize(o.total)}`
       : `${o.organism} - ${humanize(o.total)}`;
@@ -317,150 +329,157 @@ export default function StatsOrganismGrowthCard() {
 
   return (
     <Card style={{ width: "100%" }}>
-      <Flex justify="between" align="center" mb="4" gap="3" wrap="wrap">
+      <Flex direction="column" mb="4" gap="3">
         <Text size="5" weight="bold" ml="1">
           Organism growth
         </Text>
-        <Flex gap="3" align="center" wrap="wrap">
-          {!totalsLoading && defaultItems.length > 0 && (
-            <Popover.Root
-              open={organismOpen}
-              onOpenChange={(open) => {
-                setOrganismOpen(open);
-                if (!open) {
-                  setOrganismQuery("");
-                  setDebouncedQuery("");
-                }
-              }}
-            >
-              <Popover.Trigger>
-                <button
-                  type="button"
-                  style={{
-                    minWidth: 220,
-                    maxWidth: 350,
-                    padding: "4px 12px",
-                    borderRadius: "var(--radius-2)",
-                    border: "1px solid var(--gray-a7)",
-                    background: "var(--color-surface)",
-                    color: "var(--gray-12)",
-                    fontSize: "var(--font-size-1)",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {selectedOrganism || "Select organism"}
-                </button>
-              </Popover.Trigger>
-              <Popover.Content
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                style={{ width: 320, padding: 0 }}
-                onOpenAutoFocus={(e) => {
-                  e.preventDefault();
-                  searchInputRef.current?.focus();
+        <Flex justify="between" align="center" gap="3" wrap="wrap">
+          <Flex align="center">
+            {!totalsLoading && defaultItems.length > 0 && (
+              <Popover.Root
+                open={organismOpen}
+                onOpenChange={(open) => {
+                  setOrganismOpen(open);
+                  if (!open) {
+                    setOrganismQuery("");
+                    setDebouncedQuery("");
+                  }
                 }}
               >
-                <Flex direction="column" gap="2" p="2">
-                  <TextField.Root
-                    ref={searchInputRef}
-                    value={organismQuery}
-                    onChange={(e) => setOrganismQuery(e.target.value)}
-                    placeholder="Search organisms..."
-                    size="2"
+                <Popover.Trigger>
+                  <button
+                    type="button"
+                    style={{
+                      minWidth: 220,
+                      maxWidth: 350,
+                      padding: "4px 12px",
+                      borderRadius: "var(--radius-2)",
+                      border: "1px solid var(--gray-a7)",
+                      background: "var(--color-surface)",
+                      color: "var(--gray-12)",
+                      fontSize: "var(--font-size-1)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
                   >
-                    <TextField.Slot>
-                      <MagnifyingGlassIcon height="16" width="16" />
-                    </TextField.Slot>
-                  </TextField.Root>
-                  <ScrollArea
-                    style={{ maxHeight: 240 }}
-                    scrollbars="vertical"
-                  >
-                    <Flex direction="column">
-                      {isSearching ? (
-                        <Text size="2" color="gray" style={{ padding: "6px 8px" }}>
-                          Searching...
-                        </Text>
-                      ) : displayItems.length > 0 ? (
-                        displayItems.map((item) => (
-                          <button
-                            type="button"
-                            key={item.value}
-                            onClick={() => {
-                              setOrganism(item.value);
-                              setCommonName(item.commonName);
-                              setOrganismOpen(false);
-                              setOrganismQuery("");
-                              setDebouncedQuery("");
-                            }}
-                            style={{
-                              padding: "6px 8px",
-                              borderRadius: "var(--radius-1)",
-                              border: "none",
-                              background:
-                                item.value === selectedOrganism
-                                  ? "var(--accent-a4)"
-                                  : "transparent",
-                              color: "var(--gray-12)",
-                              fontSize: "var(--font-size-1)",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              width: "100%",
-                            }}
+                    {selectedOrganism || "Select organism"}
+                  </button>
+                </Popover.Trigger>
+                <Popover.Content
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  style={{ width: 320, padding: 0 }}
+                  onOpenAutoFocus={(e) => {
+                    e.preventDefault();
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  <Flex direction="column" gap="2" p="2">
+                    <TextField.Root
+                      ref={searchInputRef}
+                      value={organismQuery}
+                      onChange={(e) => setOrganismQuery(e.target.value)}
+                      placeholder="Search organisms"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    <ScrollArea style={{ maxHeight: 240 }} scrollbars="vertical">
+                      <Flex direction="column">
+                        {isSearching ? (
+                          <Text
+                            size="2"
+                            color="gray"
+                            style={{ padding: "6px 8px" }}
                           >
-                            {item.label}
-                          </button>
-                        ))
-                      ) : (
-                        <Text size="2" color="gray" style={{ padding: "6px 8px" }}>
-                          No organisms found.
-                        </Text>
-                      )}
-                    </Flex>
-                  </ScrollArea>
-                </Flex>
-              </Popover.Content>
-            </Popover.Root>
-          )}
-          <SegmentedControl.Root
-            value={logScale ? "log" : "linear"}
-            onValueChange={(v) => setLogScale(v === "log")}
-            size="1"
-          >
-            <SegmentedControl.Item value="linear">
-              Linear
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="log">Log</SegmentedControl.Item>
-          </SegmentedControl.Root>
-          <SegmentedControl.Root
-            value={view}
-            onValueChange={(v) => setView(v as View)}
-            size="1"
-          >
-            <SegmentedControl.Item value="cumulative">
-              Cumulative
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="monthly">
-              Monthly
-            </SegmentedControl.Item>
-          </SegmentedControl.Root>
-          <SegmentedControl.Root
-            value={mode}
-            onValueChange={(v) => setMode(v as Mode)}
-            size="1"
-          >
-            <SegmentedControl.Item value="absolute">
-              Absolute
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="percentage">
-              Percentage
-            </SegmentedControl.Item>
-          </SegmentedControl.Root>
+                            Searching...
+                          </Text>
+                        ) : displayItems.length > 0 ? (
+                          displayItems.map((item) => (
+                            <button
+                              type="button"
+                              key={item.value}
+                              onClick={() => {
+                                setOrganism(item.value);
+                                setCommonName(item.commonName);
+                                setOrganismOpen(false);
+                                setOrganismQuery("");
+                                setDebouncedQuery("");
+                              }}
+                              style={{
+                                padding: "6px 8px",
+                                borderRadius: "var(--radius-1)",
+                                border: "none",
+                                background:
+                                  item.value === selectedOrganism
+                                    ? "var(--accent-a4)"
+                                    : "transparent",
+                                color: "var(--gray-12)",
+                                fontSize: "var(--font-size-1)",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                width: "100%",
+                              }}
+                            >
+                              {item.label}
+                            </button>
+                          ))
+                        ) : (
+                          <Text
+                            size="2"
+                            color="gray"
+                            style={{ padding: "6px 8px" }}
+                          >
+                            No organisms found.
+                          </Text>
+                        )}
+                      </Flex>
+                    </ScrollArea>
+                  </Flex>
+                </Popover.Content>
+              </Popover.Root>
+            )}
+          </Flex>
+          <Flex gap="3" align="center" wrap="wrap">
+            <SegmentedControl.Root
+              value={logScale ? "log" : "linear"}
+              onValueChange={(v) => setLogScale(v === "log")}
+              size="1"
+            >
+              <SegmentedControl.Item value="linear">Linear</SegmentedControl.Item>
+              <SegmentedControl.Item value="log">Log</SegmentedControl.Item>
+            </SegmentedControl.Root>
+            <SegmentedControl.Root
+              value={view}
+              onValueChange={(v) => setView(v as View)}
+              size="1"
+            >
+              <SegmentedControl.Item value="cumulative">
+                Cumulative
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="monthly">
+                Monthly
+              </SegmentedControl.Item>
+            </SegmentedControl.Root>
+            <SegmentedControl.Root
+              value={mode}
+              onValueChange={(v) => setMode(v as Mode)}
+              size="1"
+            >
+              <SegmentedControl.Item value="absolute">
+                Absolute
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="percentage">
+                Percentage
+              </SegmentedControl.Item>
+            </SegmentedControl.Root>
+          </Flex>
         </Flex>
       </Flex>
       {growthLoading || totalsLoading ? (
