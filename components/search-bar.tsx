@@ -25,7 +25,7 @@ import {
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 interface SearchBarProps {
   initialQuery?: string | null;
@@ -56,10 +56,14 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
   const { lastSearchQuery, setLastSearchQuery } = useSearchQuery();
   const resolvedQuery = (initialQuery ?? "") || lastSearchQuery;
   const [searchQuery, setSearchQuery] = useState(resolvedQuery);
+  const [suggestionFilterQuery, setSuggestionFilterQuery] =
+    useState(resolvedQuery);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setSearchQuery(resolvedQuery);
+    setSuggestionFilterQuery(resolvedQuery);
   }, [resolvedQuery]);
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -98,7 +102,7 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
   };
 
   // Filter history based on query - only show if query has text
-  const trimmedQuery = searchQuery.trim();
+  const trimmedQuery = suggestionFilterQuery.trim();
   const filteredHistory = trimmedQuery
     ? history
         .filter((h: string) => {
@@ -208,8 +212,17 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
             <TextField.Root
               size={"3"}
               data-global-search-target="true"
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setIsFocused(true)}
+              ref={inputRef}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSuggestionFilterQuery(e.target.value);
+                setActiveIndex(-1);
+              }}
+              onFocus={() => {
+                setIsFocused(true);
+                setSuggestionFilterQuery(searchQuery);
+                setActiveIndex(-1);
+              }}
               onBlur={() => setIsFocused(false)}
               onKeyDown={(e) => {
                 if (!isFocused || filteredHistory.length === 0) return;
@@ -217,17 +230,35 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
                   setActiveIndex((prev) => {
-                    if (prev === -1) return 0;
-                    return (prev + 1) % filteredHistory.length;
+                    const nextIndex =
+                      prev === -1 ? 0 : (prev + 1) % filteredHistory.length;
+                    const nextItem = filteredHistory[nextIndex];
+                    setSearchQuery(nextItem);
+                    requestAnimationFrame(() => {
+                      const input = inputRef.current;
+                      if (!input) return;
+                      const pos = nextItem.length;
+                      input.setSelectionRange(pos, pos);
+                    });
+                    return nextIndex;
                   });
                 } else if (e.key === "ArrowUp") {
                   e.preventDefault();
                   setActiveIndex((prev) => {
-                    if (prev === -1) return filteredHistory.length - 1;
-                    return (
-                      (prev - 1 + filteredHistory.length) %
-                      filteredHistory.length
-                    );
+                    const nextIndex =
+                      prev === -1
+                        ? filteredHistory.length - 1
+                        : (prev - 1 + filteredHistory.length) %
+                          filteredHistory.length;
+                    const nextItem = filteredHistory[nextIndex];
+                    setSearchQuery(nextItem);
+                    requestAnimationFrame(() => {
+                      const input = inputRef.current;
+                      if (!input) return;
+                      const pos = nextItem.length;
+                      input.setSelectionRange(pos, pos);
+                    });
+                    return nextIndex;
                   });
                 } else if (e.key === "Enter") {
                   if (activeIndex >= 0) {

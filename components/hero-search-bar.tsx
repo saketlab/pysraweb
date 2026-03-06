@@ -5,13 +5,15 @@ import { useSearchHistory } from "@/utils/useSearchHistory";
 import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { Box, Flex, TextField } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 
 export default function HeroSearchBar() {
   const { setLastSearchQuery } = useSearchQuery();
   const [query, setQuery] = useState("");
+  const [suggestionFilterQuery, setSuggestionFilterQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
 
@@ -34,7 +36,7 @@ export default function HeroSearchBar() {
   };
 
   // Filter history based on query - only show if query has text
-  const trimmedQuery = query.trim();
+  const trimmedQuery = suggestionFilterQuery.trim();
   const filteredHistory = trimmedQuery
     ? history
         .filter((h) => {
@@ -55,12 +57,15 @@ export default function HeroSearchBar() {
             data-global-search-target="true"
             size="3"
             value={query}
+            ref={inputRef}
             onChange={(e) => {
               setQuery(e.target.value);
+              setSuggestionFilterQuery(e.target.value);
               setActiveIndex(-1);
             }}
             onFocus={() => {
               setIsFocused(true);
+              setSuggestionFilterQuery(query);
               setActiveIndex(-1);
             }}
             onBlur={() => {
@@ -73,15 +78,35 @@ export default function HeroSearchBar() {
               if (e.key === "ArrowDown") {
                 e.preventDefault();
                 setActiveIndex((prev) => {
-                  if (prev === -1) return 0;
-                  return (prev + 1) % filteredHistory.length;
+                  const nextIndex =
+                    prev === -1 ? 0 : (prev + 1) % filteredHistory.length;
+                  const nextItem = filteredHistory[nextIndex];
+                  setQuery(nextItem);
+                  requestAnimationFrame(() => {
+                    const input = inputRef.current;
+                    if (!input) return;
+                    const pos = nextItem.length;
+                    input.setSelectionRange(pos, pos);
+                  });
+                  return nextIndex;
                 });
               } else if (e.key === "ArrowUp") {
                 e.preventDefault();
                 setActiveIndex((prev) => {
-                  if (prev === -1) return filteredHistory.length - 1;
-                  return (prev - 1 + filteredHistory.length) %
-                    filteredHistory.length;
+                  const nextIndex =
+                    prev === -1
+                      ? filteredHistory.length - 1
+                      : (prev - 1 + filteredHistory.length) %
+                        filteredHistory.length;
+                  const nextItem = filteredHistory[nextIndex];
+                  setQuery(nextItem);
+                  requestAnimationFrame(() => {
+                    const input = inputRef.current;
+                    if (!input) return;
+                    const pos = nextItem.length;
+                    input.setSelectionRange(pos, pos);
+                  });
+                  return nextIndex;
                 });
               } else if (e.key === "Enter") {
                 if (activeIndex >= 0) {
