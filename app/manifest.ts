@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "seqout - Search GEO, SRA, ENA & ArrayExpress Datasets",
+    name: "seqout",
     short_name: "seqout",
     description:
       "Fast exploration of GEO, SRA, ENA & ArrayExpress sequencing datasets with unified metadata views.",
