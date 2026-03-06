@@ -10,6 +10,7 @@ import SimilarProjectsGraph, {
 import SubmittingOrgPanel, {
   CenterInfo,
 } from "@/components/submitting-org-panel";
+import EnrichedMetadataCard from "@/components/enriched-metadata-card";
 import TextWithLineBreaks, {
   normalizeLineBreakText,
 } from "@/components/text-with-line-breaks";
@@ -1469,6 +1470,8 @@ export default function GeoProjectPage() {
                 </div>
               )}
             </Flex>
+
+            <EnrichedMetadataCard accession={accession} />
 
             <Text weight="medium" size="6">
               Linked publications

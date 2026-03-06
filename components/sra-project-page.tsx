@@ -10,6 +10,7 @@ import SimilarProjectsGraph, {
 import SubmittingOrgPanel, {
   CenterInfo,
 } from "@/components/submitting-org-panel";
+import EnrichedMetadataCard from "@/components/enriched-metadata-card";
 import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { copyToClipboard } from "@/utils/clipboard";
@@ -1666,6 +1667,8 @@ export default function ProjectPage() {
                   </div>
                 )}
             </Flex>
+            <EnrichedMetadataCard accession={accession} />
+
             <Text weight="medium" size="6">
               Linked publications
             </Text>
