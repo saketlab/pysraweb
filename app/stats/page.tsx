@@ -1,4 +1,5 @@
 import SearchBar from "@/components/search-bar";
+import StatsGlobalContributionsCard from "@/components/stats-global-contributions-card";
 import StatsGrowthChartCard from "@/components/stats-growth-chart-card";
 import StatsOrganismGrowthCard from "@/components/stats-organism-growth-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
@@ -37,6 +38,7 @@ export default function StatsPage() {
         <StatsSourceHistogramCard />
         <StatsGrowthChartCard />
         <StatsOrganismGrowthCard />
+        <StatsGlobalContributionsCard />
       </Flex>
     </>
   );

@@ -4,7 +4,7 @@ import { CheckIcon, CopyIcon, DownloadIcon } from "@radix-ui/react-icons";
 import { Flex, Popover, Separator, Text, Tooltip } from "@radix-ui/themes";
 import { useCallback, useRef, useState } from "react";
 
-const FOOTER_TEXT = "Source: seqout.org  ·  CC-BY seqout.org team";
+export const FOOTER_TEXT = "Source: seqout.org  ·  CC-BY seqout.org";
 const FOOTER_CLASS = "seqout-chart-footer";
 
 function injectFooterText(chartContext: { el?: HTMLElement }) {
@@ -43,49 +43,65 @@ const popoverButtonStyle: React.CSSProperties = {
   textAlign: "left",
 };
 
-interface ChartFooterProps {
-  chartId: string;
+const copyButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "3px 10px",
+  borderRadius: "var(--radius-2)",
+  border: "1px solid var(--gray-a7)",
+  background: "var(--gray-a3)",
+  color: "var(--gray-11)",
+  fontSize: "var(--font-size-1)",
+  fontWeight: 500,
+  cursor: "pointer",
+  lineHeight: 1,
+};
+
+const downloadButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "3px 10px",
+  borderRadius: "var(--radius-2)",
+  border: "1px solid var(--accent-a7)",
+  background: "var(--accent-a3)",
+  color: "var(--accent-11)",
+  fontSize: "var(--font-size-1)",
+  fontWeight: 500,
+  cursor: "pointer",
+  lineHeight: 1,
+};
+
+interface ExportFooterProps {
+  onCopy: () => Promise<void>;
+  onDownload: (format: string) => void;
+  downloadFormats?: string[];
+  downloadLabel?: string;
 }
 
-export default function ChartFooter({ chartId }: ChartFooterProps) {
-  const [open, setOpen] = useState(false);
+export function ExportFooter({
+  onCopy,
+  onDownload,
+  downloadFormats,
+  downloadLabel,
+}: ExportFooterProps) {
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const download = useCallback(
-    async (format: "png" | "svg") => {
-      setOpen(false);
-      const ApexCharts = (await import("apexcharts")).default;
-      if (format === "png") {
-        ApexCharts.exec(chartId, "dataURI", { scale: 3 }).then(
-          ({ imgURI }: { imgURI: string }) => {
-            const a = document.createElement("a");
-            a.href = imgURI;
-            a.download = `${chartId}.png`;
-            a.click();
-          },
-        );
-      } else {
-        ApexCharts.exec(chartId, "exportToSVG");
-      }
-    },
-    [chartId],
-  );
+  const handleCopy = useCallback(async () => {
+    try {
+      await onCopy();
+      setCopied(true);
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error("Copy failed:", e);
+    }
+  }, [onCopy]);
 
-  const copyToClipboard = useCallback(async () => {
-    const ApexCharts = (await import("apexcharts")).default;
-    const { imgURI } = (await ApexCharts.exec(chartId, "dataURI", {
-      scale: 3,
-    })) as { imgURI: string };
-    const res = await fetch(imgURI);
-    const blob = await res.blob();
-    await navigator.clipboard.write([
-      new ClipboardItem({ "image/png": blob }),
-    ]);
-    setCopied(true);
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
-  }, [chartId]);
+  const hasMultipleFormats = downloadFormats && downloadFormats.length > 1;
 
   return (
     <>
@@ -112,27 +128,10 @@ export default function ChartFooter({ chartId }: ChartFooterProps) {
 
         <Flex align="center" gap="3">
           <Text size="1" style={{ color: "var(--gray-9)" }}>
-            CC-BY seqout.org team
+            CC-BY seqout.org
           </Text>
           <Tooltip content={copied ? "Copied!" : "Copy chart to clipboard"}>
-            <button
-              type="button"
-              onClick={copyToClipboard}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 10px",
-                borderRadius: "var(--radius-2)",
-                border: "1px solid var(--gray-a7)",
-                background: "var(--gray-a3)",
-                color: "var(--gray-11)",
-                fontSize: "var(--font-size-1)",
-                fontWeight: 500,
-                cursor: "pointer",
-                lineHeight: 1,
-              }}
-            >
+            <button type="button" onClick={handleCopy} style={copyButtonStyle}>
               {copied ? (
                 <CheckIcon width="13" height="13" />
               ) : (
@@ -141,56 +140,112 @@ export default function ChartFooter({ chartId }: ChartFooterProps) {
               {copied ? "Copied" : "Copy"}
             </button>
           </Tooltip>
-          <Popover.Root open={open} onOpenChange={setOpen}>
-            <Popover.Trigger>
+          {hasMultipleFormats ? (
+            <Popover.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <Popover.Trigger>
+                <button type="button" style={downloadButtonStyle}>
+                  <DownloadIcon width="13" height="13" />
+                  {downloadLabel ?? "Download"}
+                </button>
+              </Popover.Trigger>
+              <Popover.Content
+                side="top"
+                align="end"
+                sideOffset={4}
+                style={{ padding: 0, minWidth: 120 }}
+              >
+                <Flex direction="column">
+                  {downloadFormats.map((fmt, i) => (
+                    <div key={fmt}>
+                      {i > 0 && <Separator size="4" />}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPopoverOpen(false);
+                          onDownload(fmt);
+                        }}
+                        style={popoverButtonStyle}
+                      >
+                        {fmt.toUpperCase()}
+                      </button>
+                    </div>
+                  ))}
+                </Flex>
+              </Popover.Content>
+            </Popover.Root>
+          ) : (
+            <Tooltip
+              content={`Download as ${downloadLabel ?? downloadFormats?.[0]?.toUpperCase() ?? "PNG"}`}
+            >
               <button
                 type="button"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "3px 10px",
-                  borderRadius: "var(--radius-2)",
-                  border: "1px solid var(--accent-a7)",
-                  background: "var(--accent-a3)",
-                  color: "var(--accent-11)",
-                  fontSize: "var(--font-size-1)",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  lineHeight: 1,
-                }}
+                onClick={() =>
+                  onDownload(downloadFormats?.[0] ?? "png")
+                }
+                style={downloadButtonStyle}
               >
                 <DownloadIcon width="13" height="13" />
-                Download
+                {downloadLabel ??
+                  `Download ${downloadFormats?.[0]?.toUpperCase() ?? "PNG"}`}
               </button>
-            </Popover.Trigger>
-            <Popover.Content
-              side="top"
-              align="end"
-              sideOffset={4}
-              style={{ padding: 0, minWidth: 120 }}
-            >
-              <Flex direction="column">
-                <button
-                  type="button"
-                  onClick={() => download("png")}
-                  style={popoverButtonStyle}
-                >
-                  PNG
-                </button>
-                <Separator size="4" />
-                <button
-                  type="button"
-                  onClick={() => download("svg")}
-                  style={popoverButtonStyle}
-                >
-                  SVG
-                </button>
-              </Flex>
-            </Popover.Content>
-          </Popover.Root>
+            </Tooltip>
+          )}
         </Flex>
       </Flex>
     </>
+  );
+}
+
+interface ChartFooterProps {
+  chartId: string;
+}
+
+export async function copyBlobToClipboard(blob: Blob) {
+  if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+    throw new Error(
+      "Clipboard API not available. Copy requires HTTPS or localhost.",
+    );
+  }
+  await navigator.clipboard.write([
+    new ClipboardItem({ [blob.type]: blob }),
+  ]);
+}
+
+export default function ChartFooter({ chartId }: ChartFooterProps) {
+  const copyToClipboard = useCallback(async () => {
+    const ApexCharts = (await import("apexcharts")).default;
+    const { imgURI } = (await ApexCharts.exec(chartId, "dataURI", {
+      scale: 3,
+    })) as { imgURI: string };
+    const res = await fetch(imgURI);
+    const blob = await res.blob();
+    await copyBlobToClipboard(blob);
+  }, [chartId]);
+
+  const download = useCallback(
+    async (format: string) => {
+      const ApexCharts = (await import("apexcharts")).default;
+      if (format === "png") {
+        ApexCharts.exec(chartId, "dataURI", { scale: 3 }).then(
+          ({ imgURI }: { imgURI: string }) => {
+            const a = document.createElement("a");
+            a.href = imgURI;
+            a.download = `${chartId}.png`;
+            a.click();
+          },
+        );
+      } else {
+        ApexCharts.exec(chartId, "exportToSVG");
+      }
+    },
+    [chartId],
+  );
+
+  return (
+    <ExportFooter
+      onCopy={copyToClipboard}
+      onDownload={download}
+      downloadFormats={["png", "svg"]}
+    />
   );
 }
