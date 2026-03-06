@@ -43,6 +43,10 @@ interface LocationPoint {
   n_ena: number;
   country: string | null;
   city: string | null;
+  state: string | null;
+  place_name: string | null;
+  short_label: string | null;
+  center_name: string | null;
   top_organisms: Organism[];
 }
 
@@ -89,12 +93,10 @@ const ALL = "__all__";
 
 async function fetchContributions(filters: {
   organism?: string;
-  assayL1?: string;
   assayL2?: string;
 }): Promise<ContributionsResponse> {
   const params = new URLSearchParams();
   if (filters.organism) params.set("organism", filters.organism);
-  if (filters.assayL1) params.set("assay_l1", filters.assayL1);
   if (filters.assayL2) params.set("assay_l2", filters.assayL2);
   const qs = params.toString();
   const url = `${SERVER_URL}/stats/global-contributions${qs ? `?${qs}` : ""}`;
@@ -124,14 +126,12 @@ export default function StatsGlobalContributionsCard() {
   const [scaleBy, setScaleBy] = useState<ScaleBy>("projects");
   const [pointSize, setPointSize] = useState(1);
   const [organism, setOrganism] = useState(ALL);
-  const [assayL1, setAssayL1] = useState(ALL);
   const [assayL2, setAssayL2] = useState(ALL);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
   const activeFilters = {
     organism: organism !== ALL ? organism : undefined,
-    assayL1: assayL1 !== ALL ? assayL1 : undefined,
     assayL2: assayL2 !== ALL ? assayL2 : undefined,
   };
 
@@ -145,7 +145,6 @@ export default function StatsGlobalContributionsCard() {
     queryKey: [
       "global-contributions",
       activeFilters.organism,
-      activeFilters.assayL1,
       activeFilters.assayL2,
     ],
     queryFn: () => fetchContributions(activeFilters),
@@ -255,9 +254,8 @@ export default function StatsGlobalContributionsCard() {
     const parts = ["Where is sequencing data generated?"];
     if (organism !== ALL) parts.push(organism);
     if (assayL2 !== ALL) parts.push(assayL2);
-    else if (assayL1 !== ALL) parts.push(assayL1);
     return parts.join(" · ");
-  }, [organism, assayL1, assayL2]);
+  }, [organism, assayL2]);
 
   const compositeMapImage = useCallback(
     async (scale = 3): Promise<HTMLCanvasElement | null> => {
@@ -317,7 +315,7 @@ export default function StatsGlobalContributionsCard() {
   }, [compositeMapImage]);
 
   const hasActiveFilter =
-    organism !== ALL || assayL1 !== ALL || assayL2 !== ALL;
+    organism !== ALL || assayL2 !== ALL;
 
   return (
     <Card style={{ width: "100%" }}>
@@ -392,28 +390,7 @@ export default function StatsGlobalContributionsCard() {
 
         <Flex gap="2" align="center">
           <Text size="1" style={{ color: "var(--gray-9)" }}>
-            Assay L1
-          </Text>
-          <Select.Root value={assayL1} onValueChange={setAssayL1} size="1">
-            <Select.Trigger
-              style={{ minWidth: 120, maxWidth: 200 }}
-              placeholder="All"
-            />
-            <Select.Content position="popper" sideOffset={4}>
-              <Select.Item value={ALL}>All</Select.Item>
-              <Select.Separator />
-              {filtersData?.assay_l1.map((a) => (
-                <Select.Item key={a.value} value={a.value}>
-                  {a.value} ({humanize(a.count)})
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </Flex>
-
-        <Flex gap="2" align="center">
-          <Text size="1" style={{ color: "var(--gray-9)" }}>
-            Assay L2
+            Assay
           </Text>
           <Select.Root value={assayL2} onValueChange={setAssayL2} size="1">
             <Select.Trigger
@@ -437,7 +414,6 @@ export default function StatsGlobalContributionsCard() {
             type="button"
             onClick={() => {
               setOrganism(ALL);
-              setAssayL1(ALL);
               setAssayL2(ALL);
             }}
             style={{
@@ -507,47 +483,66 @@ export default function StatsGlobalContributionsCard() {
               }}
             >
               <Card size="1" style={{ boxShadow: "var(--shadow-4)" }}>
-                <Flex direction="column" gap="1">
-                  <Flex justify="between" align="center">
-                    <Text size="2" weight="bold">
-                      {[selectedLocation.point.city, selectedLocation.point.country]
-                        .filter(Boolean)
-                        .join(", ") ||
-                        `${selectedLocation.point.lat.toFixed(2)}, ${selectedLocation.point.lng.toFixed(2)}`}
-                    </Text>
+                <Flex direction="column" gap="2">
+                  <Flex justify="between" align="start" gap="2">
+                    <Flex direction="column" gap="0">
+                      <Text size="2" weight="bold" style={{ color: "var(--gray-12)" }}>
+                        {selectedLocation.point.place_name ||
+                          [selectedLocation.point.city, selectedLocation.point.country]
+                            .filter(Boolean)
+                            .join(", ") ||
+                          `${selectedLocation.point.lat.toFixed(2)}, ${selectedLocation.point.lng.toFixed(2)}`}
+                      </Text>
+                      {selectedLocation.point.center_name &&
+                        selectedLocation.point.center_name !== selectedLocation.point.place_name && (
+                        <Text size="1" style={{ color: "var(--gray-11)" }}>
+                          {selectedLocation.point.center_name}
+                        </Text>
+                      )}
+                      {(selectedLocation.point.city || selectedLocation.point.state || selectedLocation.point.country) && (
+                        <Text size="1" style={{ color: "var(--gray-10)" }}>
+                          {[selectedLocation.point.city, selectedLocation.point.state, selectedLocation.point.country]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </Text>
+                      )}
+                    </Flex>
                     <IconButton
                       variant="ghost"
                       size="1"
                       aria-label="Close"
                       onClick={() => setSelectedLocation(null)}
+                      style={{ flexShrink: 0 }}
                     >
                       <Cross1Icon />
                     </IconButton>
                   </Flex>
-                  <Flex direction="column" gap="0">
-                    <Text size="1">
+
+                  <Flex direction="column" gap="0" pt="1" style={{ borderTop: "1px solid var(--gray-a5)" }}>
+                    <Text size="1" style={{ color: "var(--gray-12)" }}>
                       <Link
-                        href={`/search?geo_lat=${selectedLocation.point.lat}&geo_lng=${selectedLocation.point.lng}`}
+                        href={`/search?geo_lat=${selectedLocation.point.lat}&geo_lng=${selectedLocation.point.lng}${organism !== ALL ? `&organism=${encodeURIComponent(organism)}` : ""}${assayL2 !== ALL ? `&assay_l2=${encodeURIComponent(assayL2)}` : ""}`}
                         target="_blank"
                         underline="always"
                       >
                         Projects: {selectedLocation.point.n_projects.toLocaleString()}
                       </Link>
                     </Text>
-                    <Text size="1">
+                    <Text size="1" style={{ color: "var(--gray-11)" }}>
                       Experiments: {selectedLocation.point.n_experiments.toLocaleString()}
                     </Text>
-                    <Text size="1">
+                    <Text size="1" style={{ color: "var(--gray-11)" }}>
                       Samples: {selectedLocation.point.n_samples.toLocaleString()}
                     </Text>
                   </Flex>
+
                   {selectedLocation.point.top_organisms.length > 0 && (
-                    <Flex direction="column" gap="0" pt="1" style={{ borderTop: "1px solid var(--gray-a4)" }}>
-                      <Text size="1" color="gray">Top organisms</Text>
+                    <Flex direction="column" gap="0" pt="1" style={{ borderTop: "1px solid var(--gray-a5)" }}>
+                      <Text size="1" weight="medium" style={{ color: "var(--gray-10)" }}>Top organisms</Text>
                       {selectedLocation.point.top_organisms.map((o) => (
-                        <Text size="1" key={o.name}>
+                        <Text size="1" key={o.name} style={{ color: "var(--gray-12)" }}>
                           {o.name}{" "}
-                          <Text size="1" color="gray">({o.count.toLocaleString()})</Text>
+                          <Text size="1" style={{ color: "var(--gray-9)" }}>({o.count.toLocaleString()})</Text>
                         </Text>
                       ))}
                     </Flex>

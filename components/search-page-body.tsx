@@ -93,10 +93,18 @@ const getGeoSearchResults = async (
   lng: string,
   radiusKm: string | null,
   cursor: Cursor,
+  organism: string | null,
+  assayL2: string | null,
 ): Promise<SearchResponse | null> => {
   let url = `${SERVER_URL}/search/structured?geo_lat=${encodeURIComponent(lat)}&geo_lng=${encodeURIComponent(lng)}`;
   if (radiusKm) {
     url += `&geo_radius_km=${encodeURIComponent(radiusKm)}`;
+  }
+  if (organism) {
+    url += `&organism=${encodeURIComponent(organism)}`;
+  }
+  if (assayL2) {
+    url += `&assay_l2=${encodeURIComponent(assayL2)}`;
   }
   if (cursor && "rank" in cursor) {
     url += `&cursor_rank=${cursor.rank}&cursor_acc=${encodeURIComponent(cursor.accession)}`;
@@ -331,6 +339,8 @@ export default function SearchPageBody() {
   const geoLat = searchParams.get("geo_lat");
   const geoLng = searchParams.get("geo_lng");
   const geoRadiusKm = searchParams.get("geo_radius_km");
+  const geoOrganism = searchParams.get("organism");
+  const geoAssayL2 = searchParams.get("assay_l2");
   const isGeoSearch = geoLat !== null && geoLng !== null;
   const { setLastSearchQuery } = useSearchQuery();
 
@@ -404,11 +414,11 @@ export default function SearchPageBody() {
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: isGeoSearch
-      ? ["geo-search", geoLat, geoLng, geoRadiusKm]
+      ? ["geo-search", geoLat, geoLng, geoRadiusKm, geoOrganism, geoAssayL2]
       : ["search", query, db, sortBy],
     queryFn: ({ pageParam }) =>
       isGeoSearch
-        ? getGeoSearchResults(geoLat!, geoLng!, geoRadiusKm, pageParam as Cursor)
+        ? getGeoSearchResults(geoLat!, geoLng!, geoRadiusKm, pageParam as Cursor, geoOrganism, geoAssayL2)
         : getSearchResults(query, db, pageParam as Cursor, sortBy),
     initialPageParam: null as Cursor,
     getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
