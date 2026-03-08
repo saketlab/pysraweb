@@ -9,7 +9,8 @@ import { TileLayer } from "@deck.gl/geo-layers";
 import DeckGL from "@deck.gl/react";
 import { ExportFooter, FOOTER_TEXT, copyBlobToClipboard } from "@/components/chart-footer";
 import SectionAnchor from "@/components/section-anchor";
-import { Cross1Icon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { copyToClipboard } from "@/utils/clipboard";
+import { CheckIcon, CopyIcon, Cross1Icon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import {
   Card,
   Flex,
@@ -339,6 +340,7 @@ export default function StatsGlobalContributionsCard() {
   const [placeType, setPlaceType] = useState(ALL);
   const [addressType, setAddressType] = useState(ALL);
   const [selectedCountry, setSelectedCountry] = useState(ALL);
+  const [copyState, setCopyState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const agGridThemeClassName = isDark ? "ag-theme-quartz-dark" : "ag-theme-quartz";
@@ -499,10 +501,40 @@ export default function StatsGlobalContributionsCard() {
     [activeFilterSource],
   );
 
+  const countryTableProjectTotal = useMemo(
+    () => countryTableRows.reduce((s, r) => s + r.n_projects, 0),
+    [countryTableRows],
+  );
+
   const scopeTotal = useMemo(() => {
     if (!activeFilterSource) return 0;
     return activeFilterSource.total ?? 0;
   }, [activeFilterSource]);
+
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const handleCopyAccessions = useCallback(async () => {
+    if (selectedCountry === ALL) return;
+    setCopyState("loading");
+    try {
+      const params = new URLSearchParams();
+      params.set("country", selectedCountry);
+      if (organism !== ALL) params.set("organism", organism);
+      if (assayL2 !== ALL) params.set("assay_l2", assayL2);
+      const res = await fetch(
+        `${SERVER_URL}/stats/global-contributions/accessions?${params}`,
+      );
+      if (!res.ok) throw new Error("Failed to fetch accessions");
+      const text = await res.text();
+      copyToClipboard(text);
+      setCopyState("done");
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("error");
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }, [selectedCountry, organism, assayL2]);
 
   const tileLayer = useMemo(
     () =>
@@ -1090,10 +1122,32 @@ export default function StatsGlobalContributionsCard() {
           </Flex>
 
           {selectedCountry !== ALL && (
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
-              {countryTableRows.length.toLocaleString()} locations ·{" "}
-              {countryTableRows.reduce((s, r) => s + r.n_projects, 0).toLocaleString()} projects
-            </Text>
+            <Flex gap="2" align="center">
+              <Text size="1" style={{ color: "var(--gray-9)" }}>
+                {countryTableRows.length.toLocaleString()} locations ·{" "}
+                {countryTableProjectTotal.toLocaleString()} projects
+              </Text>
+              <IconButton
+                variant="ghost"
+                size="1"
+                aria-label="Copy accessions"
+                title="Copy all accessions to clipboard"
+                onClick={handleCopyAccessions}
+                disabled={copyState === "loading"}
+              >
+                {copyState === "done" ? <CheckIcon /> : <CopyIcon />}
+              </IconButton>
+              {copyState === "loading" && (
+                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                  fetching...
+                </Text>
+              )}
+              {copyState === "error" && (
+                <Text size="1" style={{ color: "var(--red-9)" }}>
+                  failed
+                </Text>
+              )}
+            </Flex>
           )}
         </Flex>
         {selectedCountry !== ALL && countryTableRows.length > 0 && (
