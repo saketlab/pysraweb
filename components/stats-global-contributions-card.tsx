@@ -79,6 +79,7 @@ interface FiltersResponse {
   assay_l2: FilterOption[];
   place_type: FilterOption[];
   address_type: FilterOption[];
+  total?: number;
   took_ms: number;
 }
 
@@ -308,10 +309,12 @@ async function fetchContributions(filters: {
   return res.json();
 }
 
-async function fetchFilters(country?: string): Promise<FiltersResponse> {
-  const url = country
-    ? `${SERVER_URL}/stats/global-contribution-filters?country=${encodeURIComponent(country)}`
-    : `${SERVER_URL}/stats/global-contribution-filters`;
+async function fetchFilters(country?: string, organism?: string): Promise<FiltersResponse> {
+  const params = new URLSearchParams();
+  if (country) params.set("country", country);
+  if (organism) params.set("organism", organism);
+  const qs = params.toString();
+  const url = `${SERVER_URL}/stats/global-contribution-filters${qs ? `?${qs}` : ""}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch filters");
   return res.json();
@@ -354,8 +357,16 @@ export default function StatsGlobalContributionsCard() {
   });
 
   const { data: countryFiltersData } = useQuery({
-    queryKey: ["global-contribution-filters", selectedCountry],
-    queryFn: () => fetchFilters(selectedCountry),
+    queryKey: [
+      "global-contribution-filters",
+      selectedCountry,
+      organism !== ALL ? organism : undefined,
+    ],
+    queryFn: () =>
+      fetchFilters(
+        selectedCountry,
+        organism !== ALL ? organism : undefined,
+      ),
     staleTime: Infinity,
     enabled: selectedCountry !== ALL,
   });
@@ -487,6 +498,11 @@ export default function StatsGlobalContributionsCard() {
         .map((a) => ({ value: a.value, label: `${a.value} (${humanize(a.count)})` })),
     [activeFilterSource],
   );
+
+  const scopeTotal = useMemo(() => {
+    if (!activeFilterSource) return 0;
+    return activeFilterSource.total ?? 0;
+  }, [activeFilterSource]);
 
   const tileLayer = useMemo(
     () =>
@@ -1045,9 +1061,16 @@ export default function StatsGlobalContributionsCard() {
             <Text size="1" style={{ color: "var(--gray-9)" }}>Organism</Text>
             <SearchableSelect
               value={organism}
-              onValueChange={setOrganism}
+              onValueChange={(v) => {
+                setOrganism(v);
+                setAssayL2(ALL);
+              }}
               options={organismSelectOptions}
-              placeholder="All organisms"
+              placeholder={
+                selectedCountry !== ALL && scopeTotal
+                  ? `All organisms (${humanize(scopeTotal)})`
+                  : "All organisms"
+              }
               minWidth={140}
             />
           </Flex>
@@ -1057,7 +1080,11 @@ export default function StatsGlobalContributionsCard() {
               value={assayL2}
               onValueChange={setAssayL2}
               options={assaySelectOptions}
-              placeholder="All assays"
+              placeholder={
+                selectedCountry !== ALL && scopeTotal
+                  ? `All assays (${humanize(scopeTotal)})`
+                  : "All assays"
+              }
               minWidth={120}
             />
           </Flex>
