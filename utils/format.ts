@@ -30,6 +30,15 @@ const TB = 1e12;
 const GB = 1e9;
 const MB = 1e6;
 
+/** Format a byte count into a human-readable string using binary (1024) units. */
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
+}
+
 /** Format a byte count into a human-readable abbreviated string. */
 export function humanizeBytes(value: number): string {
   if (value >= EB) return `${(value / EB).toFixed(1).replace(/\.0$/, "")} EB`;

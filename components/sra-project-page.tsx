@@ -16,6 +16,7 @@ import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
+import { formatBytes } from "@/utils/format";
 import { useScrollSpy } from "@/utils/useScrollSpy";
 import {
   CheckIcon,
@@ -169,14 +170,6 @@ const getBestCloudUrl = (run: RunRow): string =>
 const toDisplayText = (value: unknown): string => {
   if (value === null || value === undefined || value === "") return "-";
   return String(value);
-};
-
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  const val = bytes / Math.pow(1024, i);
-  return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
 };
 
 const fetchProject = async (
