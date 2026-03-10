@@ -18,6 +18,7 @@ import TextWithLineBreaks, {
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
+import { useScrollSpy } from "@/utils/useScrollSpy";
 import {
   CheckIcon,
   ChevronLeftIcon,
@@ -571,6 +572,8 @@ export default function GeoProjectPage() {
   const supplementaryTabsListRef = React.useRef<HTMLDivElement | null>(null);
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
+
+  useScrollSpy(["overall-design", "enriched", "samples", "publications", "similar", "supplementary"]);
 
   const {
     data: project,
@@ -1353,6 +1356,8 @@ export default function GeoProjectPage() {
               charLimit={OVERALL_DESIGN_CHAR_LIMIT}
             />
 
+            <EnrichedMetadataCard accession={accession} />
+
             {/* Samples table */}
             <Flex id="samples" justify={"between"} align={"center"}>
               <Flex align="center" gap="2">
@@ -1504,8 +1509,6 @@ export default function GeoProjectPage() {
                 </div>
               )}
             </Flex>
-
-            <EnrichedMetadataCard accession={accession} />
 
             <Flex id="publications" align="center" gap="2">
               <Text weight="medium" size="6">

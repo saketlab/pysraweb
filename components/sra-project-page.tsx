@@ -16,6 +16,7 @@ import TextWithLineBreaks from "@/components/text-with-line-breaks";
 import { ensureAgGridModules } from "@/lib/ag-grid";
 import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
+import { useScrollSpy } from "@/utils/useScrollSpy";
 import {
   CheckIcon,
   CopyIcon,
@@ -1051,6 +1052,8 @@ export default function ProjectPage() {
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
+  useScrollSpy(["fastq", "enriched", "experiments", "publications", "similar"]);
+
   const {
     data: project,
     isLoading,
@@ -1561,6 +1564,8 @@ export default function ProjectPage() {
               text={project.abstract}
               charLimit={ABSTRACT_CHAR_LIMIT}
             />
+            <EnrichedMetadataCard accession={accession} />
+
             <Flex id="experiments" justify={"between"} align={"center"}>
               <Flex align="center" gap="2">
                 <Text weight="medium" size="6">
@@ -1672,8 +1677,6 @@ export default function ProjectPage() {
                   </div>
                 )}
             </Flex>
-            <EnrichedMetadataCard accession={accession} />
-
             <Flex id="publications" align="center" gap="2">
               <Text weight="medium" size="6">
                 Linked publications
