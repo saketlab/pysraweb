@@ -14,6 +14,7 @@ export type SearchResult = {
   instrument_models?: string[] | null;
   doi: string | null;
   citation_count: number | null;
+  authors: string | null;
   publications: unknown[] | null;
   sort_val?: string | number | null;
 };

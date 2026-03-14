@@ -17,6 +17,7 @@ import { ensureAgGridModules } from "@/lib/ag-grid";
 import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
 import { formatBytes } from "@/utils/format";
+import { getOrganismBannerStyle, makeOrganismPostSort, makeOrganismRowStyle } from "@/utils/organism-highlight";
 import { useScrollSpy } from "@/utils/useScrollSpy";
 import {
   CheckIcon,
@@ -47,8 +48,8 @@ import type {
 import { AgGridReact } from "ag-grid-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
-import { useParams } from "next/navigation";
-import React, { useCallback, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 
 ensureAgGridModules();
 
@@ -1029,6 +1030,8 @@ function DownloadFastqSection({
 
 export default function ProjectPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const highlightOrganism = searchParams.get("organism")?.toLowerCase() ?? null;
   const { resolvedTheme } = useTheme();
   const accession = params.accession as string | undefined;
   const accessionUpper = accession?.toUpperCase();
@@ -1042,10 +1045,18 @@ export default function ProjectPage() {
     ? "Visit ENA page"
     : "Visit SRA page";
   const [isAccessionCopied, setIsAccessionCopied] = useState(false);
-  const agGridThemeClassName =
-    resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
+  const isDark = resolvedTheme === "dark";
+  const agGridThemeClassName = isDark ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
   useScrollSpy(["fastq", "enriched", "experiments", "publications", "similar"]);
+  const organismRowStyle = useMemo(
+    () => makeOrganismRowStyle<ExperimentGridRow>(highlightOrganism, isDark, (d) => d.scientificName ?? null),
+    [highlightOrganism, isDark],
+  );
+  const organismPostSort = useMemo(
+    () => makeOrganismPostSort<ExperimentGridRow>(highlightOrganism, (d) => d.scientificName ?? null),
+    [highlightOrganism],
+  );
 
   const {
     data: project,
@@ -1656,18 +1667,29 @@ export default function ProjectPage() {
               {!isExperimentsLoading &&
                 experiments &&
                 experiments.length > 0 && (
-                  <div
-                    className={agGridThemeClassName}
-                    style={{ width: "100%", height: `${experimentsGridHeight}px` }}
-                  >
-                    <AgGridReact<ExperimentGridRow>
-                      columnDefs={experimentColumnDefs}
-                      defaultColDef={experimentsGridDefaultColDef}
-                      getRowId={(params) => params.data.rowKey}
-                      rowData={experimentRows}
-                      theme="legacy"
-                    />
-                  </div>
+                  <>
+                    {highlightOrganism && (
+                      <Flex align="center" gap="2" py="1" px="3" style={getOrganismBannerStyle(isDark)}>
+                        <Text size="2" color="gray">
+                          Showing <Text weight="medium" style={{ fontStyle: "italic" }}>{highlightOrganism}</Text> samples first
+                        </Text>
+                      </Flex>
+                    )}
+                    <div
+                      className={agGridThemeClassName}
+                      style={{ width: "100%", height: `${experimentsGridHeight}px` }}
+                    >
+                      <AgGridReact<ExperimentGridRow>
+                        columnDefs={experimentColumnDefs}
+                        defaultColDef={experimentsGridDefaultColDef}
+                        getRowId={(params) => params.data.rowKey}
+                        rowData={experimentRows}
+                        theme="legacy"
+                        getRowStyle={organismRowStyle}
+                        postSortRows={organismPostSort}
+                      />
+                    </div>
+                  </>
                 )}
             </Flex>
             <Flex id="publications" align="center" gap="2">

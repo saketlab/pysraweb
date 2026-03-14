@@ -39,6 +39,16 @@ export function formatBytes(bytes: number): string {
   return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
 }
 
+/** Format an author list showing only the first and last author. */
+export function formatFirstLastAuthor(authors: string | null): string | null {
+  if (!authors) return null;
+  const list = authors.split(",").map((a) => a.trim()).filter(Boolean);
+  if (list.length === 0) return null;
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list[0]} ... ${list[list.length - 1]}`;
+}
+
 /** Format a byte count into a human-readable abbreviated string. */
 export function humanizeBytes(value: number): string {
   if (value >= EB) return `${(value / EB).toFixed(1).replace(/\.0$/, "")} EB`;

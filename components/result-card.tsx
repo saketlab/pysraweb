@@ -1,29 +1,33 @@
-import { cleanJournalName } from "@/utils/format";
+import { cleanJournalName, formatFirstLastAuthor } from "@/utils/format";
 import { getProjectShortUrl } from "@/utils/shortUrl";
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { Badge, Card, Flex, Text } from "@radix-ui/themes";
 import Link from "next/link";
 
 type ResultCardProps = {
-  accesssion: string;
+  accession: string;
   title: string | null;
   summary: string | null;
   updated_at: string | null;
   journal: string | null;
   doi: string | null;
   citation_count: number | null;
+  authors: string | null;
+  href?: string;
 };
 
 export default function ResultCard({
-  accesssion,
+  accession,
   title,
   summary,
   updated_at,
   journal,
   doi,
   citation_count,
+  authors,
+  href,
 }: ResultCardProps) {
-  const accessionUpper = accesssion.toUpperCase();
+  const accessionUpper = accession.toUpperCase();
   const isArrayExpressAccession = accessionUpper.startsWith("E-");
   const isPrjAccession = accessionUpper.startsWith("PRJ");
 
@@ -32,7 +36,7 @@ export default function ResultCard({
       <Flex direction={"column"} gap={"2"}>
         <Text size={{ initial: "2", md: "3" }} weight={"bold"} asChild>
           <Link
-            href={getProjectShortUrl(accesssion)}
+            href={href ?? getProjectShortUrl(accession)}
             style={{
               cursor: "pointer",
               width: "100%",
@@ -66,7 +70,7 @@ export default function ResultCard({
                 : undefined
             }
           >
-            {accesssion}
+            {accession}
           </Badge>
           <Badge size={"2"} color="gray">
             Last updated on{" "}
@@ -99,6 +103,11 @@ export default function ResultCard({
             >
               {cleanJournalName(journal)} <ExternalLinkIcon />
             </Badge>
+          )}
+          {authors && (
+            <Text size={"1"} color="gray" style={{ fontStyle: "italic" }} truncate>
+              {formatFirstLastAuthor(authors)}
+            </Text>
           )}
         </Flex>
       </Flex>

@@ -21,9 +21,9 @@ export function useScrollSpy(sectionIds: string[]) {
       const active = ids.find((id) => visibleSet.has(id));
       const current = window.location.hash.slice(1);
       if (active && active !== current) {
-        history.replaceState(null, "", `#${active}`);
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${active}`);
       } else if (!active && current) {
-        history.replaceState(null, "", window.location.pathname);
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       }
     };
 

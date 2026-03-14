@@ -5,6 +5,7 @@ import SearchBar from "@/components/search-bar";
 import { SearchFilters, SearchOrganismRail } from "@/components/search-filters";
 import { useSearchQuery } from "@/context/search_query";
 import { SERVER_URL } from "@/utils/constants";
+import { getProjectShortUrl } from "@/utils/shortUrl";
 import { SearchResult } from "@/utils/types";
 import {
   ArrowUpIcon,
@@ -792,13 +793,17 @@ export default function SearchPageBody() {
                 pageResults.map((searchResult) => (
                   <ResultCard
                     key={`${searchResult.source}:${searchResult.accession}`}
-                    accesssion={searchResult.accession}
+                    accession={searchResult.accession}
                     title={searchResult.title}
                     summary={searchResult.summary}
                     updated_at={searchResult.updated_at}
                     journal={searchResult.journal}
                     doi={searchResult.doi}
                     citation_count={searchResult.citation_count}
+                    authors={searchResult.authors}
+                    href={selectedOrganismKey
+                      ? `${getProjectShortUrl(searchResult.accession)}?organism=${encodeURIComponent(selectedOrganismKey)}`
+                      : undefined}
                   />
                 ))
               )}
