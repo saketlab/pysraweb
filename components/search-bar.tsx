@@ -194,8 +194,8 @@ function SearchBarContent({ initialQuery }: SearchBarProps) {
             <Image
               src={
                 resolvedTheme === "light"
-                  ? "/short-logo-light.svg"
-                  : "/short-logo-dark.svg"
+                  ? "/short-logo-light.png"
+                  : "/short-logo-dark.png"
               }
               alt="seqout"
               fill

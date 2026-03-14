@@ -22,7 +22,7 @@ export default function HomeSearchBar() {
         style={{ position: "relative", aspectRatio: "619/103" }}
       >
         <Image
-          src={resolvedTheme === "light" ? "/logo-light.svg" : "/logo-dark.svg"}
+          src={resolvedTheme === "light" ? "/logo-light.png" : "/logo-dark.png"}
           alt="seqout"
           fill
           style={{ objectFit: "contain" }}
