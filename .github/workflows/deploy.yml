@@ -103,6 +103,13 @@ jobs:
 
             sleep 3
             curl -f http://127.0.0.1:3002
+
+            PID=$(ss -ltnpH 'sport = :3002' | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)
+            SERVING=$(readlink -f "/proc/$PID/cwd")
+            test "$SERVING" = "$(readlink -f "$RELEASE")" || {
+              echo "::error::port 3002 is served from $SERVING, not $RELEASE"
+              exit 1
+            }
             echo "Frontend deployment successful"
 
       - name: Purge Cloudflare cache
