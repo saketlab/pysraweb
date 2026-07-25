@@ -861,7 +861,9 @@ export default function GeoProjectPage() {
               </Link>
             );
           }
-          return <AccessionLink accession={sampleAccession} />;
+          return (
+            <AccessionLink accession={sampleAccession} hideExternal />
+          );
         },
       },
       {

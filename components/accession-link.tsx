@@ -5,9 +5,15 @@ import { Flex, Link, Tooltip } from "@radix-ui/themes";
 
 const ICON_STYLE = { display: "inline-flex", color: "var(--gray-9)" };
 
-export default function AccessionLink({ accession }: { accession: string }) {
+export default function AccessionLink({
+  accession,
+  hideExternal = false,
+}: {
+  accession: string;
+  hideExternal?: boolean;
+}) {
   const internal = getInternalUrl(accession);
-  const external = getExternalArchiveUrl(accession);
+  const external = hideExternal ? null : getExternalArchiveUrl(accession);
 
   return (
     <Flex as="span" align="center" gap="1" display="inline-flex">
