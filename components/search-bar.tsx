@@ -68,7 +68,6 @@ function SearchBarContent({
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentDb = searchParams.get("db");
 
   const handleMenuSelect = (item: NavItem) => {
     if (item.external) {
@@ -83,7 +82,7 @@ function SearchBarContent({
     e.preventDefault();
     const trimmed = searchQuery.trim();
     if (trimmed) setLastSearchQuery(trimmed);
-    await performSearch(searchQuery, router.push, currentDb);
+    await performSearch(searchQuery, router.push, searchParams);
   };
 
   const handleHistoryClick = async (item: string) => {
@@ -91,7 +90,7 @@ function SearchBarContent({
     setIsFocused(false);
     const trimmed = item.trim();
     if (trimmed) setLastSearchQuery(trimmed);
-    await performSearch(item, router.push, currentDb);
+    await performSearch(item, router.push, searchParams);
   };
 
   const removeItem = (item: string, e: React.MouseEvent) => {

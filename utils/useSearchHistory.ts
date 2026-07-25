@@ -5,13 +5,19 @@ import { getProjectShortUrl } from "./shortUrl";
 
 const HISTORY_KEY = "searchHistory";
 const MAX_HISTORY = 5;
-const VALID_DATABASES = new Set(["sra", "geo", "arrayexpress", "gsa"]);
+// Modifier-bar params carried over to a new search so it keeps the user's
+// sort / time / source selections. (Deep "more filters" facets are not carried
+// — a fresh query text resets them.)
+const CARRIED_PARAM_KEYS = ["db", "sort", "time", "year_from", "year_to"];
 
-const buildSearchUrl = (query: string, db?: string | null) => {
+const buildSearchUrl = (query: string, carry?: URLSearchParams | null) => {
   const params = new URLSearchParams();
   params.set("q", query);
-  if (db && VALID_DATABASES.has(db)) {
-    params.set("db", db);
+  if (carry) {
+    for (const key of CARRIED_PARAM_KEYS) {
+      const value = carry.get(key);
+      if (value) params.set(key, value);
+    }
   }
   return `/search?${params.toString()}`;
 };
@@ -40,7 +46,7 @@ export function useSearchHistory() {
   const performSearch = async (
     query: string,
     navigate: (url: string) => void,
-    db?: string | null,
+    carry?: URLSearchParams | null,
   ) => {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -68,7 +74,7 @@ export function useSearchHistory() {
               return;
             }
             if (!res.ok) {
-              navigate(buildSearchUrl(trimmed, db));
+              navigate(buildSearchUrl(trimmed, carry));
               return;
             }
             const data = await res.json();
@@ -80,7 +86,7 @@ export function useSearchHistory() {
             navigate(getProjectShortUrl(projectAccession));
           } catch (error) {
             console.error("Error fetching project:", error);
-            navigate(buildSearchUrl(trimmed, db));
+            navigate(buildSearchUrl(trimmed, carry));
           }
           return;
         }
@@ -101,15 +107,15 @@ export function useSearchHistory() {
               } else if (studies.length > 1) {
                 navigate(first.url);
               } else {
-                navigate(buildSearchUrl(trimmed, db));
+                navigate(buildSearchUrl(trimmed, carry));
               }
               return;
             }
             // 404 (no studies) or any error → full-text search still helps.
-            navigate(buildSearchUrl(trimmed, db));
+            navigate(buildSearchUrl(trimmed, carry));
           } catch (error) {
             console.error("Error resolving submission:", error);
-            navigate(buildSearchUrl(trimmed, db));
+            navigate(buildSearchUrl(trimmed, carry));
           }
           return;
         }
@@ -119,7 +125,7 @@ export function useSearchHistory() {
       }
     }
 
-    navigate(buildSearchUrl(trimmed, db));
+    navigate(buildSearchUrl(trimmed, carry));
   };
 
   return { history, saveHistory, performSearch };
