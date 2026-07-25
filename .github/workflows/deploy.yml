@@ -104,12 +104,17 @@ jobs:
             sleep 3
             curl -f http://127.0.0.1:3002
 
-            PID=$(ss -ltnpH 'sport = :3002' | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2)
-            SERVING=$(readlink -f "/proc/$PID/cwd")
-            test "$SERVING" = "$(readlink -f "$RELEASE")" || {
-              echo "::error::port 3002 is served from $SERVING, not $RELEASE"
-              exit 1
-            }
+            # Cluster mode: the :3002 socket belongs to the pm2 daemon (cwd=$HOME).
+            PIDS=$(pm2 pid sramap-frontend)
+            test -n "$PIDS" || { echo "::error::no sramap-frontend workers running"; exit 1; }
+            WANT=$(readlink -f "$RELEASE")
+            for PID in $PIDS; do
+              SERVING=$(readlink -f "/proc/$PID/cwd")
+              test "$SERVING" = "$WANT" || {
+                echo "::error::pid $PID is serving $SERVING, not $RELEASE"
+                exit 1
+              }
+            done
             echo "Frontend deployment successful"
 
       - name: Purge Cloudflare cache
