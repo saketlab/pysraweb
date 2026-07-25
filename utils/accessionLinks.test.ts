@@ -20,6 +20,20 @@ describe("getInternalUrl", () => {
     expect(getInternalUrl("cancer")).toBeNull();
   });
 
+  it("routes BioSample IDs to /s (ENA/GSA sample primary accession)", () => {
+    expect(getInternalUrl("SAMN05753172")).toBe("/s/SAMN05753172"); // NCBI
+    expect(getInternalUrl("SAMEA104372072")).toBe("/s/SAMEA104372072"); // ENA
+    expect(getInternalUrl("SAMD00012345")).toBe("/s/SAMD00012345"); // DDBJ
+  });
+
+  it("extracts BioSample IDs from a pasted query (was full-text before)", () => {
+    expect(startsWithAccession("SAMEA104372072")).toBe(true);
+    expect(parseAccessions("SAMEA104372072 some notes")[0]?.url).toBe(
+      "/s/SAMEA104372072",
+    );
+    expect(startsWithAccession("SAMPLE gene expression")).toBe(false); // no digits
+  });
+
   it("routes GSA accessions (runs → null: no internal download page)", () => {
     expect(getInternalUrl("CRA000004")).toBe("/p/CRA000004");
     expect(getInternalUrl("HRA007928")).toBe("/p/HRA007928");

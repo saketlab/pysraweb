@@ -9,8 +9,10 @@ import {
 // One accession-shape pattern, shared by the single-token classifier and the
 // whole-string extractor so the two can never drift. PRJ* is recognized for
 // extraction but routed via the async /prj resolver (see useSearchHistory).
+// SAM[A-Z]*\d+ covers BioSample IDs across archives: SAMN (NCBI), SAMEA (EBI/ENA
+// — an ENA sample's *primary* accession), SAMD (DDBJ), SAMC (GSA). All open /s.
 const ACC_BODY =
-  "(?:GSE\\d+|GSM\\d+|[SED]RA\\d+|[SED]R[PXRS]\\d+|PRJ[A-Z]+\\d+|E-[A-Z]{4}-\\d+|(?:CRA|CRX|HRA|HRX|HRS)\\d+)";
+  "(?:GSE\\d+|GSM\\d+|[SED]RA\\d+|[SED]R[PXRS]\\d+|SAM[A-Z]*\\d+|PRJ[A-Z]+\\d+|E-[A-Z]{4}-\\d+|(?:CRA|CRX|HRA|HRX|HRS)\\d+)";
 // End boundary: any non-alphanumeric, underscore included. \b treats _ as a word
 // char, so it would reject "GSE244832_Kim" (a GEO supp-file prefix people paste);
 // this lookahead still rejects "GSE12345abc" since a letter can't follow.
@@ -36,11 +38,14 @@ function accessionKind(accession: string): AccessionKind | null {
   if (/^[SED]RX\d+$/.test(a)) return "experiment";
   if (/^[SED]RR\d+$/.test(a)) return "run";
   if (/^([SED]RS|GSM)\d+$/.test(a)) return "sample";
-  // GSA (CNCB-NGDC): CRA/HRA studies, CRX/HRX experiments, SAMC/HRS samples have
+  // BioSample IDs (SAMN/SAMEA/SAMD/SAMC) are the archive-agnostic sample
+  // accession; /s resolves them across SRA/ENA/GSA/DRA.
+  if (/^SAM[A-Z]*\d+$/.test(a)) return "sample";
+  // GSA (CNCB-NGDC): CRA/HRA studies, CRX/HRX experiments, HRS samples have
   // internal pages; CRR/HRR runs have no download data → external link only.
   if (/^(CRA|HRA)\d+$/.test(a)) return "project";
   if (/^(CRX|HRX)\d+$/.test(a)) return "experiment";
-  if (/^(HRS|SAMC)\d+$/.test(a)) return "sample";
+  if (/^HRS\d+$/.test(a)) return "sample";
   return null;
 }
 
