@@ -1,6 +1,7 @@
 import {
   BarChartIcon,
   CodeIcon,
+  DownloadIcon,
   InfoCircledIcon,
   KeyboardIcon,
   MagicWandIcon,
@@ -55,5 +56,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Stats",
     href: "/stats",
     icon: createElement(BarChartIcon),
+  },
+  {
+    label: "Data",
+    href: "/data",
+    icon: createElement(DownloadIcon),
   },
 ] as const;
