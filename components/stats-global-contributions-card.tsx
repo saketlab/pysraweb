@@ -620,7 +620,7 @@ export default function StatsGlobalContributionsCard() {
       return `${countryTableRows.length.toLocaleString()} locations · ${countryTableProjectTotal.toLocaleString()} projects · ${countryTableExperimentTotal.toLocaleString()} experiments`;
     }
     if (pisLoading) return "loading investigators...";
-    return `${piRows.length.toLocaleString()} investigators · ${(pisData?.covered_projects ?? 0).toLocaleString()} of ${countryTableProjectTotal.toLocaleString()} projects have a linked publication`;
+    return `${piRows.length.toLocaleString()} investigators · ${(pisData?.covered_projects ?? 0).toLocaleString()} of ${countryTableProjectTotal.toLocaleString()} projects have attributable investigators`;
   }, [
     tableMode,
     pisLoading,
