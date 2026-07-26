@@ -17,6 +17,7 @@ import {
   getMapPanelBackground,
 } from "@/utils/chart-theme";
 import { copyToClipboard } from "@/utils/clipboard";
+import { authorHref } from "@/utils/project";
 import { useReducedMotion } from "@/utils/useReducedMotion";
 import { CheckIcon, CopyIcon, Cross1Icon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import {
@@ -76,6 +77,20 @@ interface LocationPoint {
 
 interface ContributionsResponse {
   locations: LocationPoint[];
+  total: number;
+  took_ms: number;
+}
+
+interface PiRow {
+  pi: string;
+  center_name: string | null;
+  n_projects: number;
+  n_papers: number;
+}
+
+interface PisResponse {
+  pis: PiRow[];
+  covered_projects: number;
   total: number;
   took_ms: number;
 }
@@ -325,6 +340,50 @@ async function fetchFilters(country?: string, organism?: string): Promise<Filter
   return res.json();
 }
 
+async function fetchPis(
+  country: string,
+  organism?: string,
+  assayL2?: string,
+): Promise<PisResponse> {
+  const params = new URLSearchParams({ country });
+  if (organism) params.set("organism", organism);
+  if (assayL2) params.set("assay_l2", assayL2);
+  const res = await fetch(`${SERVER_URL}/stats/global-contributions/pis?${params}`);
+  if (!res.ok) throw new Error("Failed to fetch PIs");
+  return res.json();
+}
+
+const DEFAULT_COL_DEF = { resizable: true, sortable: true };
+
+const PI_TABLE_COLUMNS: ColDef<PiRow>[] = [
+  {
+    headerName: "Investigator",
+    field: "pi",
+    flex: 2,
+    minWidth: 180,
+    cellRenderer: (p: { value: string }) =>
+      p.value ? (
+        <Link href={authorHref(p.value)} target="_blank" underline="hover">
+          {p.value}
+        </Link>
+      ) : null,
+  },
+  { headerName: "Institute", field: "center_name", flex: 3, minWidth: 200 },
+  {
+    headerName: "Projects",
+    field: "n_projects",
+    sort: "desc",
+    width: 100,
+    valueFormatter: (p) => p.value?.toLocaleString(),
+  },
+  {
+    headerName: "Papers",
+    field: "n_papers",
+    width: 95,
+    valueFormatter: (p) => p.value?.toLocaleString(),
+  },
+];
+
 function scaleRadius(value: number, sizeFactor: number): number {
   if (value <= 0) return 0.1 * sizeFactor;
   return Math.max(0.05, Math.min(20, Math.sqrt(value) * 0.1 * sizeFactor));
@@ -344,6 +403,7 @@ export default function StatsGlobalContributionsCard() {
   const [placeType, setPlaceType] = useState(ALL);
   const [addressType, setAddressType] = useState(ALL);
   const [selectedCountry, setSelectedCountry] = useState("India");
+  const [tableMode, setTableMode] = useState<"institutes" | "pis">("institutes");
   const [copyState, setCopyState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const { resolvedTheme } = useTheme();
   const { showToast } = useToast();
@@ -377,6 +437,20 @@ export default function StatsGlobalContributionsCard() {
       ),
     staleTime: Infinity,
     enabled: selectedCountry !== ALL,
+  });
+
+  const { data: pisData, isLoading: pisLoading } = useQuery({
+    queryKey: [
+      "country-pis",
+      selectedCountry,
+      activeFilters.organism,
+      activeFilters.assayL2,
+    ],
+    queryFn: () =>
+      fetchPis(selectedCountry, activeFilters.organism, activeFilters.assayL2),
+    staleTime: Infinity,
+    placeholderData: (prev) => prev,
+    enabled: selectedCountry !== ALL && tableMode === "pis",
   });
 
   const { data, isLoading, isFetching } = useQuery({
@@ -536,6 +610,26 @@ export default function StatsGlobalContributionsCard() {
     () => countryTableRows.reduce((s, r) => s + r.n_experiments, 0),
     [countryTableRows],
   );
+
+  const piRows = pisData?.pis ?? [];
+  const tableRowCount =
+    tableMode === "pis" ? piRows.length : countryTableRows.length;
+
+  const tableSummary = useMemo(() => {
+    if (tableMode === "institutes") {
+      return `${countryTableRows.length.toLocaleString()} locations · ${countryTableProjectTotal.toLocaleString()} projects · ${countryTableExperimentTotal.toLocaleString()} experiments`;
+    }
+    if (pisLoading) return "loading investigators...";
+    return `${piRows.length.toLocaleString()} investigators · ${(pisData?.covered_projects ?? 0).toLocaleString()} of ${countryTableProjectTotal.toLocaleString()} projects have attributable investigators`;
+  }, [
+    tableMode,
+    pisLoading,
+    piRows.length,
+    pisData,
+    countryTableRows.length,
+    countryTableProjectTotal,
+    countryTableExperimentTotal,
+  ]);
 
   const scopeTotal = useMemo(() => {
     if (!activeFilterSource) return 0;
@@ -1176,10 +1270,20 @@ export default function StatsGlobalContributionsCard() {
 
           {selectedCountry !== ALL && (
             <Flex gap="2" align="center">
+              <SegmentedControl.Root
+                size="1"
+                value={tableMode}
+                onValueChange={(v) => setTableMode(v as "institutes" | "pis")}
+              >
+                <SegmentedControl.Item value="institutes">
+                  Institutes
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="pis">
+                  Investigators
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
               <Text size="1" style={{ color: "var(--gray-11)" }}>
-                {countryTableRows.length.toLocaleString()} locations ·{" "}
-                {countryTableProjectTotal.toLocaleString()} projects ·{" "}
-                {countryTableExperimentTotal.toLocaleString()} experiments
+                {tableSummary}
               </Text>
               <IconButton
                 variant="ghost"
@@ -1204,27 +1308,39 @@ export default function StatsGlobalContributionsCard() {
             </Flex>
           )}
         </Flex>
-        {selectedCountry !== ALL && countryTableRows.length > 0 && (
+        {selectedCountry !== ALL && tableRowCount > 0 && (
           <div
             className={agGridThemeClassName}
-            style={{ width: "100%", height: Math.min(400, 42 + countryTableRows.length * 36) }}
+            style={{ width: "100%", height: Math.min(400, 42 + tableRowCount * 36) }}
           >
-            <AgGridReact<LocationPoint>
-              columnDefs={countryTableColumns}
-              defaultColDef={{ resizable: true, sortable: true }}
-              enableCellTextSelection
-              ensureDomOrder
-              rowData={countryTableRows}
-              getRowId={(p) => `${p.data.lat}-${p.data.lng}`}
-              theme="legacy"
-              rowStyle={{ cursor: "pointer" }}
-              onRowClicked={(e) => {
-                if (e.data) {
-                  const qs = buildGeoSearchParams(e.data, organism, assayL2);
-                  window.open(`/search?${qs}`, "_blank");
-                }
-              }}
-            />
+            {tableMode === "pis" ? (
+              <AgGridReact<PiRow>
+                columnDefs={PI_TABLE_COLUMNS}
+                defaultColDef={DEFAULT_COL_DEF}
+                enableCellTextSelection
+                ensureDomOrder
+                rowData={piRows}
+                getRowId={(p) => p.data.pi}
+                theme="legacy"
+              />
+            ) : (
+              <AgGridReact<LocationPoint>
+                columnDefs={countryTableColumns}
+                defaultColDef={DEFAULT_COL_DEF}
+                enableCellTextSelection
+                ensureDomOrder
+                rowData={countryTableRows}
+                getRowId={(p) => `${p.data.lat}-${p.data.lng}`}
+                theme="legacy"
+                rowStyle={{ cursor: "pointer" }}
+                onRowClicked={(e) => {
+                  if (e.data) {
+                    const qs = buildGeoSearchParams(e.data, organism, assayL2);
+                    window.open(`/search?${qs}`, "_blank");
+                  }
+                }}
+              />
+            )}
           </div>
         )}
       </Flex>
