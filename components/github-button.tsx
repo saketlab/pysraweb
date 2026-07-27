@@ -4,7 +4,7 @@ import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { Button, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 
-const REPO = "saketlab/seqout";
+const REPO = "saketlab/seqout-web";
 const REPO_URL = `https://github.com/${REPO}`;
 
 // "2432" -> "2.4K", "1200000" -> "1.2M"; leaves counts under 1000 as-is.
