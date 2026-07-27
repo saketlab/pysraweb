@@ -15,6 +15,8 @@ import {
   InfoCircledIcon,
   MagnifyingGlassIcon,
   MixerHorizontalIcon,
+  TriangleLeftIcon,
+  TriangleRightIcon,
 } from "@radix-ui/react-icons";
 import {
   Badge,
@@ -31,9 +33,102 @@ import {
 } from "@radix-ui/themes";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
-import { useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 countries.registerLocale(enLocale);
+
+// A Tabs.List that reveals a left/right triangle when the tab strip overflows
+// that way — so users know the filter tabs scroll horizontally. The arrows also
+// nudge-scroll on click. Shown only in the direction there's more to see (so at
+// the leftmost you get just the right arrow).
+function ScrollableTabsList({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 1);
+    setCanRight(Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    // Recompute on width changes (rail resize, opening the dialog, tab count).
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [update]);
+
+  const nudge = (dx: number) =>
+    ref.current?.scrollBy({ left: dx, behavior: "smooth" });
+
+  const arrowBase: CSSProperties = {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    display: "flex",
+    alignItems: "center",
+    width: "2rem",
+    border: "none",
+    cursor: "pointer",
+    color: "var(--gray-11)",
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <Tabs.List
+        ref={ref}
+        onScroll={update}
+        style={{ overflowX: "auto", maxWidth: "100%", whiteSpace: "nowrap" }}
+      >
+        {children}
+      </Tabs.List>
+      {canLeft ? (
+        <button
+          type="button"
+          aria-label="Scroll filters left"
+          onClick={() => nudge(-160)}
+          style={{
+            ...arrowBase,
+            left: 0,
+            justifyContent: "flex-start",
+            background:
+              "linear-gradient(to right, var(--color-panel-solid) 55%, transparent)",
+          }}
+        >
+          <TriangleLeftIcon width="18" height="18" />
+        </button>
+      ) : null}
+      {canRight ? (
+        <button
+          type="button"
+          aria-label="Scroll filters right"
+          onClick={() => nudge(160)}
+          style={{
+            ...arrowBase,
+            right: 0,
+            justifyContent: "flex-end",
+            background:
+              "linear-gradient(to left, var(--color-panel-solid) 55%, transparent)",
+          }}
+        >
+          <TriangleRightIcon width="18" height="18" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 const PLATFORM_DISPLAY: Record<string, string> = {
   ILLUMINA: "Illumina",
@@ -653,13 +748,7 @@ export function SearchOrganismRail({
                 defaultValue="journals"
                 style={{ marginTop: "0.5rem" }}
               >
-                <Tabs.List
-                  style={{
-                    overflowX: "auto",
-                    maxWidth: "100%",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <ScrollableTabsList>
                   <Tabs.Trigger value="journals">
                     <Flex align="center" gap="1">
                       <span>Journals</span>
@@ -726,7 +815,7 @@ export function SearchOrganismRail({
                       ) : null}
                     </Flex>
                   </Tabs.Trigger>
-                </Tabs.List>
+                </ScrollableTabsList>
 
                 <Tabs.Content
                   value="journals"
@@ -1172,13 +1261,7 @@ export function SearchOrganismRail({
                 defaultValue="journals"
                 style={{ marginTop: "0.5rem" }}
               >
-                <Tabs.List
-                  style={{
-                    overflowX: "auto",
-                    maxWidth: "100%",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <ScrollableTabsList>
                   <Tabs.Trigger value="journals">
                     <Flex align="center" gap="1">
                       <span>Journals</span>
@@ -1245,7 +1328,7 @@ export function SearchOrganismRail({
                       ) : null}
                     </Flex>
                   </Tabs.Trigger>
-                </Tabs.List>
+                </ScrollableTabsList>
 
                 <Tabs.Content
                   value="journals"
