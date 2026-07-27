@@ -1252,6 +1252,10 @@ export default function SearchPageBody() {
       selectedPlatformFilters.length > 0 ||
       multiPlatformOnly;
     if (hasActiveFilters) return;
+    // Augmented-correction extras render as a separate page-1 block and are
+    // excluded from `total`/`allResults`; if any exist the user is really
+    // looking at >1 result, so don't jump.
+    if (correction?.extra_results?.length) return;
     if (total !== 1 || allResults.length !== 1) return;
     if (soloJumpRef.current === query) return;
     soloJumpRef.current = query;
@@ -1263,6 +1267,7 @@ export default function SearchPageBody() {
     totalPending,
     total,
     allResults,
+    correction,
     selectedOrganismKey,
     selectedJournalFilters,
     selectedCountryFilters,
