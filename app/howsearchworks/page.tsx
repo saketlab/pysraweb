@@ -1,7 +1,7 @@
 import OntologyGraphFigure from "@/components/ontology-graph-figure";
 import SectionAnchor from "@/components/section-anchor";
 import SearchBar from "@/components/search-bar";
-import { Code, Flex, Heading, Separator, Text } from "@radix-ui/themes";
+import { Code, Flex, Heading, Link, Separator, Text } from "@radix-ui/themes";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import type { Metadata } from "next";
@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = {
   title: "How search works",
   description:
-    "How to search seqout. Write plain keywords, skip AND/OR operators, let synonym expansion work, and use filters to get better results across GEO, SRA, ENA, DRA, GEA, GSA & ArrayExpress.",
+    "How to search seqout. Write plain keywords and let synonym expansion work, or use structured search with OR, AND, NOT, parentheses, quotes, and * for exact control across GEO, SRA, ENA, DRA, GEA, GSA & ArrayExpress.",
   alternates: {
     canonical: "https://seqout.org/howsearchworks",
   },
@@ -35,26 +35,18 @@ const tips: { id: string; title: string; body: ReactNode }[] = [
     ),
   },
   {
-    id: "no-operators",
-    title: "Do not use AND, OR, or NOT",
+    id: "operators",
+    title: "Use operators only for structured search",
     body: (
       <>
-        The search box does not use <Code>AND</Code>, <Code>OR</Code>, or{" "}
-        <Code>NOT</Code> as commands. It reads them as normal words. A query
-        like <Code>cancer AND mouse</Code> also looks for the word{" "}
-        <Code>and</Code>. This gives worse results. Write only the keywords.
-        <Examples good="cancer mouse" avoid="cancer AND mouse" />
-      </>
-    ),
-  },
-  {
-    id: "no-symbols",
-    title: "Do not add quotation marks or symbols",
-    body: (
-      <>
-        Write words only. Quotation marks, plus signs, and other symbols do not
-        change the search. They can reduce your results.
-        <Examples good="single cell rna" avoid={`"single cell" +rna`} />
+        For an everyday search, type plain keywords in lower case. The search
+        then adds synonyms for you and gives the most results. In lower case, the
+        words <Code>and</Code>, <Code>or</Code>, and <Code>not</Code> are normal
+        words, not commands. To control the query yourself, use structured
+        search. A capital <Code>OR</Code>, <Code>AND</Code>, or <Code>NOT</Code>{" "}
+        turns it on. The symbols <Code>( )</Code>, <Code>&quot;</Code>, and{" "}
+        <Code>*</Code> also turn it on. See{" "}
+        <Link href="#structured-search">Structured search</Link> below.
       </>
     ),
   },
@@ -191,6 +183,110 @@ export default function HowSearchWorks() {
 
         <Separator size="4" />
 
+        <Flex align="center" gap="2" id="structured-search">
+          <Heading as="h2" size={{ initial: "5", md: "7" }} weight="bold">
+            Structured search
+          </Heading>
+          <SectionAnchor id="structured-search" />
+        </Flex>
+
+        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+          Structured search gives you exact control of the query. The search
+          turns it on when your text has one of these: parentheses, quotation
+          marks, an asterisk, or a capital <Code>OR</Code>, <Code>AND</Code>, or{" "}
+          <Code>NOT</Code>. In structured search, the search uses your exact
+          terms. It does not add synonyms. It does not correct the spelling.
+        </Text>
+
+        <ul
+          style={{
+            margin: 0,
+            paddingLeft: "1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+          }}
+        >
+          <li>
+            <Text
+              size={{ initial: "2", md: "3" }}
+              style={{ color: "var(--gray-11)" }}
+            >
+              Put the alternatives in parentheses and join them with{" "}
+              <Code>OR</Code>. Example: <Code>(gut OR colon)</Code>.
+            </Text>
+          </li>
+          <li>
+            <Text
+              size={{ initial: "2", md: "3" }}
+              style={{ color: "var(--gray-11)" }}
+            >
+              Put one group next to another group to join them with{" "}
+              <Code>AND</Code>. Example:{" "}
+              <Code>(gut OR colon) (immune OR immunity)</Code>.
+            </Text>
+          </li>
+          <li>
+            <Text
+              size={{ initial: "2", md: "3" }}
+              style={{ color: "var(--gray-11)" }}
+            >
+              Write <Code>NOT</Code> before a term to remove it. Example:{" "}
+              <Code>liver NOT tumor</Code>.
+            </Text>
+          </li>
+          <li>
+            <Text
+              size={{ initial: "2", md: "3" }}
+              style={{ color: "var(--gray-11)" }}
+            >
+              Add an asterisk to the end of a word for a prefix match. Example:{" "}
+              <Code>immun*</Code> finds <Code>immune</Code> and{" "}
+              <Code>immunity</Code>.
+            </Text>
+          </li>
+          <li>
+            <Text
+              size={{ initial: "2", md: "3" }}
+              style={{ color: "var(--gray-11)" }}
+            >
+              Put a phrase in quotation marks. Example:{" "}
+              <Code>&quot;single cell&quot;</Code>.
+            </Text>
+          </li>
+        </ul>
+
+        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+          For example, this query finds datasets about endocrine resistance in
+          breast cancer:
+        </Text>
+
+        <Code
+          style={{
+            display: "block",
+            padding: "0.75rem",
+            whiteSpace: "pre-wrap",
+            overflowX: "auto",
+          }}
+        >
+          {`("breast cancer" OR "mammary tumor") ("tamoxifen" OR "endocrine") resist*`}
+        </Code>
+
+        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+          The search reads it as one cancer term, and one treatment term, and a
+          word that starts with <Code>resist</Code>. It uses only these words.
+          The asterisk in <Code>resist*</Code> matches <Code>resistant</Code> and{" "}
+          <Code>resistance</Code>.
+        </Text>
+
+        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+          Structured search works with the filters, the sort options, and the
+          source tabs. So you can add an organism filter, or you can sort by
+          year, and the operators still apply.
+        </Text>
+
+        <Separator size="4" />
+
         <Flex align="center" gap="2" id="ranking">
           <Heading as="h2" size={{ initial: "5", md: "7" }} weight="bold">
             How results are ranked
@@ -207,8 +303,9 @@ export default function HowSearchWorks() {
         </Text>
 
         <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
-          The search builds two queries from your text. The first query,{" "}
-          <Tex inline tex="Q_{\text{orig}}" />, is your text as you typed it. The
+          For the default search, the search builds two queries from your text.
+          The first query, <Tex inline tex="Q_{\text{orig}}" />, is your text as
+          you typed it. The
           second query, <Tex inline tex="Q_{\text{expanded}}" />, is your text
           joined with all of its synonyms and related terms by <Code>OR</Code>. A
           dataset is a match when it satisfies{" "}
