@@ -185,6 +185,7 @@ const FILTER_PARAM_KEYS = {
   journal: "filter_journal",
   country: "filter_country",
   libraryStrategy: "filter_library_strategy",
+  librarySource: "filter_library_source",
   instrumentModel: "filter_instrument_model",
   platform: "filter_platform",
   multiPlatform: "multi_platform",
@@ -220,6 +221,7 @@ type SearchFilterParams = {
   organism: string | null;
   country: string[];
   library_strategy: string[];
+  library_source: string[];
   instrument_model: string[];
   platform: string[];
   journal: string[];
@@ -234,6 +236,7 @@ function appendFilterParams(url: string, f: SearchFilterParams): string {
   if (f.organism) add("organism", f.organism);
   for (const v of f.country) add("country", v);
   for (const v of f.library_strategy) add("library_strategy", v);
+  for (const v of f.library_source) add("library_source", v);
   for (const v of f.instrument_model) add("instrument_model", v);
   for (const v of f.platform) add("platform", v);
   for (const v of f.journal) add("journal", v);
@@ -551,6 +554,8 @@ type ActiveFilterChipsProps = {
   setSelectedCountryFilters: (next: string[]) => void;
   selectedLibraryStrategyFilters: string[];
   setSelectedLibraryStrategyFilters: (next: string[]) => void;
+  selectedLibrarySourceFilters: string[];
+  setSelectedLibrarySourceFilters: (next: string[]) => void;
   selectedInstrumentModelFilters: string[];
   setSelectedInstrumentModelFilters: (next: string[]) => void;
   selectedPlatformFilters: string[];
@@ -676,6 +681,20 @@ function ActiveFilterChips(props: ActiveFilterChipsProps) {
         onRemove={() =>
           props.setSelectedLibraryStrategyFilters(
             props.selectedLibraryStrategyFilters.filter((v) => v !== strategy),
+          )
+        }
+      />,
+    );
+  }
+
+  for (const source of props.selectedLibrarySourceFilters) {
+    chips.push(
+      <FilterChip
+        key={`ls-${source}`}
+        label={`Source: ${source}`}
+        onRemove={() =>
+          props.setSelectedLibrarySourceFilters(
+            props.selectedLibrarySourceFilters.filter((v) => v !== source),
           )
         }
       />,
@@ -983,6 +1002,13 @@ export default function SearchPageBody() {
       ),
     [searchParams],
   );
+  const selectedLibrarySourceFilters = useMemo(
+    () =>
+      normalizeMultiValueFilter(
+        searchParams.getAll(FILTER_PARAM_KEYS.librarySource),
+      ),
+    [searchParams],
+  );
   const selectedInstrumentModelFilters = useMemo(
     () =>
       normalizeMultiValueFilter(
@@ -1007,6 +1033,7 @@ export default function SearchPageBody() {
       organism: selectedOrganismKey,
       country: selectedCountryFilters,
       library_strategy: selectedLibraryStrategyFilters,
+      library_source: selectedLibrarySourceFilters,
       instrument_model: selectedInstrumentModelFilters,
       platform: selectedPlatformFilters,
       journal: selectedJournalFilters,
@@ -1017,6 +1044,7 @@ export default function SearchPageBody() {
       selectedOrganismKey,
       selectedCountryFilters,
       selectedLibraryStrategyFilters,
+      selectedLibrarySourceFilters,
       selectedInstrumentModelFilters,
       selectedPlatformFilters,
       selectedJournalFilters,
@@ -1041,6 +1069,7 @@ export default function SearchPageBody() {
     selectedJournalFilters,
     selectedCountryFilters,
     selectedLibraryStrategyFilters,
+    selectedLibrarySourceFilters,
     selectedInstrumentModelFilters,
     perPage,
   ]);
@@ -1248,6 +1277,7 @@ export default function SearchPageBody() {
       selectedJournalFilters.length > 0 ||
       selectedCountryFilters.length > 0 ||
       selectedLibraryStrategyFilters.length > 0 ||
+      selectedLibrarySourceFilters.length > 0 ||
       selectedInstrumentModelFilters.length > 0 ||
       selectedPlatformFilters.length > 0 ||
       multiPlatformOnly;
@@ -1272,6 +1302,7 @@ export default function SearchPageBody() {
     selectedJournalFilters,
     selectedCountryFilters,
     selectedLibraryStrategyFilters,
+    selectedLibrarySourceFilters,
     selectedInstrumentModelFilters,
     selectedPlatformFilters,
     multiPlatformOnly,
@@ -1706,6 +1737,7 @@ export default function SearchPageBody() {
       journal: selectedJournalFilters,
       country: selectedCountryFilters,
       library_strategy: selectedLibraryStrategyFilters,
+      library_source: selectedLibrarySourceFilters,
       instrument_model: selectedInstrumentModelFilters,
       platform: selectedPlatformFilters,
       multi_platform: multiPlatformOnly,
@@ -1714,6 +1746,7 @@ export default function SearchPageBody() {
       selectedJournalFilters,
       selectedCountryFilters,
       selectedLibraryStrategyFilters,
+      selectedLibrarySourceFilters,
       selectedInstrumentModelFilters,
       selectedPlatformFilters,
       multiPlatformOnly,
@@ -1739,6 +1772,8 @@ export default function SearchPageBody() {
     setLocalMore((p) => ({ ...p, country: v }));
   const railSetLibraryStrategy = (v: string[]) =>
     setLocalMore((p) => ({ ...p, library_strategy: v }));
+  const railSetLibrarySource = (v: string[]) =>
+    setLocalMore((p) => ({ ...p, library_source: v }));
   const railSetInstrumentModel = (v: string[]) =>
     setLocalMore((p) => ({ ...p, instrument_model: v }));
   const railSetPlatform = (v: string[]) =>
@@ -1750,6 +1785,7 @@ export default function SearchPageBody() {
       [FILTER_PARAM_KEYS.journal]: localMore.journal,
       [FILTER_PARAM_KEYS.country]: localMore.country,
       [FILTER_PARAM_KEYS.libraryStrategy]: localMore.library_strategy,
+      [FILTER_PARAM_KEYS.librarySource]: localMore.library_source,
       [FILTER_PARAM_KEYS.instrumentModel]: localMore.instrument_model,
       [FILTER_PARAM_KEYS.platform]: localMore.platform,
       [FILTER_PARAM_KEYS.multiPlatform]: localMore.multi_platform
@@ -1778,6 +1814,14 @@ export default function SearchPageBody() {
     (arr: string[]) => {
       updateSearchUrl({
         [FILTER_PARAM_KEYS.libraryStrategy]: arr,
+      });
+    },
+    [updateSearchUrl],
+  );
+  const handleSetLibrarySourceFilters = useCallback(
+    (arr: string[]) => {
+      updateSearchUrl({
+        [FILTER_PARAM_KEYS.librarySource]: arr,
       });
     },
     [updateSearchUrl],
@@ -1811,6 +1855,7 @@ export default function SearchPageBody() {
       [FILTER_PARAM_KEYS.journal]: [],
       [FILTER_PARAM_KEYS.country]: [],
       [FILTER_PARAM_KEYS.libraryStrategy]: [],
+      [FILTER_PARAM_KEYS.librarySource]: [],
       [FILTER_PARAM_KEYS.instrumentModel]: [],
       [FILTER_PARAM_KEYS.platform]: [],
       [FILTER_PARAM_KEYS.multiPlatform]: null,
@@ -1932,6 +1977,8 @@ export default function SearchPageBody() {
     setSelectedCountryFilters: railSetCountry,
     selectedLibraryStrategyFilters: localMore.library_strategy,
     setSelectedLibraryStrategyFilters: railSetLibraryStrategy,
+    selectedLibrarySourceFilters: localMore.library_source,
+    setSelectedLibrarySourceFilters: railSetLibrarySource,
     selectedInstrumentModelFilters: localMore.instrument_model,
     setSelectedInstrumentModelFilters: railSetInstrumentModel,
     platformResults: platformFilterResults,
@@ -1949,6 +1996,7 @@ export default function SearchPageBody() {
     selectedJournalFilters.length > 0 ||
     selectedCountryFilters.length > 0 ||
     selectedLibraryStrategyFilters.length > 0 ||
+    selectedLibrarySourceFilters.length > 0 ||
     selectedInstrumentModelFilters.length > 0 ||
     selectedPlatformFilters.length > 0 ||
     multiPlatformOnly ||
@@ -1987,6 +2035,7 @@ export default function SearchPageBody() {
       [FILTER_PARAM_KEYS.journal]: [],
       [FILTER_PARAM_KEYS.country]: [],
       [FILTER_PARAM_KEYS.libraryStrategy]: [],
+      [FILTER_PARAM_KEYS.librarySource]: [],
       [FILTER_PARAM_KEYS.instrumentModel]: [],
       [FILTER_PARAM_KEYS.platform]: [],
       [FILTER_PARAM_KEYS.multiPlatform]: null,
@@ -2043,6 +2092,8 @@ export default function SearchPageBody() {
       setSelectedCountryFilters={handleSetCountryFilters}
       selectedLibraryStrategyFilters={selectedLibraryStrategyFilters}
       setSelectedLibraryStrategyFilters={handleSetLibraryStrategyFilters}
+      selectedLibrarySourceFilters={selectedLibrarySourceFilters}
+      setSelectedLibrarySourceFilters={handleSetLibrarySourceFilters}
       selectedInstrumentModelFilters={selectedInstrumentModelFilters}
       setSelectedInstrumentModelFilters={handleSetInstrumentModelFilters}
       selectedPlatformFilters={selectedPlatformFilters}

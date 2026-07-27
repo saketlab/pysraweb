@@ -65,6 +65,7 @@ export type SearchFacets = {
   country?: SearchFacetList;
   journal?: SearchFacetList;
   library_strategy?: SearchFacetList;
+  library_source?: SearchFacetList;
   instrument_model?: SearchFacetList;
 };
 
@@ -290,6 +291,8 @@ export function SearchOrganismRail({
   setSelectedCountryFilters,
   selectedLibraryStrategyFilters,
   setSelectedLibraryStrategyFilters,
+  selectedLibrarySourceFilters,
+  setSelectedLibrarySourceFilters,
   selectedInstrumentModelFilters,
   setSelectedInstrumentModelFilters,
   selectedPlatformFilters,
@@ -320,6 +323,8 @@ export function SearchOrganismRail({
   setSelectedCountryFilters: (value: string[]) => void;
   selectedLibraryStrategyFilters: string[];
   setSelectedLibraryStrategyFilters: (value: string[]) => void;
+  selectedLibrarySourceFilters: string[];
+  setSelectedLibrarySourceFilters: (value: string[]) => void;
   selectedInstrumentModelFilters: string[];
   setSelectedInstrumentModelFilters: (value: string[]) => void;
   selectedPlatformFilters: string[];
@@ -339,6 +344,7 @@ export function SearchOrganismRail({
   const [journalQuery, setJournalQuery] = useState("");
   const [countryQuery, setCountryQuery] = useState("");
   const [libraryStrategyQuery, setLibraryStrategyQuery] = useState("");
+  const [librarySourceQuery, setLibrarySourceQuery] = useState("");
   const [instrumentModelQuery, setInstrumentModelQuery] = useState("");
 
   const journalCounts = buildFacetCounts(
@@ -434,6 +440,35 @@ export function SearchOrganismRail({
     ]);
   };
 
+  // Server-authoritative: library_sources isn't on result rows, so counts come
+  // purely from /search/facets (buildFacetCounts lets the server list win).
+  const librarySourceCounts = buildFacetCounts(
+    serverFacets?.library_source,
+    [],
+    () => [],
+  );
+
+  const librarySourceOptions = Array.from(librarySourceCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const normalizedLibrarySourceQuery = librarySourceQuery.trim().toLowerCase();
+  const visibleLibrarySourceOptions = normalizedLibrarySourceQuery
+    ? librarySourceOptions.filter((option) =>
+        option.name.toLowerCase().includes(normalizedLibrarySourceQuery),
+      )
+    : librarySourceOptions;
+
+  const toggleLibrarySourceSelection = (source: string) => {
+    if (selectedLibrarySourceFilters.includes(source)) {
+      setSelectedLibrarySourceFilters(
+        selectedLibrarySourceFilters.filter((value) => value !== source),
+      );
+      return;
+    }
+    setSelectedLibrarySourceFilters([...selectedLibrarySourceFilters, source]);
+  };
+
   const instrumentModelCounts = buildFacetCounts(
     serverFacets?.instrument_model,
     instrumentModelResults,
@@ -507,6 +542,7 @@ export function SearchOrganismRail({
     selectedJournalFilters.length +
     selectedCountryFilters.length +
     selectedLibraryStrategyFilters.length +
+    selectedLibrarySourceFilters.length +
     selectedInstrumentModelFilters.length +
     selectedPlatformFilters.length +
     (multiPlatformOnly ? 1 : 0);
@@ -652,6 +688,21 @@ export function SearchOrganismRail({
                       </Tooltip>
                       {selectedLibraryStrategyFilters.length > 0 ? (
                         <Badge>{selectedLibraryStrategyFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="library-source">
+                    <Flex align="center" gap="1">
+                      <span>Library Source</span>
+                      <Tooltip content="The type of source material sequenced — e.g. TRANSCRIPTOMIC, GENOMIC, METAGENOMIC, or SYNTHETIC.">
+                        <InfoCircledIcon
+                          width="13"
+                          height="13"
+                          style={{ opacity: 0.6 }}
+                        />
+                      </Tooltip>
+                      {selectedLibrarySourceFilters.length > 0 ? (
+                        <Badge>{selectedLibrarySourceFilters.length}</Badge>
                       ) : null}
                     </Flex>
                   </Tabs.Trigger>
@@ -835,6 +886,67 @@ export function SearchOrganismRail({
                     ) : (
                       <Text size="2" color="gray">
                         No library strategies found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+
+                <Tabs.Content
+                  value="library-source"
+                  style={{ height: "17rem", overflow: "hidden" }}
+                >
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={librarySourceQuery}
+                      onChange={(event) =>
+                        setLibrarySourceQuery(event.target.value)
+                      }
+                      placeholder="Search library sources"
+                      aria-label="Search library sources"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleLibrarySourceOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleLibrarySourceOptions.map(
+                          (librarySourceOption) => (
+                            <Text
+                              as="label"
+                              size="2"
+                              key={librarySourceOption.name}
+                            >
+                              <Flex align="center" justify="between" gap="2">
+                                <Flex align="center" gap="2">
+                                  <Checkbox
+                                    checked={selectedLibrarySourceFilters.includes(
+                                      librarySourceOption.name,
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleLibrarySourceSelection(
+                                        librarySourceOption.name,
+                                      )
+                                    }
+                                  />
+                                  <span>{librarySourceOption.name}</span>
+                                </Flex>
+                                <Badge color="gray" variant="soft">
+                                  {librarySourceOption.count}
+                                </Badge>
+                              </Flex>
+                            </Text>
+                          ),
+                        )}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No library sources found.
                       </Text>
                     )}
                   </Flex>
@@ -1098,6 +1210,21 @@ export function SearchOrganismRail({
                       ) : null}
                     </Flex>
                   </Tabs.Trigger>
+                  <Tabs.Trigger value="library-source">
+                    <Flex align="center" gap="1">
+                      <span>Library Source</span>
+                      <Tooltip content="The type of source material sequenced — e.g. TRANSCRIPTOMIC, GENOMIC, METAGENOMIC, or SYNTHETIC.">
+                        <InfoCircledIcon
+                          width="13"
+                          height="13"
+                          style={{ opacity: 0.6 }}
+                        />
+                      </Tooltip>
+                      {selectedLibrarySourceFilters.length > 0 ? (
+                        <Badge>{selectedLibrarySourceFilters.length}</Badge>
+                      ) : null}
+                    </Flex>
+                  </Tabs.Trigger>
                   <Tabs.Trigger value="instrument-models">
                     <Flex align="center" gap="1">
                       <span>Instrument Models</span>
@@ -1278,6 +1405,67 @@ export function SearchOrganismRail({
                     ) : (
                       <Text size="2" color="gray">
                         No library strategies found.
+                      </Text>
+                    )}
+                  </Flex>
+                </Tabs.Content>
+
+                <Tabs.Content
+                  value="library-source"
+                  style={{ height: "17rem", overflow: "hidden" }}
+                >
+                  <Flex direction="column" gap="3" pt="3">
+                    <TextField.Root
+                      value={librarySourceQuery}
+                      onChange={(event) =>
+                        setLibrarySourceQuery(event.target.value)
+                      }
+                      placeholder="Search library sources"
+                      aria-label="Search library sources"
+                      size="2"
+                    >
+                      <TextField.Slot>
+                        <MagnifyingGlassIcon height="16" width="16" />
+                      </TextField.Slot>
+                    </TextField.Root>
+                    {visibleLibrarySourceOptions.length > 0 ? (
+                      <Flex
+                        direction="column"
+                        gap="2"
+                        style={{ maxHeight: "16rem", overflowY: "auto" }}
+                      >
+                        {visibleLibrarySourceOptions.map(
+                          (librarySourceOption) => (
+                            <Text
+                              as="label"
+                              size="2"
+                              key={librarySourceOption.name}
+                            >
+                              <Flex align="center" justify="between" gap="2">
+                                <Flex align="center" gap="2">
+                                  <Checkbox
+                                    checked={selectedLibrarySourceFilters.includes(
+                                      librarySourceOption.name,
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleLibrarySourceSelection(
+                                        librarySourceOption.name,
+                                      )
+                                    }
+                                  />
+                                  <span>{librarySourceOption.name}</span>
+                                </Flex>
+                                <Badge color="gray" variant="soft">
+                                  {librarySourceOption.count}
+                                </Badge>
+                              </Flex>
+                            </Text>
+                          ),
+                        )}
+                      </Flex>
+                    ) : (
+                      <Text size="2" color="gray">
+                        No library sources found.
                       </Text>
                     )}
                   </Flex>
