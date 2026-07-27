@@ -33,7 +33,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     label: "CLI",
-    href: "https://saket-choudhary.me/pysradb/index.html",
+    href: "/cli",
     external: true,
     icon: createElement(KeyboardIcon),
   },
