@@ -2,17 +2,43 @@
 import { DownloadFastqSection } from "@/components/sra-project-page";
 import { getJsonOrNull } from "@/utils/api";
 import { normalizeAliases } from "@/utils/project";
+import { InfoCircledIcon } from "@radix-ui/react-icons";
+import { Callout, Link, Tabs } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 
 type RunsData = React.ComponentProps<typeof DownloadFastqSection>["runsData"];
 
+/** Where a study came from, when it wasn't a declared cross-reference. */
+function ViaPmidNote({ accession, pmid }: { accession: string; pmid: string }) {
+  return (
+    <Callout.Root color="orange" size="1" mb="3">
+      <Callout.Icon>
+        <InfoCircledIcon />
+      </Callout.Icon>
+      <Callout.Text>
+        FASTQ files fetched from{" "}
+        <Link href={`/p/${accession}`} target="_blank">
+          {accession}
+        </Link>{" "}
+        , which was matched through the shared publication{" "}
+        <Link href={`/pmid/${pmid}/`} target="_blank" rel="noopener noreferrer">
+          PMID {pmid}
+        </Link>
+      </Callout.Text>
+    </Callout.Root>
+  );
+}
+
 export default function LinkedSraFastq({
   aliasField,
   agGridThemeClassName,
+  inferredVia,
 }: {
   aliasField: string | string[] | null | undefined;
   agGridThemeClassName: string;
+  /** accession -> PMID, for studies resolved via publication rather than a link. */
+  inferredVia?: Record<string, string>;
 }) {
   const sraAliases = React.useMemo(
     () =>
@@ -40,17 +66,54 @@ export default function LinkedSraFastq({
   const expTitleMap = React.useMemo(() => new Map<string, string>(), []);
 
   if (!data || data.length === 0) return null;
+
+  const section = ({ accession, runsData }: (typeof data)[number]) => (
+    <DownloadFastqSection
+      accession={accession}
+      runsData={runsData}
+      agGridThemeClassName={agGridThemeClassName}
+      expTitleMap={expTitleMap}
+    />
+  );
+
+  // One study: attach it directly, noting the provenance when it was inferred.
+  if (data.length === 1) {
+    const only = data[0];
+    return (
+      <>
+        {inferredVia?.[only.accession] && (
+          <ViaPmidNote
+            accession={only.accession}
+            pmid={inferredVia[only.accession]}
+          />
+        )}
+        {section(only)}
+      </>
+    );
+  }
+
+  // Several studies share the paper, and only one is likely to be this project's
+  // data — so let the user pick instead of stacking them as if all were equal.
   return (
-    <>
-      {data.map(({ accession, runsData }) => (
-        <DownloadFastqSection
-          key={accession}
-          accession={accession}
-          runsData={runsData}
-          agGridThemeClassName={agGridThemeClassName}
-          expTitleMap={expTitleMap}
-        />
+    <Tabs.Root defaultValue={data[0].accession}>
+      <Tabs.List>
+        {data.map(({ accession, runsData }) => (
+          <Tabs.Trigger key={accession} value={accession}>
+            {accession} ({runsData.total_runs})
+          </Tabs.Trigger>
+        ))}
+      </Tabs.List>
+      {data.map((entry) => (
+        <Tabs.Content key={entry.accession} value={entry.accession} mt="3">
+          {inferredVia?.[entry.accession] && (
+            <ViaPmidNote
+              accession={entry.accession}
+              pmid={inferredVia[entry.accession]}
+            />
+          )}
+          {section(entry)}
+        </Tabs.Content>
       ))}
-    </>
+    </Tabs.Root>
   );
 }

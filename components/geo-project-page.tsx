@@ -32,7 +32,7 @@ import {
 } from "@/lib/ag-grid";
 import { getExternalArchiveUrl } from "@/utils/accessionLinks";
 import { OrganismInfoButton } from "@/components/organism-info-button";
-import { getJson, getJsonWithTotal } from "@/utils/api";
+import { getJson, getJsonOrNull, getJsonWithTotal } from "@/utils/api";
 import { toServerFilters } from "@/utils/gridFilters";
 import { useServerFind } from "@/utils/useServerFind";
 import { copyToClipboard } from "@/utils/clipboard";
@@ -409,6 +409,37 @@ export default function GeoProjectPage() {
     queryFn: () => fetchProject(supplementaryTwinAccession),
     enabled: !!supplementaryTwinAccession,
   });
+
+  // No declared link to raw data? The project's paper may still name an SRA study
+  // (~3.3k GEO series). /xref returns those with source='pmid'; they are inferred
+  // from a shared publication, so the FASTQ section labels their provenance.
+  const { data: xrefData } = useQuery({
+    queryKey: ["xref", accession],
+    queryFn: () =>
+      getJsonOrNull<{
+        xref: {
+          accession: string;
+          source: string;
+          via_pmid?: string | null;
+        }[];
+      }>(`/project/${accession}/xref`),
+    enabled: !!accession && linkedSraAliases.length === 0,
+  });
+  const pmidLinkedSra = React.useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const x of xrefData?.xref ?? []) {
+      if (x.source === "pmid" && x.via_pmid && /^[SED]RP\d+$/i.test(x.accession))
+        out[x.accession.toUpperCase()] = x.via_pmid;
+    }
+    return out;
+  }, [xrefData]);
+  const fastqAliases = React.useMemo(
+    () =>
+      linkedSraAliases.length > 0
+        ? linkedSraAliases
+        : Object.keys(pmidLinkedSra),
+    [linkedSraAliases, pmidLinkedSra],
+  );
 
   // must stay a GEO accession: the GEO series endpoint cannot serve an SRA study
   const borrowedAccession =
@@ -1844,8 +1875,9 @@ export default function GeoProjectPage() {
             )}
 
             <LinkedSraFastq
-              aliasField={linkedSraAliases}
+              aliasField={fastqAliases}
               agGridThemeClassName={agGridThemeClassName}
+              inferredVia={pmidLinkedSra}
             />
             <Flex
               id="supplementary"
