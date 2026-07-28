@@ -39,7 +39,7 @@ export default function Page() {
             SELECT * FROM
             read_parquet(&apos;https://seqout.org/data/geo_series.parquet&apos;)
           </Code>
-          , or via the seqout CLI.
+          , or via the <Link href="/cli">seqout CLI</Link>.
         </Text>
         <DownloadTables />
       </Flex>
