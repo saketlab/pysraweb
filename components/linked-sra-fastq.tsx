@@ -3,7 +3,7 @@ import { DownloadFastqSection } from "@/components/sra-project-page";
 import { getJsonOrNull } from "@/utils/api";
 import { normalizeAliases } from "@/utils/project";
 import { InfoCircledIcon } from "@radix-ui/react-icons";
-import { Callout, Link, Tabs } from "@radix-ui/themes";
+import { Callout, Flex, Link, Tabs } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 
@@ -104,14 +104,20 @@ export default function LinkedSraFastq({
         ))}
       </Tabs.List>
       {data.map((entry) => (
-        <Tabs.Content key={entry.accession} value={entry.accession} mt="3">
-          {inferredVia?.[entry.accession] && (
-            <ViaPmidNote
-              accession={entry.accession}
-              pmid={inferredVia[entry.accession]}
-            />
-          )}
-          {section(entry)}
+        <Tabs.Content key={entry.accession} value={entry.accession} mt="4">
+          {/* DownloadFastqSection returns a fragment whose blocks are spaced by the
+              PARENT's flex gap. Tabs.Content is a plain div, so without this the
+              heading, toolbar and grid collapse together. gap="4" matches the page
+              column the untabbed section renders into. */}
+          <Flex direction="column" gap="4">
+            {inferredVia?.[entry.accession] && (
+              <ViaPmidNote
+                accession={entry.accession}
+                pmid={inferredVia[entry.accession]}
+              />
+            )}
+            {section(entry)}
+          </Flex>
         </Tabs.Content>
       ))}
     </Tabs.Root>
