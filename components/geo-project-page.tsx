@@ -383,6 +383,33 @@ export default function GeoProjectPage() {
       }),
     [projectAliases],
   );
+  // Supplementary files sit on whichever twin the archive happened to attach them
+  // to: E-GEOD-1160 carries 12 BioStudies files while its GEO twin GSE1160 carries
+  // none. Without a fallback the same study shows files on one accession and an
+  // empty section on the other. Computed here (not with the other supplementary
+  // state below) so the twin query can be a hook in the normal order.
+  const ownSupplementaryItems = React.useMemo(
+    () =>
+      buildSupplementaryItems({
+        rawValue: project?.supplementary_data,
+        idPrefix: "supplementary",
+      }),
+    [project?.supplementary_data],
+  );
+  // Only fetched when this project has none of its own, so the common case costs
+  // no extra request.
+  const supplementaryTwinAccession =
+    ownSupplementaryItems.length > 0
+      ? null
+      : ((isEAccession
+          ? linkedGeoSeriesAliases[0]
+          : linkedArrayExpressAliases[0]) ?? null);
+  const { data: supplementaryTwinProject } = useQuery({
+    queryKey: ["project", supplementaryTwinAccession],
+    queryFn: () => fetchProject(supplementaryTwinAccession),
+    enabled: !!supplementaryTwinAccession,
+  });
+
   // must stay a GEO accession: the GEO series endpoint cannot serve an SRA study
   const borrowedAccession =
     similarGseAccession ??
@@ -987,10 +1014,26 @@ export default function GeoProjectPage() {
     });
   }, [sampleColumnDefs, sampleRows]);
 
-  const supplementaryDataItems = buildSupplementaryItems({
-    rawValue: dataProject?.supplementary_data,
-    idPrefix: "supplementary",
-  });
+  // Own files win; otherwise take the linked twin's (see supplementaryTwinAccession).
+  // The old code read these off `dataProject`, which on an E-* page is the borrowed
+  // GEO/SRA twin -- so a twin with no files erased the AE project's real ones.
+  const fallbackSupplementarySource =
+    supplementaryTwinProject ?? borrowedProject ?? null;
+  const fallbackSupplementaryItems = fallbackSupplementarySource
+    ? buildSupplementaryItems({
+        rawValue: fallbackSupplementarySource.supplementary_data,
+        idPrefix: "supplementary",
+      })
+    : [];
+  const usingOwnSupplementary = ownSupplementaryItems.length > 0;
+  const supplementaryDataItems = usingOwnSupplementary
+    ? ownSupplementaryItems
+    : fallbackSupplementaryItems;
+  // The bulk-download endpoint must target whichever project actually holds the
+  // files, or it 404s ("No supplementary files found for GSE1160").
+  const supplementaryAccession = usingOwnSupplementary
+    ? accession
+    : (supplementaryTwinAccession ?? dataAccession ?? accession);
 
   const sampleSupplementaryDataItems =
     !samples || samples.length === 0
@@ -1027,7 +1070,7 @@ export default function GeoProjectPage() {
       }));
   })();
 
-  const cliDownloadCommand = `curl -sS "https://seqout.org/api/project/${dataAccession}/supplementary/download" | bash`;
+  const cliDownloadCommand = `curl -sS "https://seqout.org/api/project/${supplementaryAccession}/supplementary/download" | bash`;
 
   const supplementaryColDefs = React.useMemo<ColDef<SupplementaryDataItem>[]>(
     () => [
