@@ -8,6 +8,9 @@ import { useSyncExternalStore } from "react";
 
 const EVENT = "seqout-first-visit-ping-change";
 
+/** Shared by the navbar button and the search-bar icon, so either click retires both. */
+export const HOW_SEARCH_WORKS_KEY = "seqout-how-search-works-clicked";
+
 function subscribe(callback: () => void) {
   window.addEventListener(EVENT, callback);
   window.addEventListener("storage", callback);

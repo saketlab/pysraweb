@@ -1,15 +1,6 @@
 import SearchBar from "@/components/search-bar";
 import { escapeHtmlJson } from "@/utils/json";
-import { InfoCircledIcon } from "@radix-ui/react-icons";
-import {
-  Box,
-  Callout,
-  Code,
-  Flex,
-  Heading,
-  Link,
-  Text,
-} from "@radix-ui/themes";
+import { Box, Card, Code, Flex, Heading, Link, Text } from "@radix-ui/themes";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -38,6 +29,103 @@ const jsonLd = {
   },
 };
 
+const MCP_URL = "https://seqout.org/api/mcp";
+
+// Each client: the one-line CLI command (fastest path) plus the config file it
+// writes, for people who prefer to edit it by hand. Formats verified against
+// each project's own docs.
+const CLIENTS: {
+  id: string;
+  name: string;
+  docs: string;
+  cli?: string;
+  file: string;
+  config: string;
+}[] = [
+  {
+    id: "claude-code",
+    name: "Claude Code",
+    docs: "https://docs.claude.com/en/docs/claude-code/mcp",
+    cli: `claude mcp add --transport http seqout ${MCP_URL}`,
+    file: "~/.claude.json",
+    config: `"mcpServers": {
+  "seqout": {
+    "type": "http",
+    "url": "${MCP_URL}"
+  }
+}`,
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    docs: "https://developers.openai.com/codex/mcp",
+    cli: `codex mcp add seqout --url ${MCP_URL}`,
+    file: "~/.codex/config.toml",
+    config: `[mcp_servers.seqout]
+url = "${MCP_URL}"`,
+  },
+  {
+    id: "hermes",
+    name: "Hermes",
+    docs: "https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp",
+    cli: `hermes mcp add seqout --url "${MCP_URL}"`,
+    file: "~/.hermes/config.yaml",
+    config: `mcp_servers:
+  seqout:
+    url: "${MCP_URL}"`,
+  },
+  {
+    id: "goose",
+    name: "Goose",
+    docs: "https://block.github.io/goose/docs/getting-started/using-extensions",
+    cli: "goose configure   # Add Extension → Remote Extension (Streamable HTTP)",
+    file: "~/.config/goose/config.yaml",
+    config: `extensions:
+  seqout:
+    enabled: true
+    type: streamable_http
+    name: seqout
+    uri: ${MCP_URL}
+    timeout: 300`,
+  },
+  {
+    id: "openclaw",
+    name: "OpenClaw",
+    docs: "https://docs.openclaw.ai/cli/mcp",
+    cli: `openclaw mcp add seqout --url ${MCP_URL} --transport streamable-http`,
+    file: "~/.openclaw/openclaw.json",
+    config: `{
+  "mcp": {
+    "servers": {
+      "seqout": {
+        "url": "${MCP_URL}",
+        "transport": "streamable-http"
+      }
+    }
+  }
+}`,
+  },
+];
+
+function ConfigBlock({ children }: { children: string }) {
+  return (
+    <Box style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+      <Code
+        variant="soft"
+        size={{ initial: "1", md: "2" }}
+        style={{
+          display: "block",
+          whiteSpace: "pre",
+          padding: "1rem",
+          borderRadius: "8px",
+        }}
+      >
+        {children}
+      </Code>
+    </Box>
+  );
+}
+
 export default function MCP() {
   return (
     <>
@@ -52,11 +140,11 @@ export default function MCP() {
         direction={"column"}
       >
         <Heading as="h1" size={{ initial: "6", md: "8" }} weight="bold" mb="3">
-          MCP Server
+          Using seqout with LLMs
         </Heading>
 
         <Text size={{ initial: "2", md: "3" }}>
-          We offer a remote{" "}
+          Seqout offers a remote{" "}
           <Link
             href="https://modelcontextprotocol.io"
             target="_blank"
@@ -69,21 +157,26 @@ export default function MCP() {
           GEO, SRA, ENA, DRA, GEA, GSA & ArrayExpress.
         </Text>
 
-        <Callout.Root>
-          <Callout.Icon>
-            <InfoCircledIcon />
-          </Callout.Icon>
-          <Callout.Text size={{ initial: "2", md: "3" }}>
-            Connect your LLM client using this URL:{" "}
-            <Code variant="soft" size={{ initial: "1", md: "2" }}>
-              https://seqout.org/api/mcp
-            </Code>
-          </Callout.Text>
-        </Callout.Root>
+        <Card>
+          <Flex direction={"column"} gap={"2"}>
+            <Heading size={"4"}>Quick setup</Heading>
+            <Flex direction={"column"} gap={"2"}>
+              <Text>
+                You can setup MCP in your AI agent of choice with this URL :{" "}
+                <Code variant="soft" size={{ initial: "1", md: "2" }}>
+                  https://seqout.org/api/mcp
+                </Code>
+              </Text>
+              <Text>
+                This can be done either by asking the agent to do it on your
+                behalf or by editing the apporpriate configuration file required
+                by the agent.
+              </Text>
+            </Flex>
+          </Flex>
+        </Card>
 
-        <Text size={{ initial: "4", md: "6" }} weight="medium">
-          Setup Guide for Claude Desktop
-        </Text>
+        <Heading>Claude Desktop</Heading>
 
         <Flex direction="column" gap="4">
           <Text size={{ initial: "2", md: "3" }}>
@@ -107,30 +200,14 @@ export default function MCP() {
             section:
           </Text>
 
-          <Box
-            style={{
-              overflowX: "auto",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            <Code
-              variant="soft"
-              size={{ initial: "1", md: "2" }}
-              style={{
-                display: "block",
-                whiteSpace: "pre",
-                padding: "1rem",
-                borderRadius: "8px",
-              }}
-            >
-              {`"mcpServers": {
+          <ConfigBlock>
+            {`"mcpServers": {
   "seqout": {
     "command": "npx",
-    "args": ["-y", "mcp-remote", "https://seqout.org/api/mcp"]
+    "args": ["-y", "mcp-remote", "${MCP_URL}"]
   }
 }`}
-            </Code>
-          </Box>
+          </ConfigBlock>
 
           <Text size={{ initial: "2", md: "3" }}>
             4. Restart Claude Desktop to apply the changes
@@ -142,11 +219,40 @@ export default function MCP() {
             Desktop conversations.
           </Text>
 
-          <Text size={{ initial: "2", md: "3" }}>
-            For direct programmatic access without MCP, see the{" "}
-            <Link href="/api-docs">API Reference</Link>.
-          </Text>
         </Flex>
+
+        {CLIENTS.map((client) => (
+          <Flex key={client.id} direction="column" gap="4" id={client.id}>
+            <Heading>{client.name}</Heading>
+
+            {client.cli && (
+              <>
+                <Text size={{ initial: "2", md: "3" }}>
+                  Run this command in your terminal:
+                </Text>
+                <ConfigBlock>{client.cli}</ConfigBlock>
+                <Text size={{ initial: "2", md: "3" }}>
+                  Or add it to <Code>{client.file}</Code> by hand:
+                </Text>
+              </>
+            )}
+
+            <ConfigBlock>{client.config}</ConfigBlock>
+
+            <Text size={{ initial: "2", md: "3" }}>
+              Restart {client.name} to load the server. See the{" "}
+              <Link href={client.docs} target="_blank" rel="noopener noreferrer">
+                {client.name} MCP documentation
+              </Link>{" "}
+              for authentication and tool-filtering options.
+            </Text>
+          </Flex>
+        ))}
+
+        <Text size={{ initial: "2", md: "3" }}>
+          For direct programmatic access without MCP, see the{" "}
+          <Link href="/api-docs">API Reference</Link>.
+        </Text>
       </Flex>
     </>
   );

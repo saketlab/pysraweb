@@ -1,4 +1,9 @@
 "use client";
+import {
+  FirstVisitPing,
+  HOW_SEARCH_WORKS_KEY,
+  useFirstVisit,
+} from "@/components/first-visit-ping";
 import GitHubButton from "@/components/github-button";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
@@ -68,6 +73,8 @@ function SearchBarContent({
   const { history, saveHistory, performSearch } = useSearchHistory();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [howSearchWorksSeen, markHowSearchWorksSeen] =
+    useFirstVisit(HOW_SEARCH_WORKS_KEY);
 
   const handleMenuSelect = (item: NavItem) => {
     if (item.external) {
@@ -311,9 +318,14 @@ function SearchBarContent({
             variant="outline"
             color="gray"
             aria-label="How search works"
-            onClick={() => router.push("/howsearchworks")}
+            onClick={() => {
+              markHowSearchWorksSeen();
+              router.push("/howsearchworks");
+            }}
+            style={{ position: "relative" }}
           >
             <InfoCircledIcon />
+            {!howSearchWorksSeen && <FirstVisitPing />}
           </IconButton>
         </Tooltip>
         <GitHubButton />

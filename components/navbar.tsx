@@ -15,12 +15,19 @@ import {
   Link,
 } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
+import {
+  FirstVisitPing,
+  HOW_SEARCH_WORKS_KEY,
+  useFirstVisit,
+} from "./first-visit-ping";
 import BulkMetaDialog from "./bulk-meta-dialog";
 import GitHubButton from "./github-button";
 import ThemeToggle from "./theme-toggle";
 
 export default function Navabar() {
   const router = useRouter();
+  const [howSearchWorksSeen, markHowSearchWorksSeen] =
+    useFirstVisit(HOW_SEARCH_WORKS_KEY);
 
   const handleMenuSelect = (item: NavItem) => {
     if (item.external) {
@@ -95,9 +102,14 @@ export default function Navabar() {
         <Button
           variant="outline"
           color="gray"
-          onClick={() => router.push("/howsearchworks")}
+          onClick={() => {
+            markHowSearchWorksSeen();
+            router.push("/howsearchworks");
+          }}
+          style={{ position: "relative" }}
         >
           <InfoCircledIcon /> How search works
+          {!howSearchWorksSeen && <FirstVisitPing />}
         </Button>
         <GitHubButton />
         <ThemeToggle />
