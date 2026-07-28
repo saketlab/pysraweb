@@ -188,23 +188,12 @@ export default function MCP() {
 
         <Flex direction="column" gap="4">
           <Text size={{ initial: "2", md: "3" }}>
-            1. Download and install the{" "}
-            <Link
-              href="https://claude.com/download"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Claude Desktop app
-            </Link>
-          </Text>
-
-          <Text size={{ initial: "2", md: "3" }}>
-            2. Open the Claude Desktop configuration file by going to{" "}
+            1. Open the Claude Desktop configuration file by going to{" "}
             <Text weight="medium">Settings → Developer → Edit Config</Text>
           </Text>
 
           <Text size={{ initial: "2", md: "3" }}>
-            3. Add the following configuration to the <Code>mcpServers</Code>{" "}
+            2. Add the following configuration to the <Code>mcpServers</Code>{" "}
             section:
           </Text>
 
