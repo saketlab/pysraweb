@@ -1,6 +1,6 @@
 import OntologyGraphFigure from "@/components/ontology-graph-figure";
-import SectionAnchor from "@/components/section-anchor";
 import SearchBar from "@/components/search-bar";
+import SectionAnchor from "@/components/section-anchor";
 import { Code, Flex, Heading, Link, Separator, Text } from "@radix-ui/themes";
 import katex from "katex";
 import "katex/dist/katex.min.css";
@@ -40,12 +40,12 @@ const tips: { id: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         For an everyday search, type plain keywords in lower case. The search
-        then adds synonyms for you and gives the most results. In lower case, the
-        words <Code>and</Code>, <Code>or</Code>, and <Code>not</Code> are normal
-        words, not commands. To control the query yourself, use structured
-        search. A capital <Code>OR</Code>, <Code>AND</Code>, or <Code>NOT</Code>{" "}
-        turns it on. The symbols <Code>( )</Code>, <Code>&quot;</Code>, and{" "}
-        <Code>*</Code> also turn it on. See{" "}
+        then adds synonyms for you and gives the most results. In lower case,
+        the words <Code>and</Code>, <Code>or</Code>, and <Code>not</Code> are
+        normal words, not commands. To control the query yourself, use
+        structured search. A capital <Code>OR</Code>, <Code>AND</Code>, or{" "}
+        <Code>NOT</Code> turns it on. The symbols <Code>( )</Code>,{" "}
+        <Code>&quot;</Code>, and <Code>*</Code> also turn it on. See{" "}
         <Link href="#structured-search">Structured search</Link> below.
       </>
     ),
@@ -56,10 +56,10 @@ const tips: { id: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         The search adds synonyms, abbreviations, and related terms for you. You
-        do not need to list them. A search for{" "}
-        <Code>lou gehrig disease</Code> also finds datasets that use{" "}
-        <Code>ALS</Code> or <Code>amyotrophic lateral sclerosis</Code>. A search
-        for <Code>atacseq</Code> also finds <Code>atac seq</Code>. Write the one
+        do not need to list them. A search for <Code>lou gehrig disease</Code>{" "}
+        also finds datasets that use <Code>ALS</Code> or{" "}
+        <Code>amyotrophic lateral sclerosis</Code>. A search for{" "}
+        <Code>atacseq</Code> also finds <Code>atac seq</Code>. Write the one
         term that you know. The search finds the others.
       </>
     ),
@@ -151,7 +151,7 @@ export default function HowSearchWorks() {
           <SectionAnchor id="how-search-works" />
         </Flex>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The search box does a full-text search. It looks in the title, the
           description, the sample metadata, the organizations, and the authors
           of each dataset. Sample metadata includes fields such as tissue, cell
@@ -172,12 +172,7 @@ export default function HowSearchWorks() {
               </Heading>
               <SectionAnchor id={tip.id} />
             </Flex>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
-              {tip.body}
-            </Text>
+            <Text size={{ initial: "2", md: "3" }}>{tip.body}</Text>
           </Flex>
         ))}
 
@@ -190,12 +185,24 @@ export default function HowSearchWorks() {
           <SectionAnchor id="structured-search" />
         </Flex>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
-          Structured search gives you exact control of the query. The search
-          turns it on when your text has one of these: parentheses, quotation
-          marks, an asterisk, or a capital <Code>OR</Code>, <Code>AND</Code>, or{" "}
-          <Code>NOT</Code>. In structured search, the search uses your exact
-          terms. It does not add synonyms. It does not correct the spelling.
+        <Text size={{ initial: "2", md: "3" }}>
+          Structured search gives you exact control of the query. It uses your
+          exact terms only. It does not add synonyms, and it does not correct
+          the spelling. So a plain keyword search usually finds more datasets.
+          Use structured search only when you must control the query yourself,
+          for example to remove a term or to require an exact combination.
+        </Text>
+
+        <Text size={{ initial: "2", md: "3" }}>
+          The search turns structured search on when your text has one of these
+          four marks: parentheses <Code>( )</Code>, an asterisk <Code>*</Code>,
+          quotation marks <Code>&quot; &quot;</Code>, or a capital{" "}
+          <Code>OR</Code>, <Code>AND</Code>, or <Code>NOT</Code>. If your text
+          has none of these marks, the search stays a plain keyword search. The
+          operators must be in capital letters. In lower case, <Code>or</Code>,{" "}
+          <Code>and</Code>, and <Code>not</Code> are normal words. So{" "}
+          <Code>liver NOT tumor</Code> removes tumor, but{" "}
+          <Code>liver not tumor</Code> does not.
         </Text>
 
         <ul
@@ -208,55 +215,45 @@ export default function HowSearchWorks() {
           }}
         >
           <li>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
+            <Text size={{ initial: "2", md: "3" }}>
               Put the alternatives in parentheses and join them with{" "}
               <Code>OR</Code>. Example: <Code>(gut OR colon)</Code>.
             </Text>
           </li>
           <li>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
+            <Text size={{ initial: "2", md: "3" }}>
               Put one group next to another group to join them with{" "}
               <Code>AND</Code>. Example:{" "}
               <Code>(gut OR colon) (immune OR immunity)</Code>.
             </Text>
           </li>
           <li>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
+            <Text size={{ initial: "2", md: "3" }}>
               Write <Code>NOT</Code> before a term to remove it. Example:{" "}
-              <Code>liver NOT tumor</Code>.
+              <Code>liver NOT tumor</Code>. Always keep a term before the{" "}
+              <Code>NOT</Code>.
             </Text>
           </li>
           <li>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
+            <Text size={{ initial: "2", md: "3" }}>
               Add an asterisk to the end of a word for a prefix match. Example:{" "}
               <Code>immun*</Code> finds <Code>immune</Code> and{" "}
               <Code>immunity</Code>.
             </Text>
           </li>
           <li>
-            <Text
-              size={{ initial: "2", md: "3" }}
-              style={{ color: "var(--gray-11)" }}
-            >
-              Put a phrase in quotation marks. Example:{" "}
-              <Code>&quot;single cell&quot;</Code>.
+            <Text size={{ initial: "2", md: "3" }}>
+              Put quotation marks around two or more words to find them together
+              and in that order. Example: <Code>&quot;single cell&quot;</Code>{" "}
+              finds <Code>single</Code> next to <Code>cell</Code>. Use quotation
+              marks only for a fixed phrase. Do not put quotation marks around a
+              whole query, because then the search looks for every word in that
+              one exact order.
             </Text>
           </li>
         </ul>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           For example, this query finds datasets about endocrine resistance in
           breast cancer:
         </Text>
@@ -272,14 +269,14 @@ export default function HowSearchWorks() {
           {`("breast cancer" OR "mammary tumor") ("tamoxifen" OR "endocrine") resist*`}
         </Code>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The search reads it as one cancer term, and one treatment term, and a
           word that starts with <Code>resist</Code>. It uses only these words.
-          The asterisk in <Code>resist*</Code> matches <Code>resistant</Code> and{" "}
-          <Code>resistance</Code>.
+          The asterisk in <Code>resist*</Code> matches <Code>resistant</Code>{" "}
+          and <Code>resistance</Code>.
         </Text>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           Structured search works with the filters, the sort options, and the
           source tabs. So you can add an organism filter, or you can sort by
           year, and the operators still apply.
@@ -294,37 +291,37 @@ export default function HowSearchWorks() {
           <SectionAnchor id="ranking" />
         </Flex>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The search gives each field a weight. The title has the highest weight
-          (<Code>A</Code>). Then comes the description or summary (<Code>B</Code>
+          (<Code>A</Code>). Then comes the description or summary (
+          <Code>B</Code>
           ), then the organizations (<Code>C</Code>), then the authors (
           <Code>D</Code>). Sample metadata is also indexed. A word in the title
           therefore counts more than the same word in a lower field.
         </Text>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           For the default search, the search builds two queries from your text.
           The first query, <Tex inline tex="Q_{\text{orig}}" />, is your text as
-          you typed it. The
-          second query, <Tex inline tex="Q_{\text{expanded}}" />, is your text
-          joined with all of its synonyms and related terms by <Code>OR</Code>. A
-          dataset is a match when it satisfies{" "}
-          <Tex inline tex="Q_{\text{expanded}}" />. The search then gives each
-          matching dataset a relevance score:
+          you typed it. The second query,{" "}
+          <Tex inline tex="Q_{\text{expanded}}" />, is your text joined with all
+          of its synonyms and related terms by <Code>OR</Code>. A dataset is a
+          match when it satisfies <Tex inline tex="Q_{\text{expanded}}" />. The
+          search then gives each matching dataset a relevance score:
         </Text>
 
         <Tex tex="\text{score} = \left[\, \operatorname{ts\_rank}(\text{tsv}, Q_{\text{orig}}) + 0.2 \cdot \operatorname{ts\_rank}(\text{tsv}, Q_{\text{expanded}}) \,\right] \cdot s" />
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The function <Tex inline tex="\operatorname{ts\_rank}" /> measures how
           strongly a dataset matches a query. Your original words count at full
           weight. The synonyms count at <Tex inline tex="0.2" />, so they add
           recall but do not push weak matches to the top. The factor{" "}
           <Tex inline tex="s" /> is a small tie-break between archives. It is{" "}
-          <Tex inline tex="s = 1" /> for GEO records and <Tex inline tex="s = 0.7" />{" "}
-          for the other sources. So when the same study is in more than one
-          archive, the GEO copy surfaces first. The search removes the duplicate
-          copies and shows each study one time.
+          <Tex inline tex="s = 1" /> for GEO records and{" "}
+          <Tex inline tex="s = 0.7" /> for the other sources. So when the same
+          study is in more than one archive, the GEO copy surfaces first. The
+          search removes the duplicate copies and shows each study one time.
         </Text>
 
         <Separator size="4" />
@@ -336,29 +333,29 @@ export default function HowSearchWorks() {
           <SectionAnchor id="ontology-graph" />
         </Flex>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
-          The synonyms come from an ontology graph. In this graph, each node is a
-          biomedical term. An edge joins a term to its synonyms and aliases, or
-          joins a term to a broader or a narrower term. So the graph holds both
-          equal names for the same thing and the parent&ndash;child hierarchy
-          between things.
+        <Text size={{ initial: "2", md: "3" }}>
+          The synonyms come from an ontology graph. In this graph, each node is
+          a biomedical term. An edge joins a term to its synonyms and aliases,
+          or joins a term to a broader or a narrower term. So the graph holds
+          both equal names for the same thing and the parent&ndash;child
+          hierarchy between things.
         </Text>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The graph is built from established biomedical ontologies. These cover
           diseases, anatomy, cell types, genes, chemicals, and cell lines. Each
-          term becomes one shared node, so ontologies that use the same word join
-          onto the same node. When you search, the search matches your term
+          term becomes one shared node, so ontologies that use the same word
+          join onto the same node. When you search, the search matches your term
           against the graph and follows its synonym edges. This is how a search
           for one name also finds datasets that use another name for the same
           concept.
         </Text>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
-          As an example, the graph below shows the term <Code>nafld</Code> at the
-          center with its synonyms around it. Each <Code>MAPS_TO</Code> edge joins
-          an equivalent name for the same concept. This is how the search finds
-          datasets that use another name for what you typed.
+        <Text size={{ initial: "2", md: "3" }}>
+          As an example, the graph below shows the term <Code>nafld</Code> at
+          the center with its synonyms around it. Each <Code>MAPS_TO</Code> edge
+          joins an equivalent name for the same concept. This is how the search
+          finds datasets that use another name for what you typed.
         </Text>
 
         <OntologyGraphFigure />
@@ -372,24 +369,24 @@ export default function HowSearchWorks() {
           <SectionAnchor id="expansion" />
         </Flex>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The search splits your query into chunks. A chunk is a term such as{" "}
           <Code>nafld</Code> or <Code>scrna</Code>. For each chunk{" "}
           <Tex inline tex="c_i" />, the search collects its synonyms{" "}
-          <Tex inline tex="S_i" />. The set of alternatives for that chunk is the
-          original word together with its synonyms:
+          <Tex inline tex="S_i" />. The set of alternatives for that chunk is
+          the original word together with its synonyms:
         </Text>
 
         <Tex tex="A_i = \{o_i\} \cup S_i, \qquad |A_i| = 1 + |S_i|" />
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           A query variant replaces every chunk with one of its alternatives. The
           number of variants is the product of the per-chunk counts:
         </Text>
 
         <Tex tex="V = \prod_{i=1}^{k} \left(1 + |S_i|\right)" />
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           This product grows fast. One chunk with many synonyms can create
           hundreds of variants. So the search keeps only the first{" "}
           <Tex inline tex="N_{\max}" /> variants:
@@ -397,14 +394,14 @@ export default function HowSearchWorks() {
 
         <Tex tex="V_{\text{out}} = \min(V, N_{\max}), \qquad N_{\max} = 48" />
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           The search lists your original text first. So your exact query always
           runs, even after truncation. Only the extra variants beyond 48 are
           dropped. This is one more reason to use few, specific keywords: a very
           broad term can fill the variant budget on its own.
         </Text>
 
-        <Text size={{ initial: "2", md: "3" }} style={{ color: "var(--gray-11)" }}>
+        <Text size={{ initial: "2", md: "3" }}>
           For example, the query <Code>nafld scrna</Code> has two chunks. The
           chunk <Code>nafld</Code> has 11 alternatives, such as{" "}
           <Code>non alcoholic fatty liver disease</Code> and <Code>masld</Code>.
@@ -412,7 +409,10 @@ export default function HowSearchWorks() {
           <Code>single cell rna sequencing</Code>. This gives{" "}
           <Tex inline tex="V = 11 \times 4 = 44" /> variants. All 44 fit under
           the limit of 48, so the search uses all of them. Two of these variants
-          are <Code>non alcoholic fatty liver disease single cell rna sequencing</Code>{" "}
+          are{" "}
+          <Code>
+            non alcoholic fatty liver disease single cell rna sequencing
+          </Code>{" "}
           and <Code>masld scrna</Code> &mdash; both find datasets that the words{" "}
           <Code>nafld scrna</Code> alone would miss.
         </Text>
