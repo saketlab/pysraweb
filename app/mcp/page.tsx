@@ -1,4 +1,5 @@
 import SearchBar from "@/components/search-bar";
+import SectionAnchor from "@/components/section-anchor";
 import { escapeHtmlJson } from "@/utils/json";
 import { Box, Card, Code, Flex, Heading, Link, Text } from "@radix-ui/themes";
 import type { Metadata } from "next";
@@ -110,18 +111,16 @@ url = "${MCP_URL}"`,
 function ConfigBlock({ children }: { children: string }) {
   return (
     <Box style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-      <Code
-        variant="soft"
-        size={{ initial: "1", md: "2" }}
+      <Card
+        variant="classic"
         style={{
-          display: "block",
           whiteSpace: "pre",
-          padding: "1rem",
-          borderRadius: "8px",
+          fontFamily: "var(--font-geist-mono)",
+          fontSize: "0.9rem",
         }}
       >
         {children}
-      </Code>
+      </Card>
     </Box>
   );
 }
@@ -139,9 +138,12 @@ export default function MCP() {
         mr={{ initial: "0", md: "16rem" }}
         direction={"column"}
       >
-        <Heading as="h1" size={{ initial: "6", md: "8" }} weight="bold" mb="3">
-          Using seqout with LLMs
-        </Heading>
+        <Flex align="center" gap="2" id="using-seqout-with-llms" mb="3">
+          <Heading as="h1" size={{ initial: "6", md: "8" }} weight="bold">
+            Using seqout with LLMs
+          </Heading>
+          <SectionAnchor id="using-seqout-with-llms" />
+        </Flex>
 
         <Text size={{ initial: "2", md: "3" }}>
           Seqout offers a remote{" "}
@@ -158,8 +160,11 @@ export default function MCP() {
         </Text>
 
         <Card>
-          <Flex direction={"column"} gap={"2"}>
-            <Heading size={"4"}>Quick setup</Heading>
+          <Flex direction={"column"} gap={"2"} id="quick-setup">
+            <Flex align="center" gap="2">
+              <Heading size={"4"}>Quick setup</Heading>
+              <SectionAnchor id="quick-setup" />
+            </Flex>
             <Flex direction={"column"} gap={"2"}>
               <Text>
                 You can setup MCP in your AI agent of choice with this URL :{" "}
@@ -176,7 +181,10 @@ export default function MCP() {
           </Flex>
         </Card>
 
-        <Heading>Claude Desktop</Heading>
+        <Flex align="center" gap="2" id="claude-desktop">
+          <Heading>Claude Desktop</Heading>
+          <SectionAnchor id="claude-desktop" />
+        </Flex>
 
         <Flex direction="column" gap="4">
           <Text size={{ initial: "2", md: "3" }}>
@@ -218,12 +226,14 @@ export default function MCP() {
             ENA, DRA, GEA, GSA & ArrayExpress datasets directly from Claude
             Desktop conversations.
           </Text>
-
         </Flex>
 
         {CLIENTS.map((client) => (
           <Flex key={client.id} direction="column" gap="4" id={client.id}>
-            <Heading>{client.name}</Heading>
+            <Flex align="center" gap="2">
+              <Heading>{client.name}</Heading>
+              <SectionAnchor id={client.id} />
+            </Flex>
 
             {client.cli && (
               <>
@@ -241,7 +251,11 @@ export default function MCP() {
 
             <Text size={{ initial: "2", md: "3" }}>
               Restart {client.name} to load the server. See the{" "}
-              <Link href={client.docs} target="_blank" rel="noopener noreferrer">
+              <Link
+                href={client.docs}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {client.name} MCP documentation
               </Link>{" "}
               for authentication and tool-filtering options.

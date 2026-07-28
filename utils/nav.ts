@@ -48,7 +48,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: createElement(CodeIcon),
   },
   {
-    label: "MCP",
+    label: "Use with LLMs",
     href: "/mcp",
     icon: createElement(MagicWandIcon),
   },
