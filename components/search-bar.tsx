@@ -4,6 +4,7 @@ import {
   HOW_SEARCH_WORKS_KEY,
   useFirstVisit,
 } from "@/components/first-visit-ping";
+import ExpansionSection from "@/components/expansion-section";
 import GitHubButton from "@/components/github-button";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
@@ -306,6 +307,11 @@ function SearchBarContent({
             activeItem={activeIndex >= 0 ? filteredHistory[activeIndex] : null}
             position="absolute"
           />
+        </Box>
+        {/* Only on a page that ran a search — the expansion is of that query.
+            Hidden wherever the search field itself is (compact mobile). */}
+        <Box display={{ initial: compactMobile ? "none" : "block", md: "block" }}>
+          <ExpansionSection query={searchParams.get("q") ?? ""} />
         </Box>
       </Flex>
       <Flex

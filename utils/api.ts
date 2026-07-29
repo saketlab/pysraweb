@@ -65,6 +65,31 @@ export function getDeepDiveChildren(term: string, signal?: AbortSignal) {
   );
 }
 
+// --- Synonym expansion (what the search actually ran) ----------------------
+
+export interface ExpansionChunk {
+  term: string; // the query term, as the expander chunked it
+  synonyms: string[]; // only the synonyms that made it into the search
+  total: number; // synonyms the term has in the graph (>= synonyms.length)
+}
+
+export interface SearchExpansion {
+  query: string;
+  structured: boolean; // structured queries are never expanded
+  variants: string[];
+  variant_cap: number;
+  chunks: ExpansionChunk[];
+  took_ms: number;
+}
+
+/** Per-term synonyms that survived the variant cap for this query. */
+export function getSearchExpansion(q: string, signal?: AbortSignal) {
+  return getJson<SearchExpansion>(
+    `/search/expansion?q=${encodeURIComponent(q)}`,
+    signal,
+  );
+}
+
 const NOT_JSON = Symbol("not-json");
 
 export function parseProjectStringFields<T>(data: T): T {

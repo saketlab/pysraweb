@@ -421,11 +421,11 @@ export default function HowSearchWorks() {
           <Tex inline tex="N_{\max}" /> variants:
         </Text>
 
-        <Tex tex="V_{\text{out}} = \min(V, N_{\max}), \qquad N_{\max} = 48" />
+        <Tex tex="V_{\text{out}} = \min(V, N_{\max}), \qquad N_{\max} = 100" />
 
         <Text size={{ initial: "2", md: "3" }}>
           The search lists your original text first. So your exact query always
-          runs, even after truncation. Only the extra variants beyond 48 are
+          runs, even after truncation. Only the extra variants beyond 100 are
           dropped. This is one more reason to use few, specific keywords: a very
           broad term can fill the variant budget on its own.
         </Text>
@@ -437,7 +437,7 @@ export default function HowSearchWorks() {
           The chunk <Code>scrna</Code> has 4 alternatives, such as{" "}
           <Code>single cell rna sequencing</Code>. This gives{" "}
           <Tex inline tex="V = 11 \times 4 = 44" /> variants. All 44 fit under
-          the limit of 48, so the search uses all of them. Two of these variants
+          the limit of 100, so the search uses all of them. Two of these variants
           are{" "}
           <Q q="non alcoholic fatty liver disease single cell rna sequencing" />{" "}
           and <Q q="masld scrna" /> &mdash; both find datasets that the words{" "}
