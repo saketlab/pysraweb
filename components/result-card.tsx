@@ -5,7 +5,7 @@ import { cleanJournalName, titleCaseCenter } from "@/utils/format";
 import { doiHref } from "@/utils/project";
 import { getProjectShortUrl } from "@/utils/shortUrl";
 import { ExternalLinkIcon, SewingPinIcon } from "@radix-ui/react-icons";
-import { Badge, Box, Flex, Popover, Text, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Flex, Popover, Text } from "@radix-ui/themes";
 import Link from "next/link";
 import { memo, useState } from "react";
 
@@ -21,7 +21,6 @@ type ResultCardProps = {
   center_name?: string | null;
   country_code?: string | null;
   href?: string;
-  single_cell_modality?: string | null;
   /** The record's archive, as the API reports it. */
   source?: string | null;
   /** Title scale. Defaults to the search/author-page size. */
@@ -81,7 +80,6 @@ function ResultCard({
   center_name,
   country_code,
   href,
-  single_cell_modality,
   source,
   titleSize = "3",
   centerOnOwnRow = false,
@@ -300,13 +298,6 @@ function ResultCard({
         <DbBadge size={"2"} db={db} className="seqout-accession">
           {accession}
         </DbBadge>
-        {single_cell_modality && (
-          <Tooltip content="Derived from dataset metadata">
-            <Badge size={"2"} color="cyan">
-              {single_cell_modality}
-            </Badge>
-          </Tooltip>
-        )}
       </Flex>
     </Flex>
   );

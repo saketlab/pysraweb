@@ -1602,7 +1602,6 @@ export default function SearchPageBody() {
       authors={searchResult.authors}
       center_name={searchResult.center_name}
       country_code={searchResult.country_code}
-      single_cell_modality={searchResult.single_cell_modality}
       href={
         selectedOrganismKey
           ? `${getProjectShortUrl(searchResult.accession)}?organism=${encodeURIComponent(selectedOrganismKey)}`

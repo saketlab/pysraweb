@@ -191,7 +191,6 @@ export default function AuthorProjectsBody({ name }: { name: string }) {
                 authors={r.authors}
                 center_name={r.institute ?? r.center_name}
                 country_code={r.country_code}
-                single_cell_modality={r.single_cell_modality}
                 href={getProjectShortUrl(r.accession)}
               />
             ))}
