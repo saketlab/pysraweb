@@ -1,7 +1,16 @@
 import OntologyGraphFigure from "@/components/ontology-graph-figure";
 import SearchBar from "@/components/search-bar";
 import SectionAnchor from "@/components/section-anchor";
-import { Code, Flex, Heading, Link, Separator, Text } from "@radix-ui/themes";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import {
+  Badge,
+  Code,
+  Flex,
+  Heading,
+  Link,
+  Separator,
+  Text,
+} from "@radix-ui/themes";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import type { Metadata } from "next";
@@ -56,11 +65,11 @@ const tips: { id: string; title: string; body: ReactNode }[] = [
     body: (
       <>
         The search adds synonyms, abbreviations, and related terms for you. You
-        do not need to list them. A search for <Code>lou gehrig disease</Code>{" "}
-        also finds datasets that use <Code>ALS</Code> or{" "}
+        do not need to list them. A search for <Q q="lou gehrig disease" /> also
+        finds datasets that use <Code>ALS</Code> or{" "}
         <Code>amyotrophic lateral sclerosis</Code>. A search for{" "}
-        <Code>atacseq</Code> also finds <Code>atac seq</Code>. Write the one
-        term that you know. The search finds the others.
+        <Q q="atacseq" /> also finds <Code>atac seq</Code>. Write the one term
+        that you know. The search finds the others.
       </>
     ),
   },
@@ -72,7 +81,7 @@ const tips: { id: string; title: string; body: ReactNode }[] = [
         Do not type the organism, the instrument, the country, the library
         strategy, the journal, or the date in the search box. Use the filters
         next to the results for these. The filters are faster and more exact.
-        First search for <Code>t cell exhaustion</Code>. Then use the organism
+        First search for <Q q="t cell exhaustion" />. Then use the organism
         filter to keep only human datasets.
       </>
     ),
@@ -113,20 +122,45 @@ function Tex({ tex, inline = false }: { tex: string; inline?: boolean }) {
   );
 }
 
+// A runnable example query. Opens the real search in a new tab.
+function Q({ q }: { q: string }) {
+  return (
+    <Link
+      href={`/search?q=${encodeURIComponent(q)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      underline="none"
+    >
+      <Badge
+        size={"2"}
+        color="blue"
+        style={{
+          cursor: "pointer",
+          whiteSpace: "normal",
+          wordBreak: "break-word",
+        }}
+      >
+        <MagnifyingGlassIcon />
+        {q}
+      </Badge>
+    </Link>
+  );
+}
+
 function Examples({ good, avoid }: { good: string; avoid: string }) {
   return (
-    <Flex direction="column" gap="2" mt="3">
+    <Flex direction="column" gap="2" mt="3" align="start">
       <Text size="2">
         <Text weight="medium" style={{ color: "var(--green-11)" }}>
           Good:
         </Text>{" "}
-        <Code>{good}</Code>
+        <Q q={good} />
       </Text>
       <Text size="2">
         <Text weight="medium" style={{ color: "var(--red-11)" }}>
           Avoid:
         </Text>{" "}
-        <Code>{avoid}</Code>
+        <Q q={avoid} />
       </Text>
     </Flex>
   );
@@ -201,8 +235,8 @@ export default function HowSearchWorks() {
           has none of these marks, the search stays a plain keyword search. The
           operators must be in capital letters. In lower case, <Code>or</Code>,{" "}
           <Code>and</Code>, and <Code>not</Code> are normal words. So{" "}
-          <Code>liver NOT tumor</Code> removes tumor, but{" "}
-          <Code>liver not tumor</Code> does not.
+          <Q q="liver NOT tumor" /> removes tumor, but <Q q="liver not tumor" />{" "}
+          does not.
         </Text>
 
         <ul
@@ -217,38 +251,38 @@ export default function HowSearchWorks() {
           <li>
             <Text size={{ initial: "2", md: "3" }}>
               Put the alternatives in parentheses and join them with{" "}
-              <Code>OR</Code>. Example: <Code>(gut OR colon)</Code>.
+              <Code>OR</Code>. Example: <Q q="(gut OR colon)" />.
             </Text>
           </li>
           <li>
             <Text size={{ initial: "2", md: "3" }}>
               Put one group next to another group to join them with{" "}
               <Code>AND</Code>. Example:{" "}
-              <Code>(gut OR colon) (immune OR immunity)</Code>.
+              <Q q="(gut OR colon) (immune OR immunity)" />.
             </Text>
           </li>
           <li>
             <Text size={{ initial: "2", md: "3" }}>
               Write <Code>NOT</Code> before a term to remove it. Example:{" "}
-              <Code>liver NOT tumor</Code>. Always keep a term before the{" "}
+              <Q q="liver NOT tumor" />. Always keep a term before the{" "}
               <Code>NOT</Code>.
             </Text>
           </li>
           <li>
             <Text size={{ initial: "2", md: "3" }}>
               Add an asterisk to the end of a word for a prefix match. Example:{" "}
-              <Code>immun*</Code> finds <Code>immune</Code> and{" "}
+              <Q q="immun*" /> finds <Code>immune</Code> and{" "}
               <Code>immunity</Code>.
             </Text>
           </li>
           <li>
             <Text size={{ initial: "2", md: "3" }}>
               Put quotation marks around two or more words to find them together
-              and in that order. Example: <Code>&quot;single cell&quot;</Code>{" "}
-              finds <Code>single</Code> next to <Code>cell</Code>. Use quotation
-              marks only for a fixed phrase. Do not put quotation marks around a
-              whole query, because then the search looks for every word in that
-              one exact order.
+              and in that order. Example: <Q q={`"single cell"`} /> finds{" "}
+              <Code>single</Code> next to <Code>cell</Code>. Use quotation marks
+              only for a fixed phrase. Do not put quotation marks around a whole
+              query, because then the search looks for every word in that one
+              exact order.
             </Text>
           </li>
         </ul>
@@ -258,16 +292,11 @@ export default function HowSearchWorks() {
           breast cancer:
         </Text>
 
-        <Code
-          style={{
-            display: "block",
-            padding: "0.75rem",
-            whiteSpace: "pre-wrap",
-            overflowX: "auto",
-          }}
-        >
-          {`("breast cancer" OR "mammary tumor") ("tamoxifen" OR "endocrine") resist*`}
-        </Code>
+        <Flex align="start">
+          <Q
+            q={`("breast cancer" OR "mammary tumor") ("tamoxifen" OR "endocrine") resist*`}
+          />
+        </Flex>
 
         <Text size={{ initial: "2", md: "3" }}>
           The search reads it as one cancer term, and one treatment term, and a
@@ -352,8 +381,8 @@ export default function HowSearchWorks() {
         </Text>
 
         <Text size={{ initial: "2", md: "3" }}>
-          As an example, the graph below shows the term <Code>nafld</Code> at
-          the center with its synonyms around it. Each <Code>MAPS_TO</Code> edge
+          As an example, the graph below shows the term <Q q="nafld" /> at the
+          center with its synonyms around it. Each <Code>MAPS_TO</Code> edge
           joins an equivalent name for the same concept. This is how the search
           finds datasets that use another name for what you typed.
         </Text>
@@ -402,19 +431,17 @@ export default function HowSearchWorks() {
         </Text>
 
         <Text size={{ initial: "2", md: "3" }}>
-          For example, the query <Code>nafld scrna</Code> has two chunks. The
-          chunk <Code>nafld</Code> has 11 alternatives, such as{" "}
+          For example, the query <Q q="nafld scrna" /> has two chunks. The chunk{" "}
+          <Code>nafld</Code> has 11 alternatives, such as{" "}
           <Code>non alcoholic fatty liver disease</Code> and <Code>masld</Code>.
           The chunk <Code>scrna</Code> has 4 alternatives, such as{" "}
           <Code>single cell rna sequencing</Code>. This gives{" "}
           <Tex inline tex="V = 11 \times 4 = 44" /> variants. All 44 fit under
           the limit of 48, so the search uses all of them. Two of these variants
           are{" "}
-          <Code>
-            non alcoholic fatty liver disease single cell rna sequencing
-          </Code>{" "}
-          and <Code>masld scrna</Code> &mdash; both find datasets that the words{" "}
-          <Code>nafld scrna</Code> alone would miss.
+          <Q q="non alcoholic fatty liver disease single cell rna sequencing" />{" "}
+          and <Q q="masld scrna" /> &mdash; both find datasets that the words{" "}
+          <Q q="nafld scrna" /> alone would miss.
         </Text>
       </Flex>
     </>
