@@ -18,11 +18,13 @@ import {
 } from "@radix-ui/react-icons";
 import {
   Badge,
+  Box,
   Button,
   Card,
   Dialog,
   Flex,
   Link,
+  Skeleton,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
@@ -335,6 +337,8 @@ export default function PublicationCard({
     const submittedDoi = incoming.doi;
     // Live OpenAlex details for the DOI, when the fetch succeeded for this doi.
     const d = doiDetails?.doi === submittedDoi ? doiDetails.extra : {};
+    // Fetch in flight: has a DOI to resolve but no result yet (success or fail).
+    const loading = !!submittedDoi && doiDetails === null;
     const headline = d.title ?? incoming.citation; // enriched title, else raw text
     const dJournal = d.journal ? cleanJournalName(d.journal) : null;
     const dYear = extractYear(d.pub_date ?? null);
@@ -344,7 +348,14 @@ export default function PublicationCard({
       <Card>
         <Flex direction="column" gap="2">
           <Flex gap="3" justify="between" align="start" wrap="wrap">
-            {submittedDoi ? (
+            {loading ? (
+              <Box style={{ flex: "1 1 16rem", minWidth: 0 }}>
+                <Skeleton height="1.4rem" width="92%" />
+                <Box mt="2">
+                  <Skeleton height="1.4rem" width="55%" />
+                </Box>
+              </Box>
+            ) : submittedDoi ? (
               <Link
                 size={{ initial: "2", md: "3" }}
                 href={doiHref(submittedDoi)}
@@ -369,17 +380,17 @@ export default function PublicationCard({
               </Text>
             )}
             <Flex gap="2" align="center" wrap="wrap" style={{ flexShrink: 0 }}>
-              {dCitations != null && (
+              {!loading && dCitations != null && (
                 <Badge size="2" color="iris" variant="soft">
                   {dCitations.toLocaleString()} citations
                 </Badge>
               )}
-              {dJournal && (
+              {!loading && dJournal && (
                 <Badge size="2" color="blue" variant="soft">
                   {dJournal}
                 </Badge>
               )}
-              {dYear && (
+              {!loading && dYear && (
                 <Text size="1" style={{ color: "var(--gray-11)" }}>
                   {dYear}
                 </Text>
@@ -391,12 +402,16 @@ export default function PublicationCard({
               </Tooltip>
             </Flex>
           </Flex>
-          {d.authors && (
-            <ProjectAuthors
-              authors={d.authors.split(",")}
-              initialVisible={4}
-              size="2"
-            />
+          {loading ? (
+            <Skeleton height="1rem" width="40%" />
+          ) : (
+            d.authors && (
+              <ProjectAuthors
+                authors={d.authors.split(",")}
+                initialVisible={4}
+                size="2"
+              />
+            )
           )}
           <Flex gap="2" align="center" wrap="wrap">
             {submittedDoi && (
