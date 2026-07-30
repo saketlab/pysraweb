@@ -6,6 +6,7 @@ import { copyToClipboard } from "@/utils/clipboard";
 import { SERVER_URL } from "@/utils/constants";
 import { cleanJournalName } from "@/utils/format";
 import { doiHref, pmidHref, pubmedHref } from "@/utils/project";
+import { fetchDoiSummary } from "@/utils/doi";
 import { fetchPubmedSummary } from "@/utils/pubmed";
 import type { StudyPublication } from "@/utils/types";
 import {
@@ -271,6 +272,21 @@ export default function PublicationCard({
     return () => controller.abort();
   }, [incoming]);
 
+  // Submitter-provided citation with a DOI but no PMID: enrich it live from
+  // OpenAlex so the raw text becomes a real title/journal/authors/citations.
+  const [doiDetails, setDoiDetails] = useState<{
+    doi: string;
+    extra: Partial<StudyPublication>;
+  } | null>(null);
+  useEffect(() => {
+    if (!incoming.submitter_provided || !incoming.doi) return;
+    const controller = new AbortController();
+    fetchDoiSummary(incoming.doi, controller.signal).then((extra) =>
+      setDoiDetails({ doi: incoming.doi!, extra }),
+    );
+    return () => controller.abort();
+  }, [incoming]);
+
   // Existing (non-null) fields always win over the fallback.
   const extra = fallback?.pmid === incoming.pmid ? fallback.extra : {};
   const publication: StudyPublication = {
@@ -312,6 +328,106 @@ export default function PublicationCard({
       return null;
     }
   };
+
+  // Submitter-provided <Citation> that never resolved to a PMID: show the raw
+  // text as-submitted and flag it, so it's never mistaken for a verified record.
+  if (incoming.submitter_provided && incoming.citation) {
+    const submittedDoi = incoming.doi;
+    // Live OpenAlex details for the DOI, when the fetch succeeded for this doi.
+    const d = doiDetails?.doi === submittedDoi ? doiDetails.extra : {};
+    const headline = d.title ?? incoming.citation; // enriched title, else raw text
+    const dJournal = d.journal ? cleanJournalName(d.journal) : null;
+    const dYear = extractYear(d.pub_date ?? null);
+    const dCitations =
+      d.citation_count != null && d.citation_count > 0 ? d.citation_count : null;
+    return (
+      <Card>
+        <Flex direction="column" gap="2">
+          <Flex gap="3" justify="between" align="start" wrap="wrap">
+            {submittedDoi ? (
+              <Link
+                size={{ initial: "2", md: "3" }}
+                href={doiHref(submittedDoi)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="seqout-paper-title"
+                weight="bold"
+                underline="hover"
+                wrap="pretty"
+                style={{ color: "inherit", flex: "1 1 16rem", minWidth: 0 }}
+              >
+                {headline}
+              </Link>
+            ) : (
+              <Text
+                size={{ initial: "2", md: "3" }}
+                className="seqout-paper-title"
+                wrap="pretty"
+                style={{ flex: "1 1 16rem", minWidth: 0 }}
+              >
+                {headline}
+              </Text>
+            )}
+            <Flex gap="2" align="center" wrap="wrap" style={{ flexShrink: 0 }}>
+              {dCitations != null && (
+                <Badge size="2" color="iris" variant="soft">
+                  {dCitations.toLocaleString()} citations
+                </Badge>
+              )}
+              {dJournal && (
+                <Badge size="2" color="blue" variant="soft">
+                  {dJournal}
+                </Badge>
+              )}
+              {dYear && (
+                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                  {dYear}
+                </Text>
+              )}
+              <Tooltip content="Shown as submitted by the data submitter; details resolved from the cited DOI via OpenAlex, not a PubMed-linked record.">
+                <Badge size="2" color="amber" variant="soft">
+                  As submitted
+                </Badge>
+              </Tooltip>
+            </Flex>
+          </Flex>
+          {d.authors && (
+            <ProjectAuthors
+              authors={d.authors.split(",")}
+              initialVisible={4}
+              size="2"
+            />
+          )}
+          <Flex gap="2" align="center" wrap="wrap">
+            {submittedDoi && (
+              <Link
+                href={doiHref(submittedDoi)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                <Badge
+                  size="2"
+                  color="gray"
+                  variant="soft"
+                  className="seqout-accession"
+                  style={{ cursor: "pointer" }}
+                >
+                  doi:{submittedDoi}
+                </Badge>
+              </Link>
+            )}
+            <CiteDialog
+              label="Cite"
+              title="Citation"
+              getText={() => incoming.citation ?? ""}
+              toast="Citation copied"
+            />
+          </Flex>
+        </Flex>
+      </Card>
+    );
+  }
 
   return (
     <Card>

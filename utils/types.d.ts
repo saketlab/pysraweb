@@ -62,4 +62,9 @@ export type StudyPublication = {
   journal_2yr_mean_citedness: number | null;
   journal_cited_by_count: number | null;
   journal_works_count: number | null;
+  // Submitter-provided <Citation> that never resolved to a PMID. When
+  // submitter_provided is true, `citation` holds the raw as-submitted text and
+  // the pmid/title/doi fields are null.
+  citation?: string | null;
+  submitter_provided?: boolean | null;
 };

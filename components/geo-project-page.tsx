@@ -1863,9 +1863,9 @@ export default function GeoProjectPage() {
                 </Flex>
 
                 <Flex direction="column" gap="3">
-                  {publications.map((pub) => (
+                  {publications.map((pub, i) => (
                     <PublicationCard
-                      key={pub.pmid ?? pub.doi ?? pub.title}
+                      key={pub.pmid ?? pub.doi ?? pub.title ?? pub.citation ?? i}
                       publication={pub}
                       accession={accession}
                     />
