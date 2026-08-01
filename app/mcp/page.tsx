@@ -251,7 +251,21 @@ export default function MCP() {
             </Text>
           </Flex>
         ))}
-
+        <Flex direction="column" gap="4" id="video-demo">
+          <Flex align="center" gap="2">
+            <Heading>Video demo with Claude Code</Heading>
+            <SectionAnchor id="video-demo" />
+          </Flex>
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/C6wfbgTE1P0?controls=1&iv_load_policy=3&playsinline=1&rel=0"
+            title="Video demo with Claude Code"
+            width="100%"
+            style={{ display: "block", aspectRatio: "16 / 9", border: 0 }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        </Flex>
         <Text size={{ initial: "2", md: "3" }}>
           For direct programmatic access without MCP, see the{" "}
           <Link href="/api-docs">API Reference</Link>.
