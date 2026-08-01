@@ -219,100 +219,111 @@ function SearchBarContent({
           </Box>
         </Link>
 
-        <Box
-          display={{ initial: compactMobile ? "none" : "block", md: "block" }}
-          width={{ initial: "98%", md: "70%" }}
-          style={{ position: "relative" }}
+        <Flex
+          align="center"
+          gap="2"
+          width={{ initial: "98%", md: "auto" }}
+          flexGrow="1"
         >
-          <form onSubmit={handleSubmit}>
-            <TextField.Root
-              size={"3"}
-              type="search"
-              enterKeyHint="search"
-              data-global-search-target="true"
-              placeholder={SEARCH_PLACEHOLDER}
-              ref={inputRef}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setSuggestionFilterQuery(e.target.value);
-                setActiveIndex(-1);
-              }}
-              onFocus={() => {
-                setIsFocused(true);
-                setSuggestionFilterQuery(searchQuery);
-                setActiveIndex(-1);
-              }}
-              onBlur={() => setIsFocused(false)}
-              onKeyDown={(e) => {
-                if (!isFocused || filteredHistory.length === 0) return;
-
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setActiveIndex((prev) => {
-                    const nextIndex =
-                      prev === -1 ? 0 : (prev + 1) % filteredHistory.length;
-                    const nextItem = filteredHistory[nextIndex];
-                    setSearchQuery(nextItem);
-                    requestAnimationFrame(() => {
-                      const input = inputRef.current;
-                      if (!input) return;
-                      const pos = nextItem.length;
-                      input.setSelectionRange(pos, pos);
-                    });
-                    return nextIndex;
-                  });
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setActiveIndex((prev) => {
-                    const nextIndex =
-                      prev === -1
-                        ? filteredHistory.length - 1
-                        : (prev - 1 + filteredHistory.length) %
-                          filteredHistory.length;
-                    const nextItem = filteredHistory[nextIndex];
-                    setSearchQuery(nextItem);
-                    requestAnimationFrame(() => {
-                      const input = inputRef.current;
-                      if (!input) return;
-                      const pos = nextItem.length;
-                      input.setSelectionRange(pos, pos);
-                    });
-                    return nextIndex;
-                  });
-                } else if (e.key === "Enter") {
-                  if (activeIndex >= 0) {
-                    e.preventDefault();
-                    const item = filteredHistory[activeIndex];
-                    void handleHistoryClick(item);
-                  }
-                } else if (e.key === "Escape") {
-                  setIsFocused(false);
+          <Box
+            display={{ initial: compactMobile ? "none" : "block", md: "block" }}
+            flexGrow="1"
+            style={{ position: "relative", minWidth: 0 }}
+          >
+            <form onSubmit={handleSubmit}>
+              <TextField.Root
+                size={"3"}
+                type="search"
+                enterKeyHint="search"
+                data-global-search-target="true"
+                placeholder={SEARCH_PLACEHOLDER}
+                ref={inputRef}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSuggestionFilterQuery(e.target.value);
                   setActiveIndex(-1);
-                }
-              }}
-              value={searchQuery}
-              style={{ fontFamily: "var(--default-font-family)" }}
-            >
-              <TextField.Slot>
-                <MagnifyingGlassIcon height="16" width="16" />
-              </TextField.Slot>
-            </TextField.Root>
-          </form>
+                }}
+                onFocus={() => {
+                  setIsFocused(true);
+                  setSuggestionFilterQuery(searchQuery);
+                  setActiveIndex(-1);
+                }}
+                onBlur={() => setIsFocused(false)}
+                onKeyDown={(e) => {
+                  if (!isFocused || filteredHistory.length === 0) return;
 
-          <SearchHistoryDropdown
-            isVisible={isFocused}
-            filteredHistory={filteredHistory}
-            onHistoryClick={handleHistoryClick}
-            onRemoveItem={removeItem}
-            activeItem={activeIndex >= 0 ? filteredHistory[activeIndex] : null}
-            position="absolute"
-          />
-        </Box>
-        {/* Only on a page that ran a search — the expansion is of that query.
-            Hidden wherever the search field itself is (compact mobile). */}
-        <Box display={{ initial: compactMobile ? "none" : "block", md: "block" }}>
-          <ExpansionSection query={searchParams.get("q") ?? ""} />
-        </Box>
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => {
+                      const nextIndex =
+                        prev === -1 ? 0 : (prev + 1) % filteredHistory.length;
+                      const nextItem = filteredHistory[nextIndex];
+                      setSearchQuery(nextItem);
+                      requestAnimationFrame(() => {
+                        const input = inputRef.current;
+                        if (!input) return;
+                        const pos = nextItem.length;
+                        input.setSelectionRange(pos, pos);
+                      });
+                      return nextIndex;
+                    });
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => {
+                      const nextIndex =
+                        prev === -1
+                          ? filteredHistory.length - 1
+                          : (prev - 1 + filteredHistory.length) %
+                            filteredHistory.length;
+                      const nextItem = filteredHistory[nextIndex];
+                      setSearchQuery(nextItem);
+                      requestAnimationFrame(() => {
+                        const input = inputRef.current;
+                        if (!input) return;
+                        const pos = nextItem.length;
+                        input.setSelectionRange(pos, pos);
+                      });
+                      return nextIndex;
+                    });
+                  } else if (e.key === "Enter") {
+                    if (activeIndex >= 0) {
+                      e.preventDefault();
+                      const item = filteredHistory[activeIndex];
+                      void handleHistoryClick(item);
+                    }
+                  } else if (e.key === "Escape") {
+                    setIsFocused(false);
+                    setActiveIndex(-1);
+                  }
+                }}
+                value={searchQuery}
+                style={{ fontFamily: "var(--default-font-family)" }}
+              >
+                <TextField.Slot>
+                  <MagnifyingGlassIcon height="16" width="16" />
+                </TextField.Slot>
+              </TextField.Root>
+            </form>
+
+            <SearchHistoryDropdown
+              isVisible={isFocused}
+              filteredHistory={filteredHistory}
+              onHistoryClick={handleHistoryClick}
+              onRemoveItem={removeItem}
+              activeItem={
+                activeIndex >= 0 ? filteredHistory[activeIndex] : null
+              }
+              position="absolute"
+            />
+          </Box>
+          {/* Only on a page that ran a search — the expansion is of that query.
+              Hidden wherever the search field itself is (compact mobile). */}
+          <Box
+            display={{ initial: compactMobile ? "none" : "block", md: "block" }}
+          >
+            <ExpansionSection query={searchParams.get("q") ?? ""} />
+          </Box>
+        </Flex>
       </Flex>
       <Flex
         gap={"3"}
