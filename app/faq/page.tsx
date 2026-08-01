@@ -1,12 +1,12 @@
-import SectionAnchor from "@/components/section-anchor";
 import SearchBar from "@/components/search-bar";
+import SectionAnchor from "@/components/section-anchor";
+import { LAST_INDEX_REFRESH, SERVER_API_BASE } from "@/utils/constants";
+import { escapeHtmlJson } from "@/utils/json";
+import type { LastUpdated } from "@/utils/types";
 import { Flex, Grid, Heading, Link, Separator, Text } from "@radix-ui/themes";
 import type { Metadata } from "next";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { LAST_INDEX_REFRESH, SERVER_API_BASE } from "@/utils/constants";
-import { escapeHtmlJson } from "@/utils/json";
-import type { LastUpdated } from "@/utils/types";
 
 export const metadata: Metadata = {
   title: "About and FAQ",
@@ -465,7 +465,7 @@ export default async function FAQ() {
         >
           Found a bug or have a feature request? Open an issue on{" "}
           <Link
-            href="https://github.com/saketlab/seqout/issues"
+            href="https://github.com/saketlab/seqout-web/issues"
             target="_blank"
             rel="noopener noreferrer"
           >

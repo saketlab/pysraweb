@@ -1,10 +1,10 @@
 "use client";
+import ExpansionSection from "@/components/expansion-section";
 import {
   FirstVisitPing,
   HOW_SEARCH_WORKS_KEY,
   useFirstVisit,
 } from "@/components/first-visit-ping";
-import ExpansionSection from "@/components/expansion-section";
 import GitHubButton from "@/components/github-button";
 import SearchHistoryDropdown from "@/components/search-history-dropdown";
 import ThemeToggle from "@/components/theme-toggle";
@@ -169,7 +169,7 @@ function SearchBarContent({
             <DropdownMenu.Item
               onSelect={() =>
                 window.open(
-                  "https://github.com/saketlab/seqout",
+                  "https://github.com/saketlab/seqout-web",
                   "_blank",
                   "noopener,noreferrer",
                 )

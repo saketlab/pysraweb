@@ -33,4 +33,4 @@
 ## Citation
 
 seqout is developed and maintained by Saket Lab, IIT Bombay (https://saketlab.org).
-Source: https://github.com/saketlab/seqout
+Source: https://github.com/saketlab/seqout-web
