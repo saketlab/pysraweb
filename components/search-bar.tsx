@@ -332,7 +332,7 @@ function SearchBarContent({
       >
         <Tooltip content="How search works">
           <IconButton
-            variant="outline"
+            variant="soft"
             color="gray"
             aria-label="How search works"
             onClick={() => {

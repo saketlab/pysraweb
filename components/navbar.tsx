@@ -15,12 +15,12 @@ import {
   Link,
 } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
+import BulkMetaDialog from "./bulk-meta-dialog";
 import {
   FirstVisitPing,
   HOW_SEARCH_WORKS_KEY,
   useFirstVisit,
 } from "./first-visit-ping";
-import BulkMetaDialog from "./bulk-meta-dialog";
 import GitHubButton from "./github-button";
 import ThemeToggle from "./theme-toggle";
 
@@ -100,7 +100,7 @@ export default function Navabar() {
         align={"center"}
       >
         <Button
-          variant="outline"
+          variant="soft"
           color="gray"
           onClick={() => {
             markHowSearchWorksSeen();
