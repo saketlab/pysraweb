@@ -388,6 +388,9 @@ function Paginator({
   }
 
   if (totalResults === 0) return null;
+  // Dead UI when even the smallest option fits everything on one page: whichever
+  // size the user picks, the view is identical.
+  const showPageSize = totalResults > Math.min(...PAGE_SIZE_OPTIONS);
   const start = (currentPage - 1) * perPage + 1;
   const end = Math.min(currentPage * perPage, displayResultsCount);
   const pages = getPageRange(currentPage, totalPages);
@@ -418,22 +421,24 @@ function Paginator({
           {start.toLocaleString()}&ndash;{end.toLocaleString()} of{" "}
           {displayResultsCount.toLocaleString()} results
         </Text>
-        <Flex gap="1" align="center">
-          <Select.Root
-            value={String(perPage)}
-            onValueChange={(v) => onPerPageChange(Number(v) as PageSize)}
-            size="1"
-          >
-            <Select.Trigger variant="ghost" />
-            <Select.Content>
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <Select.Item key={size} value={String(size)}>
-                  {size} per page
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </Flex>
+        {showPageSize && (
+          <Flex gap="1" align="center">
+            <Select.Root
+              value={String(perPage)}
+              onValueChange={(v) => onPerPageChange(Number(v) as PageSize)}
+              size="1"
+            >
+              <Select.Trigger variant="ghost" />
+              <Select.Content>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <Select.Item key={size} value={String(size)}>
+                    {size} per page
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Flex>
+        )}
       </Flex>
 
       {totalPages > 1 && (
