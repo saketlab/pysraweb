@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/github/last-commit/saketlab/seqout-web" alt="Last Commit">
 </p>
 
-Seqout is a search engine for finding genomic datasets across NCBI and EBI portals.
+Seqout is a search engine for finding genomic datasets across NCBI, EMBL-EBI, CNCB-NGDC & DDBJ portals.
 
 https://github.com/user-attachments/assets/c61cc260-016b-4879-92d9-ace100bee9fa
 
