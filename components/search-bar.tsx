@@ -328,6 +328,7 @@ function SearchBarContent({
       <Flex
         gap={"3"}
         align={"center"}
+        mt={"2"}
         display={{ initial: "none", md: "flex" }}
       >
         <Tooltip content="How search works">
