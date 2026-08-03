@@ -12,6 +12,7 @@ import { track } from "@/utils/analytics";
 import { withTimeout } from "@/utils/api";
 import { SERVER_URL } from "@/utils/constants";
 import { DB_LABELS, SEARCH_DBS, type SearchDb } from "@/utils/db-colors";
+import { downloadCsv } from "@/utils/exportCsv";
 import { getProjectShortUrl } from "@/utils/shortUrl";
 import { SearchResult } from "@/utils/types";
 import {
@@ -244,6 +245,36 @@ function appendFilterParams(url: string, f: SearchFilterParams): string {
   if (f.year_from != null) add("year_from", String(f.year_from));
   if (f.year_to != null) add("year_to", String(f.year_to));
   return url;
+}
+
+// Dataset-level download columns. Must stay in step with _DOWNLOAD_COLUMNS in the
+// API (main.py): the text path gets this CSV from the server and the geo path
+// builds it in the browser, and the two should be the same file.
+const DOWNLOAD_COLUMNS = [
+  "accession",
+  "source",
+  "title",
+  "summary",
+  "updated_at",
+  "organisms",
+  "countries",
+  "instrument_models",
+  "library_strategies",
+];
+
+function resultToCsvRow(r: SearchResult): Record<string, unknown> {
+  const join = (v: string[] | null | undefined) => (v ?? []).join("; ");
+  return {
+    accession: r.accession,
+    source: r.source,
+    title: r.title,
+    summary: r.summary,
+    updated_at: r.updated_at,
+    organisms: join(r.organisms),
+    countries: join(r.countries),
+    instrument_models: join(r.instrument_models),
+    library_strategies: join(r.library_strategies),
+  };
 }
 
 function buildSearchUrl(
@@ -1884,52 +1915,58 @@ export default function SearchPageBody() {
   }, []);
 
   const handleDownloadResults = async () => {
-    if (isDownloading || !query) return;
+    if (isDownloading) return;
+    if (!isGeoSearch && !query) return;
 
     setIsDownloading(true);
     setDownloadFailed(false);
 
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\..+/, "")
+      .replace("T", "_");
+
     try {
-      const params = new URLSearchParams();
-      params.set("q", query);
+      // Geo/map search paginates client-side and eagerly prefetches every page,
+      // so the browser already holds the whole result set (filters included) —
+      // no server round trip needed, and no /search/structured download endpoint.
+      if (isGeoSearch) {
+        downloadCsv(
+          filteredResults.map((r) => resultToCsvRow(r)),
+          DOWNLOAD_COLUMNS,
+          `seqout_results_${timestamp}.csv`,
+        );
+        return;
+      }
+
+      // Text search: the server streams every match. Send the same db + sidebar
+      // filters the results list was fetched with, so the CSV is the search, not
+      // the page. Year range rides along inside searchFilters.
+      let url = `${SERVER_URL}/download/query?q=${encodeURIComponent(
+        // The displayed results are the corrected query's when a typo was
+        // auto-corrected; download what is on screen, not the typo.
+        correction?.corrected_query ?? query!,
+      )}`;
       if (db && (SEARCH_DBS as readonly string[]).includes(db)) {
-        params.set("db", db);
+        url += `&db=${encodeURIComponent(db)}`;
       }
+      url = appendFilterParams(url, searchFilters);
 
-      if (timeFilter === "custom") {
-        const from = parseInt(customYearRange.from);
-        const to = parseInt(customYearRange.to);
-        if (from) params.set("updated_year_from", String(from));
-        if (to) params.set("updated_year_to", String(to));
-      } else if (timeFilter !== "any") {
-        const years = parseInt(timeFilter);
-        const currentYear = new Date().getFullYear();
-        params.set("updated_year_from", String(currentYear - years));
-        params.set("updated_year_to", String(currentYear));
-      }
-
-      const res = await fetch(
-        `${SERVER_URL}/download/query?${params.toString()}`,
-      );
-
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error("Download failed");
       }
 
-      const zipBlob = await res.blob();
-      const url = URL.createObjectURL(zipBlob);
+      const csvBlob = await res.blob();
+      const objectUrl = URL.createObjectURL(csvBlob);
       const a = document.createElement("a");
-      a.href = url;
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[-:]/g, "")
-        .replace(/\..+/, "")
-        .replace("T", "_");
-      a.download = `results_${timestamp}.zip`;
+      a.href = objectUrl;
+      a.download = `seqout_results_${timestamp}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.error(error);
       setDownloadFailed(true);
@@ -2370,7 +2407,7 @@ export default function SearchPageBody() {
                 content={
                   downloadFailed
                     ? "Download failed. Please try again."
-                    : "Download search results as ZIP"
+                    : "Download every matching dataset as CSV (one row per dataset)"
                 }
               >
                 <Button
@@ -2379,7 +2416,7 @@ export default function SearchPageBody() {
                   aria-busy={isDownloading}
                 >
                   {isDownloading ? <Spinner /> : <DownloadIcon />}
-                  {isDownloading ? "Preparing ZIP..." : "Download results"}
+                  {isDownloading ? "Preparing CSV..." : "Download results"}
                 </Button>
               </Tooltip>
             )}
