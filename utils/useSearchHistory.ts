@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { SERVER_URL } from "./constants";
-import { parseAccessions, startsWithAccession } from "./accessionLinks";
+import {
+  isAccessionUrl,
+  parseAccessions,
+  startsWithAccession,
+} from "./accessionLinks";
 import { getProjectShortUrl } from "./shortUrl";
 
 const HISTORY_KEY = "searchHistory";
@@ -57,10 +61,10 @@ export function useSearchHistory() {
     );
     saveHistory(newHistory);
 
-    // "<accession> ..." (optionally with a pasted title/notes) → jump to the
-    // first recognized accession instead of full-text search. Any further
-    // accessions in the text are ignored.
-    if (startsWithAccession(trimmed)) {
+    // "<accession> ..." (optionally with a pasted title/notes), or an archive URL
+    // with the accession inside it → jump to the first recognized accession
+    // instead of full-text search. Any further accessions in the text are ignored.
+    if (startsWithAccession(trimmed) || isAccessionUrl(trimmed)) {
       const first = parseAccessions(trimmed)[0];
       if (first) {
         if (first.isPrj) {

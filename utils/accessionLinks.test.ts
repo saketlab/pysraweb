@@ -3,6 +3,7 @@ import {
   getExternalArchiveUrl,
   getInternalUrl,
   parseAccessions,
+  isAccessionUrl,
   startsWithAccession,
 } from "./accessionLinks";
 
@@ -159,5 +160,46 @@ describe("parseAccessions", () => {
 
   it("returns nothing for a plain text query", () => {
     expect(parseAccessions("brain single cell rna")).toEqual([]);
+  });
+});
+
+describe("isAccessionUrl", () => {
+  it("recognizes pasted archive URLs and finds the accession inside", () => {
+    const cases: [string, string][] = [
+      [
+        "http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE317357",
+        "/p/GSE317357",
+      ],
+      ["https://www.ncbi.nlm.nih.gov/sra/?term=SRX1234567", "/e/SRX1234567"],
+      ["https://www.ebi.ac.uk/ena/browser/view/SRP123456", "/p/SRP123456"],
+      [
+        "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-1234",
+        "/p/E-MTAB-1234",
+      ],
+      ["https://ddbj.nig.ac.jp/search/entry/gea/E-GEAD-282", "/p/E-GEAD-282"],
+      ["https://ngdc.cncb.ac.cn/gsa/browse/CRA000004", "/p/CRA000004"],
+      ["www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM7", "/s/GSM7"],
+    ];
+    for (const [url, expected] of cases) {
+      expect(isAccessionUrl(url)).toBe(true);
+      expect(parseAccessions(url)[0]?.url).toBe(expected);
+    }
+  });
+
+  it("keeps PRJ/submission URLs on their async-resolve path", () => {
+    const prj = parseAccessions(
+      "https://www.ebi.ac.uk/ena/browser/view/PRJEB12345",
+    )[0];
+    expect(isAccessionUrl("https://www.ebi.ac.uk/ena/browser/view/PRJEB12345"))
+      .toBe(true);
+    expect(prj.isPrj).toBe(true);
+  });
+
+  it("ignores non-URLs and URLs with no accession", () => {
+    expect(isAccessionUrl("https://seqout.org/about")).toBe(false);
+    expect(isAccessionUrl("https://github.com/some/repo")).toBe(false);
+    // Not a URL: already handled by startsWithAccession, not this.
+    expect(isAccessionUrl("GSE317357")).toBe(false);
+    expect(isAccessionUrl("cancer single cell")).toBe(false);
   });
 });

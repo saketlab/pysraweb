@@ -109,6 +109,17 @@ export function startsWithAccession(query: string): boolean {
   return ACC_ANCHORED.test(query.trim());
 }
 
+// A pasted archive URL — ".../acc.cgi?acc=GSE317357", ".../ena/browser/view/SRP12",
+// ".../arrayexpress/experiments/E-MTAB-1234" — is an accession the user wants to
+// open, not a phrase to full-text search. The accession sits mid-string, so
+// startsWithAccession can't see it. Any host counts: wherever the link came from,
+// the useful answer is the project page. Takes the first accession in the URL.
+export function isAccessionUrl(query: string): boolean {
+  const trimmed = query.trim();
+  if (!/^(?:https?:\/\/|www\.)/i.test(trimmed)) return false;
+  return parseAccessions(trimmed).length > 0;
+}
+
 export type ExternalArchive = { url: string; archive: string; label: string };
 
 export function getExternalArchiveUrl(
