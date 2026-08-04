@@ -8,7 +8,8 @@ import {
 } from "@/components/publication-card";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
-import { getJson } from "@/utils/api";
+import { ApiError, getJson } from "@/utils/api";
+import { ARCHIVE_LIST_TEXT } from "@/utils/constants";
 import { cleanJournalName, formatPubDate } from "@/utils/format";
 import { doiHref, isPmid, pmidHref, pubmedHref } from "@/utils/project";
 import { getProjectShortUrl } from "@/utils/shortUrl";
@@ -25,6 +26,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -67,13 +69,18 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["publication-projects", pmid],
     queryFn: () => fetchPublication(pmid),
     enabled: isPmid(pmid),
     retry: false,
     staleTime: Infinity,
   });
+
+  // The API 404s both for a PMID that doesn't exist and for a real paper no
+  // submission cites — from here they're the same thing, and "no datasets
+  // linked" is the honest phrasing for both. Any other failure is ours.
+  const notLinked = error instanceof ApiError && error.status === 404;
 
   const projects = data?.projects ?? [];
   const visible = showAll ? projects : projects.slice(0, INITIAL_ROWS);
@@ -130,16 +137,55 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
             height="20rem"
             gap="3"
           >
-            <Text size={{ initial: "5", md: "6" }} weight="bold">
-              No publication found for PMID {pmid}
-            </Text>
-            <Text
-              size="2"
-              align="center"
-              style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
-            >
-              {String(error)}
-            </Text>
+            {notLinked ? (
+              <>
+                <Text size={{ initial: "5", md: "6" }} weight="bold">
+                  No datasets linked to PMID {pmid}
+                </Text>
+                <Text
+                  size="2"
+                  align="center"
+                  style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+                >
+                  Datasets are linked to papers by the archives&rsquo; own
+                  submission metadata. Nothing in {ARCHIVE_LIST_TEXT} cites this
+                  PMID. The publication may not have an associated public
+                  dataset, or the submitter may have recorded a different PMID.
+                </Text>
+                <Flex gap="3" mt="1" wrap="wrap" justify="center">
+                  <Button variant="soft" asChild>
+                    <a
+                      href={pubmedHref(pmid)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Check {pmid} on PubMed <ExternalLinkIcon />
+                    </a>
+                  </Button>
+                  <Button variant="soft" asChild>
+                    <NextLink href="/">Search by title or keywords</NextLink>
+                  </Button>
+                </Flex>
+              </>
+            ) : (
+              <>
+                <Text size={{ initial: "5", md: "6" }} weight="bold">
+                  Couldn&rsquo;t load PMID {pmid}
+                </Text>
+                <Text
+                  size="2"
+                  align="center"
+                  style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+                >
+                  The request failed before we could look this paper up, so we
+                  don&rsquo;t know whether it has datasets. This one is on us,
+                  not your PMID.
+                </Text>
+                <Button variant="soft" onClick={() => refetch()}>
+                  Try again
+                </Button>
+              </>
+            )}
           </Flex>
         )}
 
@@ -229,11 +275,20 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
           </Card>
         )}
 
-        {data && (
+        {data && projects.length > 0 && (
           <Text color="gray" weight="light">
             Found {projects.length.toLocaleString()} project
             {projects.length === 1 ? "" : "s"} in{" "}
             {(data.took_ms / 1000).toFixed(2)} seconds
+          </Text>
+        )}
+
+        {/* The paper is in seqout (so its card renders above) but nothing cites
+            it — "Found 0 projects" over an empty list reads like a failure. */}
+        {data && projects.length === 0 && (
+          <Text size="2" style={{ color: "var(--gray-11)" }}>
+            We have this paper, but no dataset in {ARCHIVE_LIST_TEXT} is linked
+            to it yet.
           </Text>
         )}
 

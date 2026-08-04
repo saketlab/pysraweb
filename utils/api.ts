@@ -8,9 +8,23 @@ export function withTimeout(signal?: AbortSignal): AbortSignal {
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
+/**
+ * A non-ok response, carrying the status so callers can tell "the server says
+ * this doesn't exist" (404) apart from "the request failed" — they read very
+ * differently to a user. Message is unchanged so anything rendering the error
+ * text keeps its current wording.
+ */
+export class ApiError extends Error {
+  constructor(public readonly status: number) {
+    // Message and name deliberately unchanged from the plain Error this
+    // replaced: submission-studies-body renders String(error) verbatim.
+    super("Network error");
+  }
+}
+
 export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${SERVER_URL}${path}`, { signal: withTimeout(signal) });
-  if (!res.ok) throw new Error("Network error");
+  if (!res.ok) throw new ApiError(res.status);
   return (await res.json()) as T;
 }
 
