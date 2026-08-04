@@ -2,10 +2,11 @@
 
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
-import { getJson } from "@/utils/api";
+import { ApiError, getJson } from "@/utils/api";
 import { getProjectShortUrl } from "@/utils/shortUrl";
-import { Button, Flex, Heading, Text } from "@radix-ui/themes";
+import { Button, Flex, Heading, Link, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -35,13 +36,17 @@ export default function SubmissionStudiesBody({
   const [showAll, setShowAll] = useState(false);
   const acc = accession.toUpperCase();
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["submission-studies", acc],
     queryFn: () => getJson<SubmissionResponse>(`/submission/${acc}`),
     enabled: isSubmission(acc),
     retry: false,
     staleTime: Infinity,
   });
+
+  // The API 404s when nothing is filed under the submission; anything else is a
+  // failure on our side and shouldn't read as "not found".
+  const noStudies = error instanceof ApiError && error.status === 404;
 
   const studies = data?.studies ?? [];
   const visible = showAll ? studies : studies.slice(0, INITIAL_ROWS);
@@ -66,10 +71,18 @@ export default function SubmissionStudiesBody({
         px={{ initial: "4", md: "3" }}
         direction="column"
       >
-        <Heading size="6">Studies for submission {acc}</Heading>
+        {/* Suppressed for a non-submission accession: the message below is its
+            own heading, and "Studies for submission FOO" above "FOO isn't a
+            submission accession" just contradicts itself. */}
+        {isSubmission(acc) && (
+          <Heading size="6">Studies for submission {acc}</Heading>
+        )}
 
         {isLoading && <Text color="gray">Searching…</Text>}
-        {isError && (
+
+        {/* Not a submission accession at all, so the query never ran — without
+            this the page is just a heading over blank space. */}
+        {!isSubmission(acc) && (
           <Flex
             align="center"
             justify="center"
@@ -78,15 +91,71 @@ export default function SubmissionStudiesBody({
             gap="3"
           >
             <Text size={{ initial: "5", md: "6" }} weight="bold">
-              No studies found for submission {acc}
+              {acc} isn&rsquo;t a submission accession
             </Text>
             <Text
               size="2"
               align="center"
               style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
             >
-              {String(error)}
+              Submission accessions look like SRA123456, ERA123456 or DRA123456.
+              For a study, sample or run, paste it into the search bar above.
             </Text>
+          </Flex>
+        )}
+
+        {isError && (
+          <Flex
+            align="center"
+            justify="center"
+            direction="column"
+            height="20rem"
+            gap="3"
+          >
+            {noStudies ? (
+              <>
+                <Text size={{ initial: "5", md: "6" }} weight="bold">
+                  No studies found for submission {acc}
+                </Text>
+                <Text
+                  size="2"
+                  align="center"
+                  style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+                >
+                  No SRP/ERP/DRP study in seqout is filed under this submission.
+                  The accession may belong to an archive we don&rsquo;t mirror,
+                  or its studies may not be public yet.
+                </Text>
+                <Button variant="soft" asChild>
+                  <NextLink href="/">Search by title or keywords</NextLink>
+                </Button>
+                <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  Prefer plain English?{" "}
+                  <Link asChild underline="always">
+                    <NextLink href="/mcp">Use seqout with an LLM</NextLink>
+                  </Link>{" "}
+                  to describe the data you&rsquo;re after in your own words.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text size={{ initial: "5", md: "6" }} weight="bold">
+                  Couldn&rsquo;t load submission {acc}
+                </Text>
+                <Text
+                  size="2"
+                  align="center"
+                  style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+                >
+                  The request failed before we could look this submission up, so
+                  we don&rsquo;t know whether it has studies. This one is on us,
+                  not your accession.
+                </Text>
+                <Button variant="soft" onClick={() => refetch()}>
+                  Try again
+                </Button>
+              </>
+            )}
           </Flex>
         )}
 

@@ -166,6 +166,13 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
                     <NextLink href="/">Search by title or keywords</NextLink>
                   </Button>
                 </Flex>
+                <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  Prefer plain English?{" "}
+                  <Link asChild underline="always">
+                    <NextLink href="/mcp">Use seqout with an LLM</NextLink>
+                  </Link>{" "}
+                  to ask for this paper&rsquo;s datasets in your own words.
+                </Text>
               </>
             ) : (
               <>

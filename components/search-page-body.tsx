@@ -26,6 +26,7 @@ import {
 import {
   Button,
   Flex,
+  Link,
   Select,
   Separator,
   Skeleton,
@@ -40,6 +41,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import NextLink from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -2357,6 +2359,20 @@ export default function SearchPageBody() {
                   <span className="seqout-accession">GSE196830</span>).
                 </Text>
               )}
+              {/* Shown alongside a "did you mean" too: a misspelling and a query
+                  keyword search can't express are both cases where describing
+                  the data in plain English gets further. */}
+              <Text
+                size="2"
+                align="center"
+                style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+              >
+                Prefer plain English?{" "}
+                <Link asChild underline="always">
+                  <NextLink href="/mcp">Use seqout with an LLM</NextLink>
+                </Link>{" "}
+                to describe the data you&rsquo;re after in your own words.
+              </Text>
             </Flex>
           )}
         </Flex>
