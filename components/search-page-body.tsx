@@ -1302,51 +1302,6 @@ export default function SearchPageBody() {
     ? allResults.length > 0
     : total > 0 || allResults.length > 0;
 
-  // A text search that resolves to exactly one result jumps straight to its
-  // project page (paste a title → open it). Skipped when sidebar filters are
-  // active, so narrowing an exploration down to one hit doesn't yank you off the
-  // results page. Waits for the exact facets total so a single loaded row on a
-  // larger set can't trigger it. router.replace so Back skips the search page.
-  const soloJumpRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (isGeoSearch || !query || isLoading || totalPending) return;
-    const hasActiveFilters =
-      !!selectedOrganismKey ||
-      selectedJournalFilters.length > 0 ||
-      selectedCountryFilters.length > 0 ||
-      selectedLibraryStrategyFilters.length > 0 ||
-      selectedLibrarySourceFilters.length > 0 ||
-      selectedInstrumentModelFilters.length > 0 ||
-      selectedPlatformFilters.length > 0 ||
-      multiPlatformOnly;
-    if (hasActiveFilters) return;
-    // Augmented-correction extras render as a separate page-1 block and are
-    // excluded from `total`/`allResults`; if any exist the user is really
-    // looking at >1 result, so don't jump.
-    if (correction?.extra_results?.length) return;
-    if (total !== 1 || allResults.length !== 1) return;
-    if (soloJumpRef.current === query) return;
-    soloJumpRef.current = query;
-    router.replace(getProjectShortUrl(allResults[0].accession));
-  }, [
-    isGeoSearch,
-    query,
-    isLoading,
-    totalPending,
-    total,
-    allResults,
-    correction,
-    selectedOrganismKey,
-    selectedJournalFilters,
-    selectedCountryFilters,
-    selectedLibraryStrategyFilters,
-    selectedLibrarySourceFilters,
-    selectedInstrumentModelFilters,
-    selectedPlatformFilters,
-    multiPlatformOnly,
-    router,
-  ]);
-
   // Geo search filters client-side, so it still needs the whole result set:
   // keep eagerly prefetching every page. Text search paginates on the server and
   // fetches exactly the page it needs, so it never prefetches.
