@@ -43,14 +43,16 @@ type ProjectSummaryProps = {
   text?: string | string[] | null;
   charLimit?: number;
   size?: ComponentProps<typeof Text>["size"];
+  defaultExpanded?: boolean;
 };
 
 export default function ProjectSummary({
   text,
   charLimit = 350,
   size,
+  defaultExpanded = false,
 }: ProjectSummaryProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const { plainText, sanitized } = useMemo(() => {
     const raw = Array.isArray(text)

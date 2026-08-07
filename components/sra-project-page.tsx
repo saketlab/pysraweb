@@ -2897,6 +2897,7 @@ export default function ProjectPage() {
             <ProjectSummary
               text={project.abstract}
               charLimit={ABSTRACT_CHAR_LIMIT}
+              defaultExpanded
             />
             {/* ENA/DDBJ study hierarchy: parent umbrella / child studies. */}
             <StudyHierarchy project={project} />

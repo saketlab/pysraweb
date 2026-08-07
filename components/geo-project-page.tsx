@@ -1539,6 +1539,7 @@ export default function GeoProjectPage() {
             <ProjectSummary
               text={project.summary}
               charLimit={SUMMARY_CHAR_LIMIT}
+              defaultExpanded
             />
             {project.relation &&
               (() => {
@@ -1604,6 +1605,7 @@ export default function GeoProjectPage() {
             <ProjectSummary
               text={project.overall_design}
               charLimit={OVERALL_DESIGN_CHAR_LIMIT}
+              defaultExpanded
             />
 
             {/* Samples (Original) + AI Enriched metadata, merged via tabs */}
