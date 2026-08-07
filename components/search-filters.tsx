@@ -1693,7 +1693,7 @@ export function SearchOrganismRail({
             </Dialog.Content>
           </Dialog.Root>
           <DeepDiveSection />
-          <Text size="1" style={{ color: "var(--gray-11)" }}>
+          <Text size="1" color="gray">
             Search didn&apos;t help?{" "}
             <Link asChild underline="always">
               <NextLink href="/mcp">Ask seqout with an LLM</NextLink>
