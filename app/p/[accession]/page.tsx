@@ -1,6 +1,7 @@
 "use client";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import QueryHighlight from "@/components/query-highlight";
 
 // Dynamically import the appropriate project page component
 const GeoProjectPage = dynamic(() => import("@/components/geo-project-page"), {
@@ -22,9 +23,10 @@ export default function UnifiedProjectPage() {
   const upperAccession = accession?.toUpperCase();
   const isGeoLike = upperAccession?.startsWith("G") || upperAccession?.startsWith("E-");
 
-  if (isGeoLike) {
-    return <GeoProjectPage />;
-  }
-
-  return <SraProjectPage />;
+  return (
+    <>
+      <QueryHighlight />
+      {isGeoLike ? <GeoProjectPage /> : <SraProjectPage />}
+    </>
+  );
 }

@@ -1581,6 +1581,18 @@ export default function SearchPageBody() {
   // "More pages exist" — geo grows as it streams; text knows from the total.
   const hasNextPage = isGeoSearch ? geoHasNextPage : safePage < totalPages;
 
+  // Carries the organism filter and the query (which the project page briefly
+  // highlights) over to the project page. Send the corrected query when one was
+  // applied — that is the query these results actually came from.
+  const projectHref = (accession: string) => {
+    const params = new URLSearchParams();
+    if (selectedOrganismKey) params.set("organism", selectedOrganismKey);
+    const effectiveQuery = correction?.corrected_query ?? query;
+    if (effectiveQuery) params.set("q", effectiveQuery);
+    const qs = params.toString();
+    return qs ? `${getProjectShortUrl(accession)}?${qs}` : undefined;
+  };
+
   const renderResultCard = (searchResult: SearchResult) => (
     <ResultCard
       key={`${searchResult.source}:${searchResult.accession}`}
@@ -1595,11 +1607,7 @@ export default function SearchPageBody() {
       authors={searchResult.authors}
       center_name={searchResult.center_name}
       country_code={searchResult.country_code}
-      href={
-        selectedOrganismKey
-          ? `${getProjectShortUrl(searchResult.accession)}?organism=${encodeURIComponent(selectedOrganismKey)}`
-          : undefined
-      }
+      href={projectHref(searchResult.accession)}
     />
   );
   // Literal-typo matches shown only on page 1 (augmented mode), above the

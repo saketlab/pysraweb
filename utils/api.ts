@@ -104,6 +104,22 @@ export function getSearchExpansion(q: string, signal?: AbortSignal) {
   );
 }
 
+/**
+ * The words in a project's title/summary/design that a query matched. Postgres
+ * marks them with the same tsquery the search ran, so stemming and synonyms
+ * agree with why the project was a hit.
+ */
+export function getSearchHighlight(
+  q: string,
+  accession: string,
+  signal?: AbortSignal,
+) {
+  return getJson<{ accession: string; query: string; words: string[] }>(
+    `/search/highlight?q=${encodeURIComponent(q)}&accession=${encodeURIComponent(accession)}`,
+    signal,
+  );
+}
+
 const NOT_JSON = Symbol("not-json");
 
 export function parseProjectStringFields<T>(data: T): T {
