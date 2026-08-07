@@ -66,6 +66,7 @@ export async function GET() {
 
   const staticLastmod = overall ? `<lastmod>${overall}</lastmod>` : "";
   xml += `  <sitemap><loc>${SITE_URL}/sitemap/static.xml</loc>${staticLastmod}</sitemap>\n`;
+  xml += `  <sitemap><loc>${SITE_URL}/cli/sitemap.xml</loc></sitemap>\n`;
 
   for (const { key } of SITEMAP_SOURCES) {
     const chunks = Math.ceil((counts[key] ?? 0) / LIMIT);
