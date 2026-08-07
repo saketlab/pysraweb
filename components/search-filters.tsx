@@ -1,13 +1,13 @@
 "use client";
 
 import { DeepDiveSection } from "@/components/deep-dive-section";
-import { DB_LABELS, SEARCH_DBS, type SearchDb } from "@/utils/db-colors";
 import {
   OrganismFilter,
   OrganismNameMode,
   type ScientificFacet,
 } from "@/components/organism_filter";
 import type { SortBy } from "@/components/search-page-body";
+import { DB_LABELS, SEARCH_DBS, type SearchDb } from "@/utils/db-colors";
 import { SearchResult } from "@/utils/types";
 import {
   CheckIcon,
@@ -24,6 +24,7 @@ import {
   Checkbox,
   Dialog,
   Flex,
+  Link,
   Select,
   Separator,
   Tabs,
@@ -33,6 +34,7 @@ import {
 } from "@radix-ui/themes";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
+import NextLink from "next/link";
 import {
   type CSSProperties,
   type ReactNode,
@@ -1691,6 +1693,17 @@ export function SearchOrganismRail({
             </Dialog.Content>
           </Dialog.Root>
           <DeepDiveSection />
+          <Text size="1" style={{ color: "var(--gray-11)" }}>
+            Search didn&apos;t help?{" "}
+            <Link asChild underline="always">
+              <NextLink href="/mcp">Ask seqout with an LLM</NextLink>
+            </Link>{" "}
+            in plain English or check out{" "}
+            <Link asChild underline="always">
+              <NextLink href={"/howsearchworks"}>how search works</NextLink>
+            </Link>
+            .
+          </Text>
         </Flex>
       ) : null}
     </>
