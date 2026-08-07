@@ -1,16 +1,16 @@
 # seqout
 
 > seqout is a search engine for public sequencing datasets.
-> It unifies metadata from NCBI GEO, SRA, ENA, DDBJ, and EBI ArrayExpress into a
-> single relevance-ranked search, with consolidated sample tables, cross-archive
-> cross-references, similarity graphs, download links, and SLM-enriched ontology
-> metadata (tissue, cell type, disease). Built at Saket Lab, IIT Bombay.
+> It unifies metadata from NCBI GEO, SRA, ENA, DDBJ (DRA and GEA), EBI ArrayExpress
+> and GSA into a single relevance-ranked search, with consolidated sample tables,
+> cross-archive cross-references, similarity graphs, download links, and SLM-enriched
+> ontology metadata (tissue, cell type, disease). Built at Saket Lab, IIT Bombay.
 
 ## Coverage
 
 - ~1M projects / studies (GEO Series, SRA/ENA/DDBJ studies, ArrayExpress experiments)
 - Tens of millions of samples, experiments, and runs
-- Sources: NCBI GEO, NCBI SRA, EBI ENA, DDBJ, EBI ArrayExpress, BioProject
+- Sources: NCBI GEO, NCBI SRA, EBI ENA, DDBJ (DRA and GEA), EBI ArrayExpress, GSA, BioProject
 - Publication links with journal + citation counts
 
 ## Key pages
@@ -30,7 +30,46 @@
   Exposes search, project/sample metadata, download manifests, and enriched
   metadata as MCP tools.
 
+## Python and R clients
+
+Both search the same data, resolve an accession to its records in every archive, and
+read GEO supplementary files as counts matrices. Full details, including per-function
+documentation, are at https://seqout.org/cli/llms.txt
+
+- Overview: https://seqout.org/cli/
+- Python library and `seqout` command line: https://seqout.org/cli/python/
+- R package: https://seqout.org/cli/R/
+- Source: https://github.com/saketlab/seqout
+
+```bash
+uv add seqout                    # Python library, needs Python 3.13+
+uv add 'seqout[counts]'          # with the counts-matrix readers
+uv tool install seqout           # the seqout command line
+```
+
+```r
+pak::pak("saketlab/seqout/R")
+install.packages("seqout", repos = "https://saketlab.r-universe.dev")
+```
+
+```python
+from seqout import connect, seqout_counts
+
+sq = connect()
+sq.search("liver cancer scRNA", organism="Homo sapiens")
+sq.get("GSE151530").samples
+seqout_counts(gse="GSE297547").matrix(sample="GSM8994520")
+```
+
+```r
+library(seqout)
+
+con <- seqout_connect()
+find_projects(con, keywords = "liver cancer scRNA", organism = "Homo sapiens")
+project_samples(con, "GSE151530")
+```
+
 ## Citation
 
 seqout is developed and maintained by Saket Lab, IIT Bombay (https://saketlab.org).
-Source: https://github.com/saketlab/seqout-web
+Source: https://github.com/saketlab/seqout-web (web), https://github.com/saketlab/seqout (clients)
