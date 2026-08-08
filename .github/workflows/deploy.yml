@@ -52,7 +52,10 @@ jobs:
           mkdir -p deploy/.next
           cp -r .next/static deploy/.next/static
 
-          cp -r public deploy/public
+          # standalone already ships a traced public/ (llms.txt), so `cp -r public
+          # deploy/public` would nest into it. Copy the contents, not the dir.
+          mkdir -p deploy/public
+          cp -r public/. deploy/public/
 
           cp ecosystem.config.js deploy/ecosystem.config.js
 
