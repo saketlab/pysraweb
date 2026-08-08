@@ -1,45 +1,26 @@
 # seqout
 
-> seqout is a search engine for public sequencing datasets.
-> It unifies metadata from NCBI GEO, SRA, ENA, DDBJ (DRA and GEA), EBI ArrayExpress
-> and GSA into a single relevance-ranked search, with consolidated sample tables,
-> cross-archive cross-references, similarity graphs, download links, and SLM-enriched
-> ontology metadata (tissue, cell type, disease). Built at Saket Lab, IIT Bombay.
+> seqout is a search engine for public sequencing datasets. It unifies metadata from NCBI GEO, SRA, ENA, DDBJ (DRA and GEA), EBI ArrayExpress and GSA into a single relevance-ranked search, with consolidated sample tables, cross-archive cross-references, similarity graphs, download links, and SLM-enriched ontology metadata (tissue, cell type, disease). Built at Saket Lab, IIT Bombay.
 
-## Coverage
+Coverage is roughly 1M projects and studies (GEO Series, SRA/ENA/DDBJ studies,
+ArrayExpress experiments) and tens of millions of samples, experiments and runs,
+across NCBI GEO, NCBI SRA, EBI ENA, DDBJ (DRA and GEA), EBI ArrayExpress, GSA and
+BioProject, with publication links carrying journal and citation counts.
 
-- ~1M projects / studies (GEO Series, SRA/ENA/DDBJ studies, ArrayExpress experiments)
-- Tens of millions of samples, experiments, and runs
-- Sources: NCBI GEO, NCBI SRA, EBI ENA, DDBJ (DRA and GEA), EBI ArrayExpress, GSA, BioProject
-- Publication links with journal + citation counts
+Search is at https://seqout.org/search?q={query}. Every record has a stable URL:
+a project at https://seqout.org/p/{accession} (for example /p/GSE196830,
+/p/SRP123456, /p/E-MTAB-1234), a sample at https://seqout.org/s/{accession}, an
+experiment at https://seqout.org/e/{accession}, a run at
+https://seqout.org/r/{accession}, an author at https://seqout.org/authors/{name},
+a publication at https://seqout.org/pmid/{pmid}, and every study filed under one
+submission at https://seqout.org/submission/{accession}.
 
-## Key pages
+The same data is available over a REST API at https://seqout.org/api and over MCP at
+https://seqout.org/api/mcp, which exposes search, project and sample metadata,
+download manifests and enriched metadata as tools.
 
-- Search: https://seqout.org/search?q={query}
-- Project detail: https://seqout.org/p/{accession} (e.g. /p/GSE196830, /p/SRP123456, /p/E-MTAB-1234)
-- Sample detail: https://seqout.org/s/{accession}
-- Statistics: https://seqout.org/stats
-- About / FAQ: https://seqout.org/faq
-- API reference: https://seqout.org/api-docs
-- MCP server setup: https://seqout.org/mcp
-
-## Programmatic access
-
-- REST API base: https://seqout.org/api
-- MCP server (for Claude Desktop and other LLM agents): https://seqout.org/api/mcp
-  Exposes search, project/sample metadata, download manifests, and enriched
-  metadata as MCP tools.
-
-## Python and R clients
-
-Both search the same data, resolve an accession to its records in every archive, and
-read GEO supplementary files as counts matrices. Full details, including per-function
-documentation, are at https://seqout.org/cli/llms.txt
-
-- Overview: https://seqout.org/cli/
-- Python library and `seqout` command line: https://seqout.org/cli/python/
-- R package: https://seqout.org/cli/R/
-- Source: https://github.com/saketlab/seqout
+The Python and R clients search the same data, resolve an accession to its records in
+every archive, and read GEO supplementary files as counts matrices.
 
 ```bash
 uv add seqout                    # Python library, needs Python 3.13+
@@ -69,7 +50,32 @@ find_projects(con, keywords = "liver cancer scRNA", organism = "Homo sapiens")
 project_samples(con, "GSE151530")
 ```
 
-## Citation
+seqout is developed and maintained by Saket Lab, IIT Bombay.
 
-seqout is developed and maintained by Saket Lab, IIT Bombay (https://saketlab.org).
-Source: https://github.com/saketlab/seqout-web (web), https://github.com/saketlab/seqout (clients)
+## Docs
+
+- [Search](https://seqout.org/search): relevance-ranked search across every archive
+- [Find projects by author](https://seqout.org/authors): every dataset a named researcher authored
+- [Find projects by PMID](https://seqout.org/pmid): every dataset linked to a PubMed ID
+- [Dataset map](https://seqout.org/map): where in the world the data was submitted from
+- [Statistics](https://seqout.org/stats): growth by archive, organism, platform and country
+- [Data downloads](https://seqout.org/data): the whole database as Parquet, for DuckDB or the CLI
+- [FAQ](https://seqout.org/faq): what seqout indexes, how often it updates, and what it is for
+- [How search works](https://seqout.org/howsearchworks): ranking, filters and query syntax
+- [API reference](https://seqout.org/api-docs): every REST endpoint, with parameters and examples
+- [MCP server](https://seqout.org/mcp): setup for Claude Desktop and other LLM agents
+
+## Clients
+
+- [Overview](https://seqout.org/cli/): both clients, install commands and a worked example
+- [Python library and CLI](https://seqout.org/cli/python/): `connect()`, `Dataset`, and the `seqout` command
+- [R package](https://seqout.org/cli/R/): reference index and articles
+- [Client llms.txt](https://seqout.org/cli/llms.txt): index of the client documentation
+- [Client llms-full.txt](https://seqout.org/cli/llms-full.txt): all of it inlined, including the full API reference
+
+## Optional
+
+- [llms-full.txt](https://seqout.org/llms-full.txt): this index with the FAQ, search guide and API reference inlined
+- [Saket Lab](https://saketlab.org): the group that builds and maintains seqout
+- [Web source](https://github.com/saketlab/seqout-web): the seqout.org front end
+- [Client source](https://github.com/saketlab/seqout): the Python and R clients, MIT licensed

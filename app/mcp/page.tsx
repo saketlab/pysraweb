@@ -1,5 +1,6 @@
 import SearchBar from "@/components/search-bar";
 import SectionAnchor from "@/components/section-anchor";
+import { SERVER_API_BASE } from "@/utils/constants";
 import { escapeHtmlJson } from "@/utils/json";
 import { Box, Card, Code, Flex, Heading, Link, Text } from "@radix-ui/themes";
 import type { Metadata } from "next";
@@ -31,6 +32,34 @@ const jsonLd = {
 };
 
 const MCP_URL = "https://seqout.org/api/mcp";
+
+export const revalidate = 86400;
+
+type McpTool = { name: string; description?: string };
+
+async function fetchTools(): Promise<McpTool[]> {
+  try {
+    const res = await fetch(`${SERVER_API_BASE}/mcp`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      }),
+      next: { revalidate },
+    });
+    if (!res.ok) return [];
+    const { result } = (await res.json()) as { result?: { tools?: McpTool[] } };
+    return (result?.tools ?? []).sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
 
 // Each client: the one-line CLI command (fastest path) plus the config file it
 // writes, for people who prefer to edit it by hand. Formats verified against
@@ -125,7 +154,8 @@ function ConfigBlock({ children }: { children: string }) {
   );
 }
 
-export default function MCP() {
+export default async function MCP() {
+  const tools = await fetchTools();
   return (
     <>
       <script type="application/ld+json">{escapeHtmlJson(jsonLd)}</script>
@@ -174,7 +204,7 @@ export default function MCP() {
               </Text>
               <Text>
                 This can be done either by asking the agent to do it on your
-                behalf or by editing the apporpriate configuration file required
+                behalf or by editing the appropriate configuration file required
                 by the agent.
               </Text>
             </Flex>
@@ -207,7 +237,7 @@ export default function MCP() {
           </ConfigBlock>
 
           <Text size={{ initial: "2", md: "3" }}>
-            4. Restart Claude Desktop to apply the changes
+            3. Restart Claude Desktop to apply the changes
           </Text>
 
           <Text size={{ initial: "2", md: "3" }}>
@@ -266,6 +296,36 @@ export default function MCP() {
             allowFullScreen
           />
         </Flex>
+        {tools.length > 0 && (
+          <Flex direction="column" gap="4" id="tools">
+            <Flex align="center" gap="2">
+              <Heading>What the server exposes</Heading>
+              <SectionAnchor id="tools" />
+            </Flex>
+            <Text size={{ initial: "2", md: "3" }}>
+              {tools.length} tools, covering search, project and sample
+              metadata, cross-archive resolution, download manifests, ontology
+              enrichment, and statistics. Your client lists them once connected.
+            </Text>
+            <Box style={{ overflowX: "auto" }}>
+              <Flex direction="column" gap="2" asChild>
+                <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+                  {tools.map((tool) => (
+                    <li key={tool.name}>
+                      <Text size={{ initial: "2", md: "3" }}>
+                        <Code>{tool.name}</Code>
+                        {tool.description
+                          ? ` — ${tool.description.split("\n")[0].trim()}`
+                          : ""}
+                      </Text>
+                    </li>
+                  ))}
+                </ul>
+              </Flex>
+            </Box>
+          </Flex>
+        )}
+
         <Text size={{ initial: "2", md: "3" }}>
           For direct programmatic access without MCP, see the{" "}
           <Link href="/api-docs">API Reference</Link>.
