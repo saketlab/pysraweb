@@ -1,3 +1,4 @@
+import ClaudeSetupCarousel from "@/components/claude-setup-carousel";
 import SearchBar from "@/components/search-bar";
 import SectionAnchor from "@/components/section-anchor";
 import { SERVER_API_BASE } from "@/utils/constants";
@@ -32,6 +33,29 @@ const jsonLd = {
 };
 
 const MCP_URL = "https://seqout.org/api/mcp";
+
+const CLAUDE_SETUP_STEPS = [
+  {
+    image: "/claude-setup/step_1.png",
+    description: "Open Settings from the profile menu.",
+  },
+  {
+    image: "/claude-setup/step_2.png",
+    description: "Select Connectors in the settings sidebar.",
+  },
+  {
+    image: "/claude-setup/step_3.png",
+    description: "Choose Add custom connector.",
+  },
+  {
+    image: "/claude-setup/steo_4.png",
+    description: "Name the connector Seqout and paste the MCP server URL.",
+  },
+  {
+    image: "/claude-setup/step_5.png",
+    description: "Approve the tools you want Claude to use.",
+  },
+] as const;
 
 export const revalidate = 86400;
 
@@ -212,33 +236,30 @@ export default async function MCP() {
         </Card>
 
         <Flex align="center" gap="2" id="claude-desktop">
-          <Heading>Claude Desktop</Heading>
+          <Heading>Claude</Heading>
           <SectionAnchor id="claude-desktop" />
         </Flex>
 
         <Flex direction="column" gap="4">
           <Text size={{ initial: "2", md: "3" }}>
-            1. Open the Claude Desktop configuration file by going to{" "}
-            <Text weight="medium">Settings → Developer → Edit Config</Text>
+            Add seqout as a custom connector from Claude Desktop. Open{" "}
+            <Text weight="medium">Settings → Connectors</Text>, then choose
+            <Text weight="medium"> Add custom connector</Text>.
           </Text>
 
           <Text size={{ initial: "2", md: "3" }}>
-            2. Add the following configuration to the <Code>mcpServers</Code>{" "}
-            section:
+            Enter <Text weight="medium">Seqout</Text> as the name and use this
+            server URL:
           </Text>
 
-          <ConfigBlock>
-            {`"mcpServers": {
-  "seqout": {
-    "command": "npx",
-    "args": ["-y", "mcp-remote", "${MCP_URL}"]
-  }
-}`}
-          </ConfigBlock>
+          <ConfigBlock>{MCP_URL}</ConfigBlock>
 
           <Text size={{ initial: "2", md: "3" }}>
-            3. Restart Claude Desktop to apply the changes
+            Follow the walkthrough below to finish connecting and choose which
+            seqout tools Claude can use.
           </Text>
+
+          <ClaudeSetupCarousel steps={CLAUDE_SETUP_STEPS} />
 
           <Text size={{ initial: "2", md: "3" }}>
             Once configured, you&apos;ll be able to search and explore GEO, SRA,
