@@ -23,6 +23,8 @@ ensureAgGridModules();
 // flags is tri-state: null = not measurable, [] = measured and clean
 export interface SingleCellSample {
   sample_accession: string;
+  title: string | null;
+  tissue: string | null;
   cells: number | null;
   genes: number | null;
   unfiltered: boolean;
@@ -228,7 +230,6 @@ function CellsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
 }
 
 const DERIVATION = {
-  organism: "Derived from % reads mapping to organism",
   sex: "Derived from Y-unique and XIST read counts",
   assay: "Inferred from read structure",
 };
@@ -258,28 +259,6 @@ const SEX_EVIDENCE = (row: SingleCellSample) => {
   return lines.length ? lines.join("\n") : null;
 };
 
-const SPECIES_EVIDENCE = (row: SingleCellSample) => {
-  const pct = (v: number | null) =>
-    v == null ? "?" : `${(v * 100).toFixed(1)}%`;
-  const lines: string[] = [];
-  if (row.species_hit_reads != null) {
-    lines.push(
-      `${num(row.species_hit_reads)} reads (${pct(row.species_hit_fraction)} of those scanned)`,
-    );
-  }
-  if (row.species_runner_up) {
-    lines.push(
-      `runner-up ${row.species_runner_up.replace(/_/g, " ")}, margin ${pct(row.species_margin)}`,
-    );
-  }
-  if (row.species_confidence) lines.push(`confidence: ${row.species_confidence}`);
-  if (row.species_ambiguous) lines.push("Ambiguous — the margin is thin");
-  if (row.species_mislabel) {
-    lines.push("MISLABEL: the archive's stated organism disagrees with the reads");
-  }
-  return lines.length ? lines.join("\n") : null;
-};
-
 const ASSAY_EVIDENCE = (row: SingleCellSample) =>
   row.assay_display && row.assay_display !== row.assay
     ? `Chemistry: ${row.assay_display}`
@@ -289,10 +268,6 @@ const ASSAY_EVIDENCE = (row: SingleCellSample) =>
 const CONTRADICTION: Partial<
   Record<keyof SingleCellSample, (row: SingleCellSample) => string | null>
 > = {
-  species_called: (row) =>
-    row.species_mislabel === true
-      ? "The archive's stated organism disagrees with the reads."
-      : null,
   assay: (row) =>
     row.assay_is_single_cell === false
       ? "The reads do not look single-cell, however this study is published."
@@ -362,11 +337,6 @@ function CallCellRenderer(
 }
 
 // module scope: built per render, these remount every cell in their column
-const SpeciesCell = CallCellRenderer(
-  "species_called",
-  "No read-derived species call for this sample",
-  SPECIES_EVIDENCE,
-);
 const SexCell = CallCellRenderer(
   "sex_verdict",
   "No read-derived sex call for this sample",
@@ -443,11 +413,24 @@ export default function SingleCellCard({ accession }: { accession: string }) {
 
   const head = data!.pages[0]!;
 
-  const columnDefs: ColDef<SingleCellSample>[] = [
+  const allColumns: ColDef<SingleCellSample>[] = [
     {
       field: "sample_accession",
       headerName: "Sample",
       pinned: "left",
+      minWidth: 150,
+      flex: 1,
+    },
+    {
+      field: "title",
+      headerName: "Title",
+      pinned: "left",
+      minWidth: 200,
+      flex: 1,
+    },
+    {
+      field: "tissue",
+      headerName: "Tissue",
       minWidth: 150,
       flex: 1,
     },
@@ -464,14 +447,6 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       minWidth: 110,
       flex: 1,
       valueFormatter: (p) => (p.value == null ? "—" : p.value.toLocaleString()),
-    },
-    {
-      field: "species_called",
-      headerName: "Species (reads)",
-      headerTooltip: DERIVATION.organism,
-      minWidth: 170,
-      flex: 1,
-      cellRenderer: SpeciesCell,
     },
     {
       field: "sex_verdict",
@@ -499,12 +474,21 @@ export default function SingleCellCard({ accession }: { accession: string }) {
     },
   ];
 
+  const columnDefs = allColumns.filter(
+    (c) =>
+      c.field === "sample_accession" ||
+      rows.some((r) => {
+        const v = r[c.field as keyof SingleCellSample];
+        return v != null && v !== "";
+      }),
+  );
+
   const gridHeight = Math.min(400, 42 + rows.length * 42);
 
   return (
     <Flex direction="column" gap="2">
       <Text size="2" color="gray">
-        Species, sex, assay and microbial content derived from the reads.
+        Sex, assay and microbial content derived from the reads.
       </Text>
       <Flex align="center" gap="2" wrap="wrap">
         <Text size="2" color="gray">
