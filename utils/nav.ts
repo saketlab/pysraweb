@@ -32,7 +32,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: createElement(InfoCircledIcon),
   },
   {
-    label: "CLI",
+    label: "CLI & Libraries",
     href: "/cli",
     external: true,
     icon: createElement(KeyboardIcon),
