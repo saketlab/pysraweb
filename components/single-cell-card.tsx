@@ -448,39 +448,45 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       field: "sample_accession",
       headerName: "Sample",
       pinned: "left",
-      width: 150,
+      minWidth: 150,
+      flex: 1,
     },
     {
       field: "cells",
       headerName: "Cells",
-      width: 120,
+      minWidth: 120,
+      flex: 1,
       cellRenderer: CellsCellRenderer,
     },
     {
       field: "genes",
       headerName: "Genes",
-      width: 110,
+      minWidth: 110,
+      flex: 1,
       valueFormatter: (p) => (p.value == null ? "—" : p.value.toLocaleString()),
     },
     {
       field: "species_called",
       headerName: "Species (reads)",
       headerTooltip: DERIVATION.organism,
-      width: 170,
+      minWidth: 170,
+      flex: 1,
       cellRenderer: SpeciesCell,
     },
     {
       field: "sex_verdict",
       headerName: "Sex (reads)",
       headerTooltip: DERIVATION.sex,
-      width: 140,
+      minWidth: 140,
+      flex: 1,
       cellRenderer: SexCell,
     },
     {
       field: "assay",
       headerName: "Assay (reads)",
       headerTooltip: DERIVATION.assay,
-      width: 190,
+      minWidth: 190,
+      flex: 1,
       cellRenderer: AssayCell,
     },
     {
@@ -492,6 +498,8 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       sortable: false,
     },
   ];
+
+  const gridHeight = Math.min(400, 42 + rows.length * 42);
 
   return (
     <Flex direction="column" gap="2">
@@ -561,7 +569,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
         className={
           resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz"
         }
-        style={{ height: 480, width: "100%" }}
+        style={{ height: `${gridHeight}px`, width: "100%" }}
       >
         <AgGridReact<SingleCellSample>
           rowData={rows}
@@ -570,9 +578,18 @@ export default function SingleCellCard({ accession }: { accession: string }) {
           enableCellTextSelection
           ensureDomOrder
           getRowId={getRowId}
+          theme="legacy"
           onBodyScroll={onBodyScroll}
         />
       </div>
+      {isFetchingNextPage && (
+        <Flex align="center" gap="2">
+          <Spinner size="1" />
+          <Text size="1" color="gray">
+            Loading more samples...
+          </Text>
+        </Flex>
+      )}
     </Flex>
   );
 }
