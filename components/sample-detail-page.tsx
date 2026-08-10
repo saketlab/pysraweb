@@ -167,7 +167,7 @@ function GeoSampleDetail({ sample }: { sample: Sample }) {
     if (ch.Source) rows.push([`${prefix}Source`, ch.Source]);
     if (ch.Molecule) rows.push([`${prefix}Molecule`, ch.Molecule]);
     if (ch.Label) rows.push([`${prefix}Label`, ch.Label]);
-    // ponytail: GEO gives a lone object when there's one characteristic, an array otherwise.
+    // GEO gives a lone object when there's one characteristic, an array otherwise
     const chars = ch.Characteristics;
     for (const c of Array.isArray(chars) ? chars : chars ? [chars] : []) {
       rows.push([`${prefix}${c["@tag"]}`, c["#text"]]);
@@ -232,9 +232,8 @@ function ExperimentSection({ experiment }: { experiment: Experiment }) {
 // organism live in the page header, so they're not repeated here.
 function SraSampleDetail({ sample }: { sample: Sample | null }) {
   if (!sample) return null;
-  // ponytail: the API builds attributes_json server-side as a jsonb object
-  // (jsonb_object_agg / to_jsonb), so it arrives as a plain object — no need to
-  // parse strings or fold {tag,value} arrays.
+  // attributes_json is built server-side with jsonb_object_agg, so it arrives
+  // as a plain object
   const attributes: Record<string, string> =
     sample.attributes_json && !Array.isArray(sample.attributes_json)
       ? sample.attributes_json

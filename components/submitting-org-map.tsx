@@ -3,6 +3,7 @@
 import { getLeafletPopupTheme } from "@/utils/chart-theme";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "next-themes";
+import { Fragment, type ReactNode } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 import type { CenterInfo } from "./submitting-org-panel";
 
@@ -43,8 +44,9 @@ export default function SubmittingOrgMap({ markers }: Props) {
         url={tileUrl}
       />
       {markers.map((m, i) => {
-        const lines: string[] = [];
-        if (m.organization) lines.push(`<strong>${m.organization}</strong>`);
+        // archive text is submitter-authored; keep it out of innerHTML
+        const lines: ReactNode[] = [];
+        if (m.organization) lines.push(<strong>{m.organization}</strong>);
         if (m.department) lines.push(m.department);
         if (m.place_name) lines.push(m.place_name);
         const location = [m.city, m.state, m.country]
@@ -54,8 +56,9 @@ export default function SubmittingOrgMap({ markers }: Props) {
         if (m.postcode) lines.push(`Postal code: ${m.postcode}`);
         if (m.formatted_address) lines.push(m.formatted_address);
         lines.push(
-          `<span style="color:${popupTheme.link}">` +
-            `${m.latitude!.toFixed(6)}, ${m.longitude!.toFixed(6)}</span>`,
+          <span style={{ color: popupTheme.link }}>
+            {m.latitude!.toFixed(6)}, {m.longitude!.toFixed(6)}
+          </span>,
         );
         return (
           <CircleMarker
@@ -70,10 +73,14 @@ export default function SubmittingOrgMap({ markers }: Props) {
             }}
           >
             <Popup>
-              <div
-                style={{ fontSize: "13px", lineHeight: "1.5" }}
-                dangerouslySetInnerHTML={{ __html: lines.join("<br/>") }}
-              />
+              <div style={{ fontSize: "13px", lineHeight: "1.5" }}>
+                {lines.map((line, j) => (
+                  <Fragment key={j}>
+                    {j > 0 && <br />}
+                    {line}
+                  </Fragment>
+                ))}
+              </div>
             </Popup>
           </CircleMarker>
         );

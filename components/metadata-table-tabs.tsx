@@ -7,6 +7,7 @@ import {
 } from "@/components/enriched-metadata-card";
 import { FirstVisitPing, useFirstVisit } from "@/components/first-visit-ping";
 import SectionAnchor from "@/components/section-anchor";
+import SingleCellCard from "@/components/single-cell-card";
 import { useToast } from "@/components/toast-provider";
 import { WrapTextToggle } from "@/components/wrap-text-toggle";
 import { buildCombinedRows, combinedHeaders } from "@/utils/combinedCsv";
@@ -17,6 +18,7 @@ import {
   ArchiveIcon,
   DownloadIcon,
   Link2Icon,
+  LayersIcon,
   MagicWandIcon,
 } from "@radix-ui/react-icons";
 import {
@@ -30,7 +32,7 @@ import {
 } from "@radix-ui/themes";
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabValue = "original" | "enriched";
+type TabValue = "original" | "enriched" | "pentimento";
 
 /**
  * Small link icon rendered inside a tab trigger. Clicking it selects that tab
@@ -115,6 +117,7 @@ export default function MetadataTableTabs({
   sectionTitle,
   titleBadge,
   hasEnriched,
+  hasPentimento,
   originalContent,
   onExportOriginalCsv,
   combinedExport,
@@ -126,6 +129,7 @@ export default function MetadataTableTabs({
   // Whether the study has enriched metadata, from the cheap `has_enriched` flag
   // on the project response — lets us show the tab without fetching the payload.
   hasEnriched?: boolean;
+  hasPentimento?: boolean;
   originalContent: ReactNode;
   onExportOriginalCsv: () => void;
   /**
@@ -151,7 +155,10 @@ export default function MetadataTableTabs({
   const [tab, setTab] = useState<TabValue>(() => {
     if (typeof window === "undefined") return "original";
     const { id, tab: hashTab } = parseSectionHash(window.location.hash);
-    return id === sectionId && hashTab === "enriched" ? "enriched" : "original";
+    return id === sectionId &&
+      (hashTab === "enriched" || hashTab === "pentimento")
+      ? hashTab
+      : "original";
   });
   // Lazy: only fetch enriched metadata once its tab is active (clicked or
   // deep-linked via `#samples=enriched`), so the heavy per-sample payload isn't
@@ -175,8 +182,13 @@ export default function MetadataTableTabs({
     }
   }, [sectionId]);
 
-  // No enriched data → there's nothing to switch to, so pin to the original tab.
-  const activeTab: TabValue = hasEnriched ? tab : "original";
+  // a stale shared link can select a tab this study doesn't have
+  const tabExists: Record<TabValue, boolean> = {
+    original: true,
+    enriched: !!hasEnriched,
+    pentimento: !!hasPentimento,
+  };
+  const activeTab: TabValue = tabExists[tab] ? tab : "original";
 
   const [askCombined, setAskCombined] = useState(false);
   const [combining, setCombining] = useState(false);
@@ -186,7 +198,8 @@ export default function MetadataTableTabs({
   // offer a combined export identical to the plain one, so skip it.
   const canCombine =
     !!combinedExport &&
-    (combinedExport.sraAccessions.length > 0 || combinedExport.hasSupplementary);
+    (combinedExport.sraAccessions.length > 0 ||
+      combinedExport.hasSupplementary);
 
   const downloadCombined = async () => {
     if (!combinedExport) return;
@@ -223,13 +236,13 @@ export default function MetadataTableTabs({
             {sectionTitle}
           </Heading>
           {!showEnriched && titleBadge}
-          {showEnriched && enriched && (
+          {activeTab === "enriched" && enriched && (
             <EnrichedMetadataBadges data={enriched} />
           )}
           <SectionAnchor id={sectionId} />
         </Flex>
         <Flex align="center" gap="3">
-          {hasEnriched && (
+          {(hasEnriched || hasPentimento) && (
             <Tabs.Root
               value={activeTab}
               onValueChange={(value) => {
@@ -251,33 +264,53 @@ export default function MetadataTableTabs({
                     />
                   </Flex>
                 </Tabs.Trigger>
-                <Tabs.Trigger value="enriched" style={{ position: "relative" }}>
-                  <Flex gap={"2"} align={"center"}>
-                    <MagicWandIcon />
-                    <span>Enriched</span>
-                    <TabShareIcon
-                      sectionId={sectionId}
-                      sectionTitle={sectionTitle}
-                      tab="enriched"
-                      label="Enriched"
-                      onSelect={setTab}
-                    />
-                  </Flex>
-                  {/* Inside the box, not hanging off it: Tabs.List is
+                {hasEnriched && (
+                  <Tabs.Trigger
+                    value="enriched"
+                    style={{ position: "relative" }}
+                  >
+                    <Flex gap={"2"} align={"center"}>
+                      <MagicWandIcon />
+                      <span>Enriched</span>
+                      <TabShareIcon
+                        sectionId={sectionId}
+                        sectionTitle={sectionTitle}
+                        tab="enriched"
+                        label="Enriched"
+                        onSelect={setTab}
+                      />
+                    </Flex>
+                    {/* Inside the box, not hanging off it: Tabs.List is
                       `overflow-x: auto` and would clip an outset dot. */}
-                  {!seenEnriched && activeTab === "original" && (
-                    <FirstVisitPing
-                      style={{ top: "4px", right: "4px", left: "auto" }}
-                    />
-                  )}
-                </Tabs.Trigger>
+                    {!seenEnriched && activeTab === "original" && (
+                      <FirstVisitPing
+                        style={{ top: "4px", right: "4px", left: "auto" }}
+                      />
+                    )}
+                  </Tabs.Trigger>
+                )}
+                {hasPentimento && (
+                  <Tabs.Trigger value="pentimento">
+                    <Flex gap={"2"} align={"center"}>
+                      <LayersIcon />
+                      <span>Pentimento</span>
+                      <TabShareIcon
+                        sectionId={sectionId}
+                        sectionTitle={sectionTitle}
+                        tab="pentimento"
+                        label="Pentimento"
+                        onSelect={setTab}
+                      />
+                    </Flex>
+                  </Tabs.Trigger>
+                )}
               </Tabs.List>
             </Tabs.Root>
           )}
           <WrapTextToggle size="2" />
-          {/* ponytail: enriched CSV export is hidden for now — drop the
-              `!showEnriched &&` guard to bring it back. */}
-          {!showEnriched && (
+          {/* only the original table exports; widen this guard to bring the
+              enriched branch below back */}
+          {activeTab === "original" && (
             <Button
               onClick={() => {
                 if (showEnriched && enriched) {
@@ -329,8 +362,9 @@ export default function MetadataTableTabs({
           </Flex>
         </AlertDialog.Content>
       </AlertDialog.Root>
-      {!showEnriched && originalContent}
-      {showEnriched && enriched && (
+      {activeTab === "pentimento" && <SingleCellCard accession={accession} />}
+      {activeTab === "original" && originalContent}
+      {activeTab === "enriched" && enriched && (
         <EnrichedMetadataGrid
           data={enriched}
           fetchNextPage={fetchNextPage}
