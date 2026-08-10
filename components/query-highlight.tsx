@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
-import { useParams, useSearchParams } from "next/navigation";
 import { getSearchHighlight } from "@/utils/api";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 const HIGHLIGHT_NAME = "seqout-query";
-const SHOW_MS = 5000;
+const SHOW_MS = 50000;
 /** Project pages fetch client-side, so give the text time to arrive. */
 const GIVE_UP_MS = 10000;
 const MAX_RANGES = 500;
@@ -28,16 +28,20 @@ export function wordsPattern(words: string[]): RegExp | null {
 }
 
 export function findRanges(pattern: RegExp): Range[] {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => {
-      const parent = node.parentElement;
-      if (!parent || SKIP_TAGS.has(parent.tagName))
-        return NodeFilter.FILTER_REJECT;
-      return node.nodeValue?.trim()
-        ? NodeFilter.FILTER_ACCEPT
-        : NodeFilter.FILTER_REJECT;
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        const parent = node.parentElement;
+        if (!parent || SKIP_TAGS.has(parent.tagName))
+          return NodeFilter.FILTER_REJECT;
+        return node.nodeValue?.trim()
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      },
     },
-  });
+  );
   const ranges: Range[] = [];
   let node: Node | null;
   while ((node = walker.nextNode())) {
@@ -64,7 +68,8 @@ export default function QueryHighlight() {
 
   useEffect(() => {
     // CSS Custom Highlight API: no DOM mutation, so React never fights it.
-    if (!q || !accession || typeof CSS === "undefined" || !CSS.highlights) return;
+    if (!q || !accession || typeof CSS === "undefined" || !CSS.highlights)
+      return;
 
     const abort = new AbortController();
     let poll: ReturnType<typeof setInterval> | undefined;
