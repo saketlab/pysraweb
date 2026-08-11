@@ -361,7 +361,6 @@ export default function PublicationCard({
                 href={doiHref(submittedDoi)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="seqout-paper-title"
                 weight="bold"
                 underline="hover"
                 wrap="pretty"
@@ -372,7 +371,6 @@ export default function PublicationCard({
             ) : (
               <Text
                 size={{ initial: "2", md: "3" }}
-                className="seqout-paper-title"
                 wrap="pretty"
                 style={{ flex: "1 1 16rem", minWidth: 0 }}
               >
@@ -457,7 +455,6 @@ export default function PublicationCard({
               size={{ initial: "2", md: "4" }}
               href={titleLink}
               target="_blank"
-              className="seqout-paper-title"
               weight={"bold"}
               underline="hover"
               wrap={"pretty"}
@@ -470,7 +467,6 @@ export default function PublicationCard({
             <Text
               size={{ initial: "2", md: "3" }}
               weight="bold"
-              className="seqout-paper-title"
               style={{ flex: "1 1 16rem", minWidth: 0 }}
             >
               {publication.title}

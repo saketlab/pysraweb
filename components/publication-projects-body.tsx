@@ -205,7 +205,6 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
                   href={titleLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="seqout-paper-title"
                   weight="bold"
                   underline="hover"
                   wrap="pretty"
