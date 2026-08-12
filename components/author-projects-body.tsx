@@ -125,7 +125,7 @@ export default function AuthorProjectsBody({ name }: { name: string }) {
             />
             <Popover.Root>
               <Popover.Trigger>
-                <IconButton aria-label="About name matching">
+                <IconButton variant="soft" aria-label="About name matching">
                   <InfoCircledIcon />
                 </IconButton>
               </Popover.Trigger>
