@@ -153,7 +153,7 @@ const PLATFORM_DISPLAY: Record<string, string> = {
   SINGULAR_GENOMICS: "Singular Genomics",
 };
 
-type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
+export type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 
 /** Exact facet counts from /search/facets, keyed by facet name. */
 export type SearchFacetList = { value: string; count: number }[];
@@ -195,16 +195,45 @@ function buildFacetCounts(
 }
 
 type SearchFiltersProps = {
-  db: string | null;
-  query: string | null;
   sortBy: SortBy;
   setSortBy: (value: SortBy) => void;
   setTimeFilter: (value: TimeFilter) => void;
   timeFilter: TimeFilter;
   customYearRange: { from: string; to: string };
   setCustomYearRange: (value: { from: string; to: string }) => void;
-  onDatabaseChange: (value: SearchDb | "both") => void;
+  // The source-database select is only rendered when a handler is given —
+  // author search has no per-source view.
+  db?: string | null;
+  query?: string | null;
+  onDatabaseChange?: (value: SearchDb | "both") => void;
 };
+
+/**
+ * Client-side year filter over anything carrying `updated_at`. Matches the
+ * server's `EXTRACT(YEAR FROM updated_at)` bounds.
+ */
+export function applyTimeFilter<T extends { updated_at: string | null }>(
+  results: T[],
+  timeFilter: string,
+  customYearRange: { from: string; to: string },
+): T[] {
+  if (timeFilter === "any") return results;
+  if (timeFilter === "custom") {
+    const from = parseInt(customYearRange.from);
+    const to = parseInt(customYearRange.to);
+    if (!from && !to) return results;
+    return results.filter((r) => {
+      const year = new Date(r.updated_at ?? "").getFullYear();
+      if (from && year < from) return false;
+      if (to && year > to) return false;
+      return true;
+    });
+  }
+  const years = parseInt(timeFilter);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - years);
+  return results.filter((r) => new Date(r.updated_at ?? "") >= cutoff);
+}
 
 export function SearchFilters({
   db,
@@ -263,26 +292,28 @@ export function SearchFilters({
         </Select.Content>
       </Select.Root>
 
-      <Select.Root
-        value={db ? db : "both"}
-        onValueChange={(value) => {
-          if (!query) return;
-          onDatabaseChange(value as SearchDb | "both");
-        }}
-        size="1"
-      >
-        <Select.Trigger aria-label="Source database" />
-        <Select.Content>
-          <Select.Group>
-            <Select.Item value="both">All sources</Select.Item>
-            {SEARCH_DBS.map((key) => (
-              <Select.Item key={key} value={key}>
-                {DB_LABELS[key]} only
-              </Select.Item>
-            ))}
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
+      {onDatabaseChange && (
+        <Select.Root
+          value={db ? db : "both"}
+          onValueChange={(value) => {
+            if (!query) return;
+            onDatabaseChange(value as SearchDb | "both");
+          }}
+          size="1"
+        >
+          <Select.Trigger aria-label="Source database" />
+          <Select.Content>
+            <Select.Group>
+              <Select.Item value="both">All sources</Select.Item>
+              {SEARCH_DBS.map((key) => (
+                <Select.Item key={key} value={key}>
+                  {DB_LABELS[key]} only
+                </Select.Item>
+              ))}
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+      )}
 
       {timeFilter === "custom" && (
         <Flex gap="2" align="center">

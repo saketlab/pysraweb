@@ -4,6 +4,12 @@ import EditableHeading from "@/components/editable-heading";
 import { InstituteFilter } from "@/components/institute-filter";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
+import {
+  applyTimeFilter,
+  SearchFilters,
+  type TimeFilter,
+} from "@/components/search-filters";
+import type { SortBy } from "@/components/search-page-body";
 import { getJson } from "@/utils/api";
 import { authorHref } from "@/utils/project";
 import { getProjectShortUrl } from "@/utils/shortUrl";
@@ -15,6 +21,7 @@ import {
   Flex,
   IconButton,
   Popover,
+  Select,
   Text,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
@@ -60,6 +67,36 @@ function hasInstitute(r: AuthorProject, institute: string): boolean {
     .some((p) => p.trim().toLowerCase() === institute);
 }
 
+// The endpoint returns every match in one shot, so sorting is client-side.
+// "relevance" keeps the server's name-match order.
+function sortProjects(
+  rows: AuthorProject[],
+  sortBy: SortBy,
+  dateOrder: "desc" | "asc",
+): AuthorProject[] {
+  if (sortBy === "relevance") return rows;
+  // Missing values sort last in every mode.
+  const missing = dateOrder === "asc" ? Infinity : -Infinity;
+  const time = (r: AuthorProject) => {
+    const t = new Date(r.updated_at ?? "").getTime();
+    return Number.isNaN(t) ? missing : t;
+  };
+  const sorted = [...rows];
+  if (sortBy === "citations")
+    return sorted.sort(
+      (a, b) => (b.citation_count ?? -1) - (a.citation_count ?? -1),
+    );
+  if (sortBy === "journal")
+    return sorted.sort((a, b) => {
+      if (!a.journal) return b.journal ? 1 : 0;
+      if (!b.journal) return -1;
+      return a.journal.localeCompare(b.journal);
+    });
+  return sorted.sort((a, b) =>
+    dateOrder === "asc" ? time(a) - time(b) : time(b) - time(a),
+  );
+}
+
 export default function AuthorProjectsBody({ name }: { name: string }) {
   const router = useRouter();
 
@@ -74,13 +111,33 @@ export default function AuthorProjectsBody({ name }: { name: string }) {
   const [selectedInstitute, setSelectedInstitute] = React.useState<
     string | null
   >(null);
+  const [sortBy, setSortBy] = React.useState<SortBy>("relevance");
+  const [dateOrder, setDateOrder] = React.useState<"desc" | "asc">("desc");
+  const [timeFilter, setTimeFilter] = React.useState<TimeFilter>("any");
+  const [customYearRange, setCustomYearRange] = React.useState({
+    from: "",
+    to: "",
+  });
 
   const filtered = React.useMemo(() => {
-    const rows = data?.results ?? [];
-    if (!selectedInstitute) return rows;
-    const target = selectedInstitute.toLowerCase();
-    return rows.filter((r) => hasInstitute(r, target));
-  }, [data?.results, selectedInstitute]);
+    let rows = data?.results ?? [];
+    if (selectedInstitute) {
+      const target = selectedInstitute.toLowerCase();
+      rows = rows.filter((r) => hasInstitute(r, target));
+    }
+    return sortProjects(
+      applyTimeFilter(rows, timeFilter, customYearRange),
+      sortBy,
+      dateOrder,
+    );
+  }, [
+    data?.results,
+    selectedInstitute,
+    timeFilter,
+    customYearRange,
+    sortBy,
+    dateOrder,
+  ]);
 
   const instituteFilter = (
     <InstituteFilter
@@ -164,13 +221,39 @@ export default function AuthorProjectsBody({ name }: { name: string }) {
             </Flex>
           )}
           {results.length > 0 && (
-            <Text color="gray" weight="light">
-              {data?.total?.toLocaleString()} result
-              {data?.total === 1 ? "" : "s"} in{" "}
-              {((data?.took_ms ?? 0) / 1000).toFixed(2)} seconds
-              {selectedInstitute &&
-                ` · ${filtered.length} shown · ${selectedInstitute}`}
-            </Text>
+            <Flex align="center" justify="between" gap="2" wrap="wrap">
+              <Text color="gray" weight="light">
+                {data?.total?.toLocaleString()} result
+                {data?.total === 1 ? "" : "s"} in{" "}
+                {((data?.took_ms ?? 0) / 1000).toFixed(2)} seconds
+                {filtered.length !== results.length &&
+                  ` · ${filtered.length} shown`}
+                {selectedInstitute && ` · ${selectedInstitute}`}
+              </Text>
+              <Flex gap="2" align="center" wrap="wrap">
+                <SearchFilters
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  timeFilter={timeFilter}
+                  setTimeFilter={setTimeFilter}
+                  customYearRange={customYearRange}
+                  setCustomYearRange={setCustomYearRange}
+                />
+                {sortBy === "date" && (
+                  <Select.Root
+                    value={dateOrder}
+                    onValueChange={(v) => setDateOrder(v as "desc" | "asc")}
+                    size="1"
+                  >
+                    <Select.Trigger aria-label="Date order" />
+                    <Select.Content>
+                      <Select.Item value="desc">Newest first</Select.Item>
+                      <Select.Item value="asc">Oldest first</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                )}
+              </Flex>
+            </Flex>
           )}
           <Flex
             direction="column"

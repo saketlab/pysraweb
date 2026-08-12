@@ -3,6 +3,7 @@ import { OrganismNameMode } from "@/components/organism_filter";
 import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import {
+  applyTimeFilter,
   SearchFilters,
   SearchOrganismRail,
   type SearchFacets,
@@ -794,29 +795,6 @@ function ActiveFilterChips(props: ActiveFilterChipsProps) {
       </Button>
     </Flex>
   );
-}
-
-function applyTimeFilter(
-  results: SearchResult[],
-  timeFilter: string,
-  customYearRange: { from: string; to: string },
-): SearchResult[] {
-  if (timeFilter === "any") return results;
-  if (timeFilter === "custom") {
-    const from = parseInt(customYearRange.from);
-    const to = parseInt(customYearRange.to);
-    if (!from && !to) return results;
-    return results.filter((r) => {
-      const year = new Date(r.updated_at).getFullYear();
-      if (from && year < from) return false;
-      if (to && year > to) return false;
-      return true;
-    });
-  }
-  const years = parseInt(timeFilter);
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - years);
-  return results.filter((r) => new Date(r.updated_at) >= cutoff);
 }
 
 // Map the time-filter UI to server year bounds (uses updated_at's year, matching
