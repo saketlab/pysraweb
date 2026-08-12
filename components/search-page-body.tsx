@@ -138,7 +138,11 @@ function CorrectionNotice({ correction }: { correction: SearchCorrection }) {
       <Flex align="center" gap="3">
         <Text color="gray" size={"3"}>
           Also showing results for{" "}
-          <Text size={"2"} weight={"bold"} style={{ color: "var(--accent-11)" }}>
+          <Text
+            size={"2"}
+            weight={"bold"}
+            style={{ color: "var(--accent-11)" }}
+          >
             {corrected_query}
           </Text>
         </Text>
@@ -1872,8 +1876,11 @@ export default function SearchPageBody() {
   const [downloadFailed, setDownloadFailed] = useState(false);
 
   const shouldShowOrganismRail = !isLoading && !isError && hasResults;
-  const shouldReserveRailSpace =
-    isLoading || ((!!query || isGeoSearch) && (isError || !hasResults));
+  const shouldReserveRailSpace = isLoading;
+  // No results (or an error) means no rail is coming, so nothing needs holding
+  // open — drop the reserved column and centre the message on the viewport.
+  const emptyStateFullWidth =
+    !isLoading && (!!query || isGeoSearch) && (isError || !hasResults);
 
   useEffect(() => {
     const onScroll = () => {
@@ -2139,11 +2146,15 @@ export default function SearchPageBody() {
         <Flex
           gap="4"
           direction="column"
-          width={{
-            initial: "100%",
-            md: "calc(100% - 240px)",
-            lg: "calc(100% - 300px)",
-          }}
+          width={
+            emptyStateFullWidth
+              ? "100%"
+              : {
+                  initial: "100%",
+                  md: "calc(100% - 240px)",
+                  lg: "calc(100% - 300px)",
+                }
+          }
           minWidth="0"
         >
           <div ref={resultsTopRef} />
