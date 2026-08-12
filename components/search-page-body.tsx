@@ -145,9 +145,7 @@ function CorrectionNotice({ correction }: { correction: SearchCorrection }) {
           <Text
             size={"2"}
             style={{
-              fontStyle: "italic",
               textDecorationLine: "underline",
-              textDecorationStyle: "wavy",
             }}
           >
             {original_query}
