@@ -4,7 +4,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import { ApiError, getJson } from "@/utils/api";
 import { getProjectShortUrl } from "@/utils/shortUrl";
-import { Button, Flex, Heading, Link, Text } from "@radix-ui/themes";
+import { Button, Card, Flex, Heading, Link, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
@@ -129,13 +129,20 @@ export default function SubmissionStudiesBody({
                 <Button variant="soft" asChild>
                   <NextLink href="/">Search by title or keywords</NextLink>
                 </Button>
-                <Text size="2" style={{ color: "var(--gray-11)" }}>
-                  Prefer plain English?{" "}
-                  <Link asChild underline="always">
-                    <NextLink href="/mcp">Use seqout with an LLM</NextLink>
-                  </Link>{" "}
-                  to describe the data you&rsquo;re after in your own words.
-                </Text>
+                <Card mt="1" style={{ maxWidth: "32rem" }}>
+                  <Text size="2" as="p" weight="medium" mb="1">
+                    Need to query in natural language?
+                  </Text>
+                  <Text size="2" as="p" style={{ color: "var(--gray-11)" }}>
+                    Seqout can be used with the AI agent (e.g. Claude) of your
+                    choice to search for and download datasets using natural
+                    language. This can often substantially improve your chances
+                    of finding the datasets you&apos;re looking for.{" "}
+                    <Link asChild underline="always">
+                      <NextLink href="/mcp">Read more.</NextLink>
+                    </Link>
+                  </Text>
+                </Card>
               </>
             ) : (
               <>

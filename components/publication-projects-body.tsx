@@ -166,13 +166,20 @@ export default function PublicationProjectsBody({ pmid }: { pmid: string }) {
                     <NextLink href="/">Search by title or keywords</NextLink>
                   </Button>
                 </Flex>
-                <Text size="2" style={{ color: "var(--gray-11)" }}>
-                  Prefer plain English?{" "}
-                  <Link asChild underline="always">
-                    <NextLink href="/mcp">Use seqout with an LLM</NextLink>
-                  </Link>{" "}
-                  to ask for this paper&rsquo;s datasets in your own words.
-                </Text>
+                <Card mt="1" style={{ maxWidth: "32rem" }}>
+                  <Text size="2" as="p" weight="medium" mb="1">
+                    Need to query in natural language?
+                  </Text>
+                  <Text size="2" as="p" style={{ color: "var(--gray-11)" }}>
+                    Seqout can be used with the AI agent (e.g. Claude) of your
+                    choice to search for and download datasets using natural
+                    language. This can often substantially improve your chances
+                    of finding the datasets you&apos;re looking for.{" "}
+                    <Link asChild underline="always">
+                      <NextLink href="/mcp">Read more.</NextLink>
+                    </Link>
+                  </Text>
+                </Card>
               </>
             ) : (
               <>
