@@ -1,17 +1,14 @@
 "use client";
 
 import { SERVER_URL } from "@/utils/constants";
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import {
   Badge,
   Button,
   Flex,
-  IconButton,
   Separator,
   Switch,
   Text,
   TextField,
-  Tooltip,
 } from "@radix-ui/themes";
 import * as React from "react";
 
@@ -384,16 +381,6 @@ export function OrganismFilter({
               variant="surface"
               style={{ flex: 1, minWidth: 0 }}
             />
-            <Tooltip content="Search">
-              <IconButton
-                type="submit"
-                size="2"
-                variant="soft"
-                aria-label="Search"
-              >
-                <MagnifyingGlassIcon />
-              </IconButton>
-            </Tooltip>
           </form>
         </Flex>
       ) : null}
