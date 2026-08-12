@@ -118,6 +118,7 @@ type Project = {
   country_code?: string | null;
   publications?: StudyPublication[] | null;
   has_enriched?: boolean;
+  single_cell?: unknown;
 };
 
 type Characteristic = {
@@ -428,7 +429,11 @@ export default function GeoProjectPage() {
   const pmidLinkedSra = React.useMemo(() => {
     const out: Record<string, string> = {};
     for (const x of xrefData?.xref ?? []) {
-      if (x.source === "pmid" && x.via_pmid && /^[SED]RP\d+$/i.test(x.accession))
+      if (
+        x.source === "pmid" &&
+        x.via_pmid &&
+        /^[SED]RP\d+$/i.test(x.accession)
+      )
         out[x.accession.toUpperCase()] = x.via_pmid;
     }
     return out;
@@ -919,9 +924,7 @@ export default function GeoProjectPage() {
               </Link>
             );
           }
-          return (
-            <AccessionLink accession={sampleAccession} hideExternal />
-          );
+          return <AccessionLink accession={sampleAccession} hideExternal />;
         },
       },
       {
@@ -1614,6 +1617,7 @@ export default function GeoProjectPage() {
               sectionId="samples"
               sectionTitle="Samples"
               hasEnriched={project?.has_enriched}
+              hasPentimento={!!project?.single_cell}
               combinedExport={{
                 noun: "sample",
                 sraAccessions: linkedSraAliases,
@@ -1651,8 +1655,13 @@ export default function GeoProjectPage() {
                   for (const channel of sample.channels ?? []) {
                     const chars = channel.Characteristics;
                     if (Array.isArray(chars)) {
-                      for (const c of chars) if (c["@tag"]) tagSet.add(c["@tag"]);
-                    } else if (chars && typeof chars === "object" && chars["@tag"]) {
+                      for (const c of chars)
+                        if (c["@tag"]) tagSet.add(c["@tag"]);
+                    } else if (
+                      chars &&
+                      typeof chars === "object" &&
+                      chars["@tag"]
+                    ) {
                       tagSet.add(chars["@tag"]);
                     }
                   }
@@ -1867,7 +1876,9 @@ export default function GeoProjectPage() {
                 <Flex direction="column" gap="3">
                   {publications.map((pub, i) => (
                     <PublicationCard
-                      key={pub.pmid ?? pub.doi ?? pub.title ?? pub.citation ?? i}
+                      key={
+                        pub.pmid ?? pub.doi ?? pub.title ?? pub.citation ?? i
+                      }
                       publication={pub}
                       accession={accession}
                     />

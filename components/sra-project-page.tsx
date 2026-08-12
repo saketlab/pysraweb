@@ -133,6 +133,7 @@ type Project = {
   country_code?: string | null;
   publications?: StudyPublication[] | null;
   has_enriched?: boolean;
+  single_cell?: unknown;
 };
 
 type GeoNeighborsPayload = {
@@ -646,7 +647,6 @@ export function DownloadFastqSection({
     );
   }, []);
 
-
   const sourceUrl = (r: RunRow, source: DownloadSource): string | null => {
     if (source === "fastq") return r.fastq_ftp;
     if (source === "sra") return r.ncbi_sra_normalized_url;
@@ -671,9 +671,8 @@ export function DownloadFastqSection({
     for (const s of Object.keys(DOWNLOAD_SOURCE_LABELS) as DownloadSource[]) {
       if (runs.every((r) => sourceUrl(r, s))) sources.add(s);
     }
-    // ponytail: no source covers every run, so nothing is strictly correct --
-    // offer the partial ones rather than an empty dialog. The script header
-    // already reports "N files from M runs".
+    // when no source covers every run, offer the partial ones; the script
+    // header already reports "N files from M runs"
     if (sources.size === 0) {
       for (const s of Object.keys(DOWNLOAD_SOURCE_LABELS) as DownloadSource[]) {
         if (runs.some((r) => sourceUrl(r, s))) sources.add(s);
@@ -2168,7 +2167,11 @@ export default function ProjectPage() {
   const experimentFind = useServerFind<Experiment>(
     experimentsTotal > (pagedExperiments?.length ?? 0),
     (filters, signal) =>
-      getJson<{ experiments: Experiment[]; capped: boolean; filtered?: boolean }>(
+      getJson<{
+        experiments: Experiment[];
+        capped: boolean;
+        filtered?: boolean;
+      }>(
         `/project/${encodeURIComponent(accession ?? "")}/experiments/find?filters=${encodeURIComponent(filters)}`,
         signal,
       ).then((d) =>
@@ -2913,6 +2916,7 @@ export default function ProjectPage() {
                 hasSupplementary: linkedGeoAliases.length > 0,
               }}
               hasEnriched={project?.has_enriched}
+              hasPentimento={!!project?.single_cell}
               titleBadge={
                 <Badge style={{ whiteSpace: "nowrap" }}>
                   {isExperimentsLoading
@@ -2926,8 +2930,8 @@ export default function ProjectPage() {
                 // Export every experiment, not just the rows scrolled into
                 // view. Fetch all experiments, then enrich the samples the
                 // loaded map is missing so sample/attribute columns are complete.
-                // ponytail: one /sample request per missing sample; fine for
-                // typical studies. Add a bulk endpoint if huge studies lag.
+                // one /sample request per missing sample; a bulk endpoint would
+                // be needed if huge studies lag
                 // Always re-fetch rather than reusing the loaded set when it
                 // looks complete: "complete" was judged against
                 // experimentsTotal, which falls back to the loaded count
@@ -2957,7 +2961,9 @@ export default function ProjectPage() {
                 const keySet = new Set<string>();
                 map.forEach((s) => {
                   if (s.attributes_json)
-                    Object.keys(s.attributes_json).forEach((k) => keySet.add(k));
+                    Object.keys(s.attributes_json).forEach((k) =>
+                      keySet.add(k),
+                    );
                 });
                 const allKeys = Array.from(keySet);
 
