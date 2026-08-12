@@ -131,30 +131,37 @@ function DidYouMean({
 
 function CorrectionNotice({ correction }: { correction: SearchCorrection }) {
   const { corrected_query, original_query, mode } = correction;
+  // Augmented mode renders as a divider between the literal matches above and
+  // the corrected stream below, so the rule reads as the boundary itself.
+  if (mode !== "replaced") {
+    return (
+      <Flex align="center" gap="3">
+        <Text color="gray" size={"3"}>
+          Also showing results for{" "}
+          <Text size={"2"} weight={"bold"} style={{ color: "var(--accent-11)" }}>
+            {corrected_query}
+          </Text>
+        </Text>
+        <Separator size="4" style={{ flex: 1, width: "auto" }} />
+      </Flex>
+    );
+  }
   return (
     <Text color="gray" size={"3"}>
-      {mode === "replaced"
-        ? "Showing results for "
-        : "Also showing results for "}
+      Showing results for{" "}
       <Text size={"2"} weight={"bold"} style={{ color: "var(--accent-11)" }}>
         {corrected_query}
       </Text>
-      {mode === "replaced" ? (
-        <>
-          . No results for{" "}
-          <Text
-            size={"2"}
-            style={{
-              textDecorationLine: "underline",
-            }}
-          >
-            {original_query}
-          </Text>
-          .
-        </>
-      ) : (
-        ""
-      )}
+      . No results for{" "}
+      <Text
+        size={"2"}
+        style={{
+          textDecorationLine: "underline",
+        }}
+      >
+        {original_query}
+      </Text>
+      .
     </Text>
   );
 }
@@ -2203,9 +2210,9 @@ export default function SearchPageBody() {
               </Flex>
               {activeFilterChips}
 
-              {correction ? (
+              {correction?.mode === "replaced" ? (
                 <CorrectionNotice correction={correction} />
-              ) : suggestions?.length ? (
+              ) : !correction && suggestions?.length ? (
                 <DidYouMean
                   suggestion={suggestions[0]}
                   searchParams={searchParams}
@@ -2222,6 +2229,10 @@ export default function SearchPageBody() {
                 >
                   {extraResults.map(renderResultCard)}
                 </Flex>
+              )}
+
+              {correction && correction.mode !== "replaced" && (
+                <CorrectionNotice correction={correction} />
               )}
 
               {pageResults.length === 0 ? (
