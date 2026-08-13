@@ -2334,7 +2334,7 @@ export default function SearchPageBody() {
                   Seqout can be used with the AI agent (e.g. Claude) of your
                   choice to search for and download datasets using natural
                   language. This can often substantially improve your chances of
-                  finding the datasets you&apos;re looking for.{" "}
+                  finding relevant datasets.{" "}
                   <Link asChild underline="always">
                     <NextLink href="/mcp">Read more.</NextLink>
                   </Link>
