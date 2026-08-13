@@ -209,8 +209,20 @@ type SearchFiltersProps = {
 };
 
 /**
- * Client-side year filter over anything carrying `updated_at`. Matches the
- * server's `EXTRACT(YEAR FROM updated_at)` bounds.
+ * The `YYYY-MM-DD` start of a "last N years" preset — a rolling window, not a
+ * calendar-year one. Shared with the URL builder so the client-side pass and the
+ * server's `updated_at::date >=` use the identical boundary.
+ */
+export function rollingCutoff(years: number): string {
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - years);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+/**
+ * Client-side date filter over anything carrying `updated_at`. Day-precise, and
+ * bounded identically to what the server is asked for, so the rendered list and
+ * the sidebar counts agree.
  */
 export function applyTimeFilter<T extends { updated_at: string | null }>(
   results: T[],
@@ -218,21 +230,24 @@ export function applyTimeFilter<T extends { updated_at: string | null }>(
   customYearRange: { from: string; to: string },
 ): T[] {
   if (timeFilter === "any") return results;
+  let from: string;
+  let to = "";
   if (timeFilter === "custom") {
-    const from = parseInt(customYearRange.from);
-    const to = parseInt(customYearRange.to);
+    ({ from, to } = customYearRange);
     if (!from && !to) return results;
-    return results.filter((r) => {
-      const year = new Date(r.updated_at ?? "").getFullYear();
-      if (from && year < from) return false;
-      if (to && year > to) return false;
-      return true;
-    });
+  } else {
+    const years = parseInt(timeFilter);
+    if (!years) return results;
+    from = rollingCutoff(years);
   }
-  const years = parseInt(timeFilter);
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - years);
-  return results.filter((r) => new Date(r.updated_at ?? "") >= cutoff);
+  const fromT = from ? new Date(from).getTime() : -Infinity;
+  // Both bounds name a whole day, so `to` runs to that day's last millisecond.
+  const toT = to ? new Date(to).getTime() + 86_400_000 - 1 : Infinity;
+  if (Number.isNaN(fromT) || Number.isNaN(toT)) return results;
+  return results.filter((r) => {
+    const t = new Date(r.updated_at ?? "").getTime();
+    return !Number.isNaN(t) && t >= fromT && t <= toT;
+  });
 }
 
 export function SearchFilters({
@@ -246,7 +261,7 @@ export function SearchFilters({
   setCustomYearRange,
   onDatabaseChange,
 }: SearchFiltersProps) {
-  const currentYear = new Date().getFullYear();
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <Flex
@@ -318,45 +333,37 @@ export function SearchFilters({
       {timeFilter === "custom" && (
         <Flex gap="2" align="center">
           <TextField.Root
-            type="number"
-            min="2000"
-            max={currentYear}
+            type="date"
+            min={MIN_DATE}
+            max={today}
             value={customYearRange.from}
             onChange={(e) =>
               setCustomYearRange({ ...customYearRange, from: e.target.value })
             }
             onBlur={() =>
-              setCustomYearRange(
-                normalizeYearRange(customYearRange, currentYear),
-              )
+              setCustomYearRange(normalizeDateRange(customYearRange, today))
             }
-            placeholder="YYYY"
             variant="surface"
             size="1"
-            style={{ width: "4.5rem" }}
-            aria-label="Year from"
+            aria-label="From date"
           />
           <Text size="2" color="gray">
             to
           </Text>
           <TextField.Root
-            type="number"
-            min="2000"
-            max={currentYear}
+            type="date"
+            min={MIN_DATE}
+            max={today}
             value={customYearRange.to}
             onChange={(e) =>
               setCustomYearRange({ ...customYearRange, to: e.target.value })
             }
             onBlur={() =>
-              setCustomYearRange(
-                normalizeYearRange(customYearRange, currentYear),
-              )
+              setCustomYearRange(normalizeDateRange(customYearRange, today))
             }
-            placeholder="YYYY"
             variant="surface"
             size="1"
-            style={{ width: "4.5rem" }}
-            aria-label="Year to"
+            aria-label="To date"
           />
         </Flex>
       )}
@@ -364,37 +371,35 @@ export function SearchFilters({
   );
 }
 
+const MIN_DATE = "2000-01-01";
+
 /**
- * Normalize a year-range pair on blur:
- *   1. Clamp each non-empty value to [2000, currentYear]
- *   2. If both values are present and inverted (from > to), swap them
+ * Normalize a date-range pair on blur:
+ *   1. Clamp each non-empty bound to [MIN_DATE, today]
+ *   2. If both bounds are present and inverted (from > to), swap them
  *
  * Empty inputs are left empty so users can still set a single open-ended
  * bound. Returns the same object identity if nothing changed, so the
  * setCustomYearRange call doesn't trigger an unnecessary URL update.
  */
-function normalizeYearRange(
+function normalizeDateRange(
   range: { from: string; to: string },
-  maxYear: number,
+  maxDate: string,
 ): { from: string; to: string } {
-  const minYear = 2000;
   const clamp = (raw: string): string => {
-    const trimmed = raw.trim();
-    if (!trimmed) return "";
-    const n = Number.parseInt(trimmed, 10);
-    if (!Number.isFinite(n)) return "";
-    if (n < minYear) return String(minYear);
-    if (n > maxYear) return String(maxYear);
-    return String(n);
+    const v = raw.trim();
+    if (!v) return "";
+    if (Number.isNaN(new Date(v).getTime())) return "";
+    if (v < MIN_DATE) return MIN_DATE;
+    if (v > maxDate) return maxDate;
+    return v;
   };
 
   let from = clamp(range.from);
   let to = clamp(range.to);
 
-  // Auto-swap if both bounds are set and inverted.
-  if (from && to && Number.parseInt(from, 10) > Number.parseInt(to, 10)) {
-    [from, to] = [to, from];
-  }
+  // ISO dates are lexicographically ordered, so a string compare is enough.
+  if (from && to && from > to) [from, to] = [to, from];
 
   if (from === range.from && to === range.to) return range;
   return { from, to };

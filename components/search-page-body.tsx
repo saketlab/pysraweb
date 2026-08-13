@@ -4,6 +4,7 @@ import ResultCard from "@/components/result-card";
 import SearchBar from "@/components/search-bar";
 import {
   applyTimeFilter,
+  rollingCutoff,
   SearchFilters,
   SearchOrganismRail,
   type SearchFacets,
@@ -193,8 +194,8 @@ const SERVER_PAGE_SIZE = 200;
 const FILTER_PARAM_KEYS = {
   sortBy: "sort",
   time: "time",
-  yearFrom: "year_from",
-  yearTo: "year_to",
+  dateFrom: "date_from",
+  dateTo: "date_to",
   organism: "filter_organism",
   journal: "filter_journal",
   country: "filter_country",
@@ -240,8 +241,9 @@ type SearchFilterParams = {
   platform: string[];
   journal: string[];
   multi_platform: boolean;
-  year_from?: number;
-  year_to?: number;
+  // Every time bound is day-level; the server's year_* params go unused.
+  date_from?: string;
+  date_to?: string;
 };
 
 function appendFilterParams(url: string, f: SearchFilterParams): string {
@@ -255,8 +257,8 @@ function appendFilterParams(url: string, f: SearchFilterParams): string {
   for (const v of f.platform) add("platform", v);
   for (const v of f.journal) add("journal", v);
   if (f.multi_platform) add("multi_platform", "true");
-  if (f.year_from != null) add("year_from", String(f.year_from));
-  if (f.year_to != null) add("year_to", String(f.year_to));
+  if (f.date_from) add("date_from", f.date_from);
+  if (f.date_to) add("date_to", f.date_to);
   return url;
 }
 
@@ -797,22 +799,22 @@ function ActiveFilterChips(props: ActiveFilterChipsProps) {
   );
 }
 
-// Map the time-filter UI to server year bounds (uses updated_at's year, matching
-// applyTimeFilter and the server's EXTRACT(YEAR FROM updated_at)).
+// Map the time-filter UI to day-level server bounds. The "last N years" presets
+// are a ROLLING window, matching applyTimeFilter's client-side cutoff — asking
+// the server for whole calendar years instead would count more than the list
+// shows.
 function timeFilterToYears(
   timeFilter: string,
   customYearRange: { from: string; to: string },
-): { year_from?: number; year_to?: number } {
+): { date_from?: string; date_to?: string } {
   if (timeFilter === "any") return {};
   if (timeFilter === "custom") {
-    const from = parseInt(customYearRange.from);
-    const to = parseInt(customYearRange.to);
-    return { year_from: from || undefined, year_to: to || undefined };
+    const { from, to } = customYearRange;
+    return { date_from: from || undefined, date_to: to || undefined };
   }
   const years = parseInt(timeFilter);
   if (!years) return {};
-  const currentYear = new Date().getFullYear();
-  return { year_from: currentYear - years, year_to: currentYear };
+  return { date_from: rollingCutoff(years) };
 }
 
 function applyOrganismFilter(
@@ -993,17 +995,17 @@ export default function SearchPageBody() {
   );
 
   const sortBy = parseSortBy(searchParams.get(FILTER_PARAM_KEYS.sortBy));
-  const timeFilter = parseTimeFilter(
-    searchParams.get(FILTER_PARAM_KEYS.time),
-    searchParams.get(FILTER_PARAM_KEYS.yearFrom),
-    searchParams.get(FILTER_PARAM_KEYS.yearTo),
-  );
   const customYearRange = useMemo(
     () => ({
-      from: searchParams.get(FILTER_PARAM_KEYS.yearFrom) ?? "",
-      to: searchParams.get(FILTER_PARAM_KEYS.yearTo) ?? "",
+      from: searchParams.get(FILTER_PARAM_KEYS.dateFrom) ?? "",
+      to: searchParams.get(FILTER_PARAM_KEYS.dateTo) ?? "",
     }),
     [searchParams],
+  );
+  const timeFilter = parseTimeFilter(
+    searchParams.get(FILTER_PARAM_KEYS.time),
+    customYearRange.from,
+    customYearRange.to,
   );
 
   const [organismNameMode, setOrganismNameMode] =
@@ -2009,8 +2011,8 @@ export default function SearchPageBody() {
     () =>
       updateSearchUrl({
         [FILTER_PARAM_KEYS.time]: null,
-        [FILTER_PARAM_KEYS.yearFrom]: null,
-        [FILTER_PARAM_KEYS.yearTo]: null,
+        [FILTER_PARAM_KEYS.dateFrom]: null,
+        [FILTER_PARAM_KEYS.dateTo]: null,
       }),
     [updateSearchUrl],
   );
@@ -2026,8 +2028,8 @@ export default function SearchPageBody() {
     updateSearchUrl({
       [FILTER_PARAM_KEYS.sortBy]: null,
       [FILTER_PARAM_KEYS.time]: null,
-      [FILTER_PARAM_KEYS.yearFrom]: null,
-      [FILTER_PARAM_KEYS.yearTo]: null,
+      [FILTER_PARAM_KEYS.dateFrom]: null,
+      [FILTER_PARAM_KEYS.dateTo]: null,
       [FILTER_PARAM_KEYS.organism]: null,
       [FILTER_PARAM_KEYS.journal]: [],
       [FILTER_PARAM_KEYS.country]: [],
@@ -2053,9 +2055,9 @@ export default function SearchPageBody() {
       setTimeFilter={(value) =>
         updateSearchUrl({
           [FILTER_PARAM_KEYS.time]: value === "any" ? null : value,
-          [FILTER_PARAM_KEYS.yearFrom]:
+          [FILTER_PARAM_KEYS.dateFrom]:
             value === "custom" ? customYearRange.from : null,
-          [FILTER_PARAM_KEYS.yearTo]:
+          [FILTER_PARAM_KEYS.dateTo]:
             value === "custom" ? customYearRange.to : null,
         })
       }
@@ -2064,8 +2066,8 @@ export default function SearchPageBody() {
       setCustomYearRange={(value) =>
         updateSearchUrl({
           [FILTER_PARAM_KEYS.time]: "custom",
-          [FILTER_PARAM_KEYS.yearFrom]: value.from,
-          [FILTER_PARAM_KEYS.yearTo]: value.to,
+          [FILTER_PARAM_KEYS.dateFrom]: value.from,
+          [FILTER_PARAM_KEYS.dateTo]: value.to,
         })
       }
       onDatabaseChange={handleDatabaseChange}
