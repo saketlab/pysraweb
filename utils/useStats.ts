@@ -5,6 +5,7 @@ import type {
   SourceTotals,
 } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
@@ -48,7 +49,10 @@ export interface DiseaseSummary extends SexCounts {
   studies: number;
   samples: number;
   cells: number;
-  studies_single_cell: number;
+  studies_cells_measured: number;
+  studies_human_primary: number;
+  studies_cell_line: number;
+  studies_with_ancestry: number;
 }
 
 export interface DiseaseFacetValue {
@@ -58,6 +62,8 @@ export interface DiseaseFacetValue {
 
 export interface DiseaseProject {
   study_accession: string;
+  title: string | null;
+  organisms: string[] | null;
   n_samples: number;
   n_diseases: number;
   cells: number | null;
@@ -68,8 +74,15 @@ export interface DiseaseProject {
   reads_male: number;
   reads_female: number;
   diseases: string[] | null;
-  categories: string[] | null;
-  gard_diseases: string[] | null;
+  catalogue_diseases: string[] | null;
+  ancestors: string[] | null;
+  n_samples_in_scope: number;
+  ancestries: string[] | null;
+  inheritance: string[] | null;
+  has_fastq: boolean | null;
+  has_sra: boolean | null;
+  n_fastq_runs: number | null;
+  n_sra_runs: number | null;
 }
 
 export function useDiseaseSummary(collection: string) {
@@ -81,9 +94,16 @@ export function useDiseaseSummary(collection: string) {
   });
 }
 
-export interface DiseaseFacets {
-  category: DiseaseFacetValue[];
-  assay_category: DiseaseFacetValue[];
+export type DiseaseFacets = Record<string, DiseaseFacetValue[]>;
+
+export type DiseaseFilters = Record<string, string>;
+
+export type DiseaseScope =
+  "human_primary" | "patient_derived_model" | "cell_line" | "all";
+
+export interface DiseaseSort {
+  key: string;
+  order: "asc" | "desc";
 }
 
 export function useDiseaseFacets(collection: string) {
@@ -97,16 +117,25 @@ export function useDiseaseFacets(collection: string) {
 
 export function useDiseaseProjects(
   collection: string,
-  category: string | null,
-  assay: string | null,
+  filters: DiseaseFilters,
+  sort: DiseaseSort,
+  scope: DiseaseScope,
 ) {
+  const active = useMemo(
+    () => Object.entries(filters).sort(([a], [b]) => a.localeCompare(b)),
+    [filters],
+  );
   return useQuery({
-    queryKey: ["disease-projects", collection, category, assay],
+    queryKey: ["disease-projects", collection, active, sort, scope],
     queryFn: ({ signal }) => {
-      const qs = new URLSearchParams({ limit: "100" });
-      if (category) qs.set("category", category);
-      if (assay) qs.set("assay_category", assay);
-      return getJson<{ count: number; results: DiseaseProject[] }>(
+      const qs = new URLSearchParams([
+        ["limit", "100"],
+        ["sort", sort.key],
+        ["order", sort.order],
+        ["scope", scope],
+        ...active,
+      ]);
+      return getJson<{ total: number; results: DiseaseProject[] }>(
         `/disease/${collection}/projects?${qs.toString()}`,
         signal,
       );
