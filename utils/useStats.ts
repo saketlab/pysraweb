@@ -35,3 +35,83 @@ export function useEnrichedCrosstab(group: string, breakdown: string) {
     staleTime: ONE_DAY,
   });
 }
+
+export interface SexCounts {
+  stated_male: number;
+  stated_female: number;
+  stated_missing: number;
+  reads_male: number;
+  reads_female: number;
+}
+
+export interface DiseaseSummary extends SexCounts {
+  studies: number;
+  samples: number;
+  cells: number;
+  studies_single_cell: number;
+}
+
+export interface DiseaseFacetValue {
+  value: string;
+  studies: number;
+}
+
+export interface DiseaseProject {
+  study_accession: string;
+  n_samples: number;
+  n_diseases: number;
+  cells: number | null;
+  assay_category: string | null;
+  stated_male: number;
+  stated_female: number;
+  stated_missing: number;
+  reads_male: number;
+  reads_female: number;
+  diseases: string[] | null;
+  categories: string[] | null;
+  gard_diseases: string[] | null;
+}
+
+export function useDiseaseSummary(collection: string) {
+  return useQuery({
+    queryKey: ["disease-summary", collection],
+    queryFn: ({ signal }) =>
+      getJson<DiseaseSummary>(`/disease/${collection}/summary`, signal),
+    staleTime: ONE_DAY,
+  });
+}
+
+export interface DiseaseFacets {
+  category: DiseaseFacetValue[];
+  assay_category: DiseaseFacetValue[];
+}
+
+export function useDiseaseFacets(collection: string) {
+  return useQuery({
+    queryKey: ["disease-facets", collection],
+    queryFn: ({ signal }) =>
+      getJson<DiseaseFacets>(`/disease/${collection}/facets`, signal),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useDiseaseProjects(
+  collection: string,
+  category: string | null,
+  assay: string | null,
+) {
+  return useQuery({
+    queryKey: ["disease-projects", collection, category, assay],
+    queryFn: ({ signal }) => {
+      const qs = new URLSearchParams({ limit: "100" });
+      if (category) qs.set("category", category);
+      if (assay) qs.set("assay_category", assay);
+      return getJson<{ count: number; results: DiseaseProject[] }>(
+        `/disease/${collection}/projects?${qs.toString()}`,
+        signal,
+      );
+    },
+    placeholderData: (prev) => prev,
+    staleTime: ONE_DAY,
+  });
+}
