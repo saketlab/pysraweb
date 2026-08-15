@@ -10,11 +10,16 @@ import type {
   DiseaseScope,
   DiseaseSort,
 } from "@/utils/useStats";
+import { useDiseaseFacets, useDiseaseProjects } from "@/utils/useStats";
 import {
-  useDiseaseFacets,
-  useDiseaseProjects,
-} from "@/utils/useStats";
-import { Badge, Box, Flex, Select, Table, Text } from "@radix-ui/themes";
+  Badge,
+  Box,
+  Flex,
+  Select,
+  Table,
+  Text,
+  Tooltip,
+} from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -60,28 +65,69 @@ function SexCell({
   );
 }
 
-function TagList({ values }: { values: string[] | null }) {
+const TAG_PREVIEW = 2;
+
+function TagList({
+  values,
+  color,
+}: {
+  values: string[] | null;
+  color?: "gray";
+}) {
+  const [expanded, setExpanded] = useState(false);
   const list = values ?? [];
   if (list.length === 0) {
+    // null and [] both render as "—"; the column tooltip says which
     return (
       <Text size="1" color="gray">
         —
       </Text>
     );
   }
+  const hidden = list.length - TAG_PREVIEW;
   return (
     <Flex align="center" gap="1" wrap="wrap">
-      {list.slice(0, 2).map((v) => (
-        <Badge key={v} size="1" variant="soft">
+      {(expanded ? list : list.slice(0, TAG_PREVIEW)).map((v) => (
+        <Badge key={v} size="1" variant="soft" color={color}>
           {v}
         </Badge>
       ))}
-      {list.length > 2 ? (
-        <Badge size="1" color="gray">
-          +{list.length - 2}
+      {hidden > 0 ? (
+        <Badge
+          size="1"
+          color="gray"
+          role="button"
+          tabIndex={0}
+          title={expanded ? "Show fewer" : `Show all ${list.length}`}
+          onClick={() => setExpanded((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setExpanded((v) => !v);
+            }
+          }}
+          style={{ cursor: "pointer", userSelect: "none" }}
+        >
+          {expanded ? "show less" : `+${hidden}`}
         </Badge>
       ) : null}
     </Flex>
+  );
+}
+
+function ColumnInfo({ text }: { text: string }) {
+  return (
+    <Tooltip content={text}>
+      <Text
+        size="1"
+        color="gray"
+        tabIndex={0}
+        aria-label={text}
+        style={{ cursor: "help", marginLeft: 3 }}
+      >
+        ⓘ
+      </Text>
+    </Tooltip>
   );
 }
 
@@ -113,17 +159,20 @@ function Availability({
 const COLUMNS: {
   label: string;
   render: (r: DiseaseProject) => ReactNode;
+  info: string;
   sort?: string;
   align?: "right";
 }[] = [
   {
     label: "Study",
     sort: "study_accession",
+    info: "Link to the full accession record.",
     render: (r) => <AccessionLink accession={r.study_accession} hideExternal />,
   },
   {
     label: "Title",
     sort: "title",
+    info: "Study Title.",
     render: (r) => (
       <Text size="1" title={r.title ?? undefined}>
         {r.title ?? "—"}
@@ -132,31 +181,39 @@ const COLUMNS: {
   },
   {
     label: "Disease",
-    render: (r) => (
-      <>
-        <Text size="1">{r.diseases?.slice(0, 2).join(", ") || "—"}</Text>
-        {r.n_diseases > 2 ? (
-          <Badge size="1" color="gray" ml="1">
-            +{r.n_diseases - 2}
-          </Badge>
-        ) : null}
-      </>
-    ),
+    info: "MONDO terms for this study's samples.",
+    render: (r) => <TagList values={r.diseases} />,
+  },
+  {
+    label: "MONDO",
+    info: "Ontology ids corresponding to the Disease column.",
+    render: (r) => <TagList values={r.mondo_ids} color="gray" />,
   },
   {
     label: "Rare disease",
+    info: "Ancestors of the MONDO ids that are catalogue entries.",
     render: (r) => <TagList values={r.catalogue_diseases} />,
   },
-  { label: "Disease parents", render: (r) => <TagList values={r.ancestors} /> },
+  {
+    label: "Disease parents",
+    info: "Ancestors the enrichment stored per sample, catalogued or not.",
+    render: (r) => <TagList values={r.ancestors} />,
+  },
   {
     label: "Reported ancestry",
+    info: "Ancestry or ethnicity as stated in the sample metadata.",
     render: (r) => <TagList values={r.ancestries} />,
   },
-  { label: "Inheritance", render: (r) => <TagList values={r.inheritance} /> },
+  {
+    label: "Inheritance",
+    info: "Mode of inheritance from HPO, Orphanet and GARD.",
+    render: (r) => <TagList values={r.inheritance} />,
+  },
   {
     label: "Samples",
     sort: "n_samples",
     align: "right",
+    info: "Samples in scope, with the study total after the slash.",
     render: (r) => (
       <>
         {humanize(r.n_samples_in_scope)}
@@ -173,23 +230,28 @@ const COLUMNS: {
     label: "Cells",
     sort: "cells",
     align: "right",
+    info: "Cells counted across the samples. Blank means unmeasured.",
     render: (r) => (r.cells ? humanize(r.cells) : "—"),
   },
   {
     label: "Assay",
     sort: "assay_category",
+    info: "Assay category these samples fall into.",
     render: (r) => <Text size="1">{r.assay_category ?? "—"}</Text>,
   },
   {
     label: "FASTQ",
+    info: "Raw FASTQ availability and run count. Blank means unknown.",
     render: (r) => <Availability have={r.has_fastq} runs={r.n_fastq_runs} />,
   },
   {
     label: ".sra",
+    info: "SRA/SRAlite availability and run count. Blank means unknown.",
     render: (r) => <Availability have={r.has_sra} runs={r.n_sra_runs} />,
   },
   {
     label: "Sex (stated)",
+    info: "Sex as stated in the sample metadata; the rest are unstated.",
     render: (r) => (
       <SexCell
         male={r.stated_male}
@@ -200,6 +262,7 @@ const COLUMNS: {
   },
   {
     label: "Sex (reads)",
+    info: "Sex called from the reads by preflightx, not from metadata.",
     render: (r) => <SexCell male={r.reads_male} female={r.reads_female} />,
   },
 ];
@@ -238,7 +301,6 @@ function FacetSelect({
     </Flex>
   );
 }
-
 
 export default function DiseaseCollectionCard({
   collection,
@@ -310,7 +372,7 @@ export default function DiseaseCollectionCard({
         <Table.Root size="1" variant="surface">
           <Table.Header>
             <Table.Row>
-              {COLUMNS.map(({ label, sort: col, align }) => (
+              {COLUMNS.map(({ label, sort: col, align, info }) => (
                 <Table.ColumnHeaderCell key={label} align={align}>
                   <Text
                     size="1"
@@ -328,6 +390,7 @@ export default function DiseaseCollectionCard({
                         : " ↑"
                       : ""}
                   </Text>
+                  <ColumnInfo text={info} />
                 </Table.ColumnHeaderCell>
               ))}
             </Table.Row>

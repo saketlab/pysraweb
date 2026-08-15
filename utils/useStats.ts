@@ -74,7 +74,9 @@ export interface DiseaseProject {
   reads_male: number;
   reads_female: number;
   diseases: string[] | null;
+  mondo_ids: string[] | null;
   catalogue_diseases: string[] | null;
+  catalogue_diseases_direct: string[] | null;
   ancestors: string[] | null;
   n_samples_in_scope: number;
   ancestries: string[] | null;
