@@ -2,6 +2,7 @@ import { getJson } from "@/utils/api";
 import type {
   EnrichedCrosstab,
   LastUpdated,
+  ProjectOverlap,
   SourceTotals,
 } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +14,14 @@ export function useSourceTotals() {
   return useQuery({
     queryKey: ["source-totals"],
     queryFn: () => getJson<SourceTotals>("/stats/source-totals"),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useProjectOverlap() {
+  return useQuery({
+    queryKey: ["project-overlap"],
+    queryFn: () => getJson<ProjectOverlap>("/stats/project-overlap"),
     staleTime: ONE_DAY,
   });
 }

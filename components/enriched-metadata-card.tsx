@@ -28,7 +28,7 @@ export interface EnrichedResponse {
   title: string;
   n_samples: number;
   single_cell_modality: string | null;
-  version: "v3" | "v1";
+  version: "v4" | "v1";
   samples: OntologySample[];
 }
 
@@ -48,10 +48,7 @@ function ontologyUrl(id: string): string | null {
   return `${base}${id.replace(":", "_")}`;
 }
 
-/**
- * Fields that inherit a low-confidence flag when `organism` is uncertain —
- * an unreliable organism call undermines these organism-dependent attributes.
- */
+// these depend on `organism`, so they inherit its low-confidence flag
 const ORGANISM_DEPENDENT_FIELDS = [
   "tissue",
   "disease",
@@ -63,7 +60,6 @@ const ORGANISM_DEPENDENT_FIELDS = [
   "sex",
 ];
 
-/** Whether `field` is flagged low-confidence for the given sample row. */
 function isLowConfidence(
   data: OntologySample | undefined,
   field: string | undefined,
@@ -75,7 +71,6 @@ function isLowConfidence(
   return tags.includes("organism") && ORGANISM_DEPENDENT_FIELDS.includes(field);
 }
 
-/** Amber warning badge shown in cells flagged as low-confidence. */
 function LowConfidenceBadge() {
   return (
     <Tooltip content="Low-confidence value">
@@ -91,10 +86,6 @@ function LowConfidenceBadge() {
   );
 }
 
-/**
- * Default cell renderer that shows the (optionally formatted) value and
- * appends a low-confidence warning badge when the field is flagged for the row.
- */
 function PlainCellRenderer(params: ICellRendererParams<OntologySample>) {
   const field = params.colDef?.field;
   const low = isLowConfidence(params.data, field);
@@ -106,6 +97,23 @@ function PlainCellRenderer(params: ICellRendererParams<OntologySample>) {
       </Text>
       {low && <LowConfidenceBadge />}
     </Flex>
+  );
+}
+
+function CellCountCellRenderer(params: ICellRendererParams<OntologySample>) {
+  const count = params.value;
+  if (count == null) return null;
+  const text = count.toLocaleString();
+  if (!params.data?.["unfiltered"]) return <Text size="2">{text}</Text>;
+  return (
+    <Tooltip content="Unfiltered matrix: counts 10x barcodes.">
+      <Flex align="center" gap="1" style={{ cursor: "help" }}>
+        <Text size="2" style={{ textDecoration: "line-through" }} color="gray">
+          {text}
+        </Text>
+        <ExclamationTriangleIcon color="orange" />
+      </Flex>
+    </Tooltip>
   );
 }
 
@@ -190,7 +198,7 @@ type FieldDef = {
   field: string;
   header: string;
   minWidth?: number;
-  v3Only?: boolean;
+  v4Only?: boolean;
   pinned?: "left";
 };
 
@@ -198,7 +206,7 @@ const ALL_FIELDS: FieldDef[] = [
   { field: "sample", header: "Sample", minWidth: 130, pinned: "left" },
   { field: "title", header: "Title", minWidth: 200, pinned: "left" },
   { field: "description", header: "Description", minWidth: 220, pinned: "left" },
-  { field: "organism", header: "Organism", minWidth: 140, v3Only: true },
+  { field: "organism", header: "Organism", minWidth: 140, v4Only: true },
   { field: "tissue", header: "Tissue", minWidth: 150 },
   { field: "cell_type", header: "Cell Type", minWidth: 150 },
   { field: "cell_line", header: "Cell Line" },
@@ -209,25 +217,22 @@ const ALL_FIELDS: FieldDef[] = [
   { field: "ethnicity", header: "Ethnicity" },
   { field: "strain", header: "Strain" },
   { field: "assay", header: "Assay", minWidth: 150 },
-  { field: "assay_category", header: "Assay Category", v3Only: true },
+  { field: "assay_category", header: "Assay Category", v4Only: true },
   { field: "treatment", header: "Treatment" },
   { field: "development_stage", header: "Dev. Stage", minWidth: 150 },
   { field: "sample_type", header: "Sample Type" },
   { field: "genetic_modification", header: "Genetic Mod." },
-  { field: "tissue_primary_site", header: "Primary Site", v3Only: true },
-  { field: "tissue_site_type", header: "Site Type", v3Only: true },
-  { field: "taxid", header: "Taxon ID", v3Only: true },
+  { field: "tissue_primary_site", header: "Primary Site", v4Only: true },
+  { field: "tissue_site_type", header: "Site Type", v4Only: true },
+  { field: "taxid", header: "Taxon ID", v4Only: true },
   { field: "cell_count", header: "Cell Count", minWidth: 120 },
   { field: "gene_count", header: "Gene Count", minWidth: 120 },
 ];
 
-const V3_FIELDS = ALL_FIELDS;
-const V1_FIELDS = ALL_FIELDS.filter((f) => !f.v3Only);
+const V4_FIELDS = ALL_FIELDS;
+const V1_FIELDS = ALL_FIELDS.filter((f) => !f.v4Only);
 
-/**
- * Fetch enriched metadata. `offset == null` fetches the full set (used by CSV
- * export); a number fetches one TABLE_PAGE_SIZE page for infinite scroll.
- */
+// offset == null fetches the full set (CSV export); a number fetches one page
 async function fetchEnrichedMetadata(
   accession: string,
   offset: number | null,
@@ -250,11 +255,7 @@ export type UseEnrichedMetadata = {
   isFetchingNextPage: boolean;
 };
 
-/**
- * Shared infinite query for enriched metadata (20 samples/page). Deduped by
- * react-query across consumers. `data` accumulates the loaded pages and is
- * `null` when enriched metadata is unavailable (404) or empty.
- */
+// data is null when enriched metadata is unavailable (404) or empty
 export function useEnrichedMetadata(
   accession: string,
   enabled = true,
@@ -284,8 +285,8 @@ export function useEnrichedMetadata(
 }
 
 function getVisibleFields(data: EnrichedResponse): FieldDef[] {
-  const isV3 = data.version === "v3";
-  const allFields = isV3 ? V3_FIELDS : V1_FIELDS;
+  const isV4 = data.version === "v4";
+  const allFields = isV4 ? V4_FIELDS : V1_FIELDS;
   return allFields.filter(
     (f) =>
       f.field === "sample" ||
@@ -293,7 +294,7 @@ function getVisibleFields(data: EnrichedResponse): FieldDef[] {
         const val = s[f.field];
         if (val != null && val !== "") return true;
         const onto = ONTOLOGY_MAPPED_FIELDS[f.field];
-        if (onto && isV3) {
+        if (onto && isV4) {
           const ontoName = s[onto.name];
           return ontoName != null && ontoName !== "";
         }
@@ -302,12 +303,8 @@ function getVisibleFields(data: EnrichedResponse): FieldDef[] {
   );
 }
 
-/**
- * Badges (AI / Ontology / single-cell modality) describing the enriched data.
- * Rendered next to the section title when the enriched tab is active.
- */
 export function EnrichedMetadataBadges({ data }: { data: EnrichedResponse }) {
-  const isV3 = data.version === "v3";
+  const isV4 = data.version === "v4";
   const loaded = data.samples.length;
   return (
     <>
@@ -321,7 +318,7 @@ export function EnrichedMetadataBadges({ data }: { data: EnrichedResponse }) {
           <MagicWandIcon /> AI Generated
         </Badge>
       </Tooltip>
-      {isV3 && (
+      {isV4 && (
         <Tooltip content="Includes standardised ontology mappings (MONDO, UBERON, CL, EFO)">
           <Badge size="3" variant="soft" style={{ cursor: "help" }}>
             <InfoCircledIcon /> Ontology
@@ -339,19 +336,16 @@ export function EnrichedMetadataBadges({ data }: { data: EnrichedResponse }) {
   );
 }
 
-/**
- * Export the FULL enriched dataset (re-fetched without pagination) to CSV, so
- * the download is complete even when the grid has only scrolled a few pages.
- */
+// re-fetches unpaginated so the CSV is complete regardless of scroll position
 export async function exportEnrichedCsv(accession: string) {
   const data = await fetchEnrichedMetadata(accession, null);
   if (!data || data.samples.length === 0) return;
-  const isV3 = data.version === "v3";
+  const isV4 = data.version === "v4";
   const visibleFields = getVisibleFields(data);
   const exportFields: { key: string; header: string }[] = [];
   for (const f of visibleFields) {
     exportFields.push({ key: f.field, header: f.header });
-    const onto = isV3 ? ONTOLOGY_MAPPED_FIELDS[f.field] : undefined;
+    const onto = isV4 ? ONTOLOGY_MAPPED_FIELDS[f.field] : undefined;
     if (onto) {
       exportFields.push({ key: onto.id, header: `${f.header} Ontology ID` });
       exportFields.push({
@@ -382,10 +376,6 @@ export async function exportEnrichedCsv(accession: string) {
   }, 0);
 }
 
-/**
- * Renders the enriched-metadata ag-grid (plus footnote) for the given data.
- * The section header / CSV button are owned by the parent tab container.
- */
 export function EnrichedMetadataGrid({
   data,
   fetchNextPage,
@@ -402,11 +392,11 @@ export function EnrichedMetadataGrid({
   const agGridThemeClassName =
     resolvedTheme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz";
 
-  const isV3 = data.version === "v3";
+  const isV4 = data.version === "v4";
   const visibleFields = getVisibleFields(data);
 
   const columnDefs: ColDef<OntologySample>[] = visibleFields.map((f) => {
-    const onto = isV3 ? ONTOLOGY_MAPPED_FIELDS[f.field] : undefined;
+    const onto = isV4 ? ONTOLOGY_MAPPED_FIELDS[f.field] : undefined;
     const base = {
       field: f.field,
       headerName: f.header,
@@ -415,20 +405,11 @@ export function EnrichedMetadataGrid({
       pinned: f.pinned,
     };
 
-    // Show "~N" when cell_count_estimated is true
     if (f.field === "cell_count") {
       return {
         ...base,
         comparator: numericComparator,
-        cellRenderer: PlainCellRenderer,
-        valueFormatter: (params: { data?: OntologySample }) => {
-          if (!params.data) return "";
-          const count = params.data["cell_count"];
-          if (count == null) return "";
-          return params.data["cell_count_estimated"]
-            ? `~${count.toLocaleString()}`
-            : count.toLocaleString();
-        },
+        cellRenderer: CellCountCellRenderer,
       };
     }
 
@@ -495,10 +476,9 @@ export function EnrichedMetadataGrid({
           </Text>
         </Flex>
       )}
-      {data.samples.some((s) => s["cell_count_estimated"]) && (
+      {data.samples.some((s) => s["unfiltered"]) && (
         <Text size="1" color="gray">
-          ~ Cell counts marked with ~ are series-level estimates distributed
-          across samples.
+          Struck-through counts are 10x barcodes from unfiltered matrices.
         </Text>
       )}
       {data.samples.some(

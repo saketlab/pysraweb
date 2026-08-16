@@ -15,10 +15,10 @@ import {
   Badge,
   Box,
   Flex,
+  Popover,
   Select,
   Table,
   Text,
-  Tooltip,
 } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -117,17 +117,23 @@ function TagList({
 
 function ColumnInfo({ text }: { text: string }) {
   return (
-    <Tooltip content={text}>
-      <Text
-        size="1"
-        color="gray"
-        tabIndex={0}
-        aria-label={text}
-        style={{ cursor: "help", marginLeft: 3 }}
-      >
-        ⓘ
-      </Text>
-    </Tooltip>
+    <Popover.Root>
+      <Popover.Trigger>
+        <Text
+          size="1"
+          color="gray"
+          tabIndex={0}
+          role="button"
+          aria-label={text}
+          style={{ cursor: "help", marginLeft: 3 }}
+        >
+          ⓘ
+        </Text>
+      </Popover.Trigger>
+      <Popover.Content size="1" maxWidth="260px">
+        <Text size="1">{text}</Text>
+      </Popover.Content>
+    </Popover.Root>
   );
 }
 

@@ -210,7 +210,6 @@ function FlagsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
   );
 }
 
-// unfiltered columns are 10x barcodes; strike through to discourage summing
 function CellsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
   const row = params.data;
   if (!row) return null;
@@ -218,7 +217,7 @@ function CellsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
   const text = row.cells.toLocaleString();
   if (!row.unfiltered) return <Text size="2">{text}</Text>;
   return (
-    <Tooltip content="Unfiltered matrix: these columns are 10x barcodes, not cells. Do not sum.">
+    <Tooltip content="Unfiltered matrix: counts 10x barcodes.">
       <Flex align="center" gap="1" style={{ cursor: "help" }}>
         <Text size="2" style={{ textDecoration: "line-through" }} color="gray">
           {text}
@@ -510,7 +509,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
           )}
         </Text>
         {head.any_unfiltered && (
-          <Tooltip content="At least one matrix in this study is unfiltered, so its columns are 10x barcodes rather than cells. The study total must not be read as a cell count.">
+          <Tooltip content="Study has an unfiltered matrix, so the total counts 10x barcodes.">
             <Badge
               color="orange"
               size="1"

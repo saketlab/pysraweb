@@ -3,6 +3,7 @@ import StatsEnrichedCard from "@/components/stats-enriched-card";
 import StatsGlobalContributionsCard from "@/components/stats-global-contributions-card";
 import StatsGrowthChartCard from "@/components/stats-growth-chart-card";
 import StatsOrganismGrowthCard from "@/components/stats-organism-growth-card";
+import StatsProjectOverlapCard from "@/components/stats-project-overlap-card";
 import StatsPlatformComparisonCard from "@/components/stats-platform-comparison-card";
 import StatsSequencingTechnologyCard from "@/components/stats-sequencing-technology-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
@@ -38,6 +39,9 @@ export default function StatsPage() {
         <Flex direction="column" gap="0" className="seqout-divided-list">
           <div id="sources">
             <StatsSourceHistogramCard />
+          </div>
+          <div id="project-overlap">
+            <StatsProjectOverlapCard />
           </div>
           <div id="growth">
             <StatsGrowthChartCard />

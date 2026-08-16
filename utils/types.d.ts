@@ -68,3 +68,13 @@ export type StudyPublication = {
   citation?: string | null;
   submitter_provided?: boolean | null;
 };
+
+/** GET /stats/project-overlap - cross-archive project overlap. */
+export type ProjectOverlap = {
+  identity: string;
+  databases: string[];
+  set_sizes: Record<string, number>;
+  intersections: { sets: string[]; count: number; degree: number }[];
+  total_projects: number;
+  built_at: string;
+};
