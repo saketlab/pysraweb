@@ -83,7 +83,7 @@ export default function Navabar() {
             <DropdownMenu.Item
               onSelect={() =>
                 window.open(
-                  "https://github.com/saketlab/seqout",
+                  "https://github.com/saketlab/seqout-web",
                   "_blank",
                   "noopener,noreferrer",
                 )
