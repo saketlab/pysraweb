@@ -263,6 +263,44 @@ const API: Category[] = [
     ],
   },
   {
+    title: "Ontology",
+    id: "ontology",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/ontology/term",
+        summary: "Everything the ontology graph knows about a term",
+        description:
+          "The vocabulary behind a plain keyword search: a query for 'masld' also matches studies that say 'nonalcoholic fatty liver disease', because the graph joins them. Returns the term's source identifiers (xrefs), its synonym cluster, and its hierarchy children. xrefs are source CURIEs (UBERON:0002107, MeSH:D008099, HGNC:5, CVCL_0030) and are returned for the term, every synonym and every child. Synonyms are capped at 500 (synonym_total gives the true count) and children at 300 (children_truncated flags the cap). Returns 404 when the term is not in the graph.",
+        params: [
+          {
+            name: "term",
+            type: "string",
+            required: true,
+            description: "Term to look up, case-insensitive (1-200 chars)",
+          },
+          {
+            name: "max_hops",
+            type: "int",
+            default: "2",
+            description:
+              "Depth of the synonym walk, 1-4. Children are always the direct children of the resulting synonym cluster",
+          },
+          {
+            name: "children",
+            type: "bool",
+            default: "true",
+            description:
+              "Set false to skip the children query, which is much cheaper",
+          },
+        ],
+        exampleParams: { term: "liver" },
+        responseHint:
+          '{"name": "liver", "xrefs": ["UBERON:0002107", "MeSH:D008099"], "has_children": true, "synonyms": [{"name": "iecur", "xrefs": [...]}], "synonym_total": 3, "children": [{"name": "caudate lobe of liver", "has_children": true, "xrefs": [...]}], "children_truncated": false, "max_hops": 2, "took_ms": 9.7}',
+      },
+    ],
+  },
+  {
     title: "Projects",
     id: "projects",
     endpoints: [

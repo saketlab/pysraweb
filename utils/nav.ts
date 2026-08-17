@@ -32,25 +32,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: createElement(InfoCircledIcon),
   },
   {
-    label: "CLI & Packages",
-    href: "/cli",
-    external: true,
-    icon: createElement(KeyboardIcon),
-  },
-  {
-    label: "Map",
-    href: "/map",
-    icon: createElement(SewingPinIcon),
-  },
-  {
     label: "API",
     href: "/api-docs",
     icon: createElement(CodeIcon),
   },
   {
-    label: "Use with LLMs",
-    href: "/mcp",
-    icon: createElement(MagicWandIcon),
+    label: "CLI & Packages",
+    href: "/cli",
+    external: true,
+    icon: createElement(KeyboardIcon),
   },
   {
     label: "Stats",
@@ -61,5 +51,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Data",
     href: "/data",
     icon: createElement(DownloadIcon),
+  },
+  {
+    label: "Map",
+    href: "/map",
+    icon: createElement(SewingPinIcon),
+  },
+  {
+    label: "Use with LLMs",
+    href: "/mcp",
+    icon: createElement(MagicWandIcon),
   },
 ] as const;

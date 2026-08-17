@@ -15,7 +15,7 @@ import {
   Link,
 } from "@radix-ui/themes";
 import { useRouter } from "next/navigation";
-import BulkMetaDialog from "./bulk-meta-dialog";
+// import BulkMetaDialog from "./bulk-meta-dialog";
 import {
   FirstVisitPing,
   HOW_SEARCH_WORKS_KEY,
@@ -55,9 +55,9 @@ export default function Navabar() {
             {item.label}
           </Link>
         ))}
-        <Box display={{ initial: "none", md: "block" }}>
+        {/* <Box display={{ initial: "none", md: "block" }}>
           <BulkMetaDialog />
-        </Box>
+        </Box> */}
       </Flex>
       <Box display={{ initial: "block", sm: "none" }}>
         <DropdownMenu.Root>
