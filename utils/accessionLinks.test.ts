@@ -110,9 +110,24 @@ describe("startsWithAccession", () => {
     // An underscore suffix (GEO supp-file prefix) is a valid boundary.
     expect(startsWithAccession("GSE244832_Kim")).toBe(true);
   });
+
+  it("accepts ArrayExpress accessions written without hyphens", () => {
+    expect(startsWithAccession("E MTAB 11850")).toBe(true);
+    expect(startsWithAccession("E_MTAB_11850")).toBe(true);
+    expect(startsWithAccession("EMTAB11850")).toBe(true);
+    expect(startsWithAccession("e geod 12345 kidney")).toBe(true);
+    // Unknown four-letter prefixes stay prose — "E coli 12345" is a search.
+    expect(startsWithAccession("E coli 12345")).toBe(false);
+  });
 });
 
 describe("parseAccessions", () => {
+  it("canonicalizes hyphen-less ArrayExpress accessions", () => {
+    expect(parseAccessions("E MTAB 11850")[0]?.raw).toBe("E-MTAB-11850");
+    expect(parseAccessions("EMTAB11850")[0]?.url).toBe("/p/E-MTAB-11850");
+    expect(parseAccessions("E coli 12345")).toHaveLength(0);
+  });
+
   it("extracts a single accession followed by pasted title text", () => {
     const accs = parseAccessions("E-MTAB-10381 - ATAC-seq of iPSC");
     expect(accs).toHaveLength(1);

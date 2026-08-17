@@ -20,6 +20,23 @@ const ACC_END = "(?![0-9A-Za-z])";
 const ACC_GLOBAL = new RegExp(`\\b${ACC_BODY}${ACC_END}`, "gi");
 const ACC_ANCHORED = new RegExp(`^${ACC_BODY}${ACC_END}`, "i");
 
+// ArrayExpress/GEA accessions are often written without hyphens ("E MTAB 11850",
+// "E_MTAB_11850", "EMTAB11850") — copied out of a PDF, or just typed that way.
+// Only *known* four-letter prefixes are accepted in the loose form: a generic
+// `E \w{4} \d+` would swallow "E coli 12345", which is a real search. The
+// hyphenated form stays generic (see ACC_BODY) since it can't be mistaken for prose.
+const AE_PREFIXES =
+  "MTAB|GEOD|GEAD|MEXP|TABM|ERAD|CURD|MAXD|MTAD|NASC|SMDB|SNGR|CBIL|TOXM|MIMR|RZPD|TIGR|UMCU|WMIT|ATMX|AFMX|HGMP|UCON|SGRP|SYBR|GEUV|MMHS|MUGN|NCMF|RUBN|UHNC|LGCL|DKFZ|FLYC|GEHB|JJRD";
+const AE_LOOSE = new RegExp(
+  `\\bE[-_ ]?(${AE_PREFIXES})[-_ ]?(\\d+)(?![0-9A-Za-z])`,
+  "gi",
+);
+
+/** Rewrite loose ArrayExpress spellings to the canonical E-XXXX-NNNN form. */
+export function canonicalizeAccessions(text: string): string {
+  return text.replace(AE_LOOSE, (_, prefix: string, digits: string) => `E-${prefix.toUpperCase()}-${digits}`);
+}
+
 type AccessionKind = "project" | "experiment" | "run" | "sample";
 
 const URL_BY_KIND: Record<AccessionKind, (a: string) => string> = {
@@ -68,7 +85,9 @@ export type ParsedAccession = {
 export function parseAccessions(query: string): ParsedAccession[] {
   const out: ParsedAccession[] = [];
   const seen = new Set<string>();
-  for (const match of query.toUpperCase().matchAll(ACC_GLOBAL)) {
+  for (const match of canonicalizeAccessions(query.toUpperCase()).matchAll(
+    ACC_GLOBAL,
+  )) {
     const raw = match[0];
     if (seen.has(raw)) continue;
     seen.add(raw);
@@ -106,7 +125,7 @@ export function parseAccessions(query: string): ParsedAccession[] {
 // pasted "<accession> <title/notes>" (or a list) and wants to jump, not search.
 // Anchoring on start avoids hijacking searches that merely mention an accession.
 export function startsWithAccession(query: string): boolean {
-  return ACC_ANCHORED.test(query.trim());
+  return ACC_ANCHORED.test(canonicalizeAccessions(query.trim()));
 }
 
 // A pasted archive URL — ".../acc.cgi?acc=GSE317357", ".../ena/browser/view/SRP12",
