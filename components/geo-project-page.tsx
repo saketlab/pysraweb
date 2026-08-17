@@ -1298,8 +1298,9 @@ export default function GeoProjectPage() {
         </Flex>
       )}
 
-      {/* Error state */}
-      {accession && isError && (
+      {/* Error state. The API answers 200/null for an accession it doesn't
+          have, so a null project is a not-found, not a still-loading page. */}
+      {accession && (isError || (!isLoading && !project)) && (
         <Flex
           gap="3"
           align="center"
