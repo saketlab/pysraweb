@@ -12,21 +12,11 @@
   <img src="https://img.shields.io/github/last-commit/saketlab/seqout-web" alt="Last Commit">
 </p>
 <p align="center">
-  <a href="https://seqout.org/">
-    <img src="https://img.shields.io/badge/seqout.org-276DC3?logo=googlechrome&logoColor=white" height="26">
-  </a>
-  <a href="https://seqout.org/cli/R/">
-    <img src="https://img.shields.io/badge/R%20package-276DC3?logo=r&logoColor=white" height="26">
-  </a>
-  <a href="https://seqout.org/cli/python/">
-    <img src="https://img.shields.io/badge/Python%20client-276DC3?logo=python&logoColor=white" height="26">
-  </a>
-  <a href="https://seqout.org/cli/">
-    <img src="https://img.shields.io/badge/CLI-276DC3?logo=gnometerminal&logoColor=white" height="26">
-  </a>
-  <a href="https://seqout.org/mcp/">
-    <img src="https://img.shields.io/badge/MCP-276DC3?logo=modelcontextprotocol&logoColor=white" height="26">
-  </a>
+  <a href="https://seqout.org/"><img src="https://img.shields.io/badge/seqout.org-276DC3?logo=googlechrome&logoColor=white" alt="seqout.org" height="26" style="border:0;vertical-align:middle"></a>
+  <a href="https://seqout.org/cli/R/"><img src="https://img.shields.io/badge/R%20package-276DC3?logo=r&logoColor=white" alt="R package" height="26" style="border:0;vertical-align:middle"></a>
+  <a href="https://seqout.org/cli/python/"><img src="https://img.shields.io/badge/Python%20client-276DC3?logo=python&logoColor=white" alt="Python client" height="26" style="border:0;vertical-align:middle"></a>
+  <a href="https://seqout.org/cli/"><img src="https://img.shields.io/badge/CLI-276DC3?logo=gnometerminal&logoColor=white" alt="CLI" height="26" style="border:0;vertical-align:middle"></a>
+  <a href="https://seqout.org/mcp/"><img src="https://img.shields.io/badge/MCP-276DC3?logo=modelcontextprotocol&logoColor=white" alt="MCP" height="26" style="border:0;vertical-align:middle"></a>
 </p>
 
 Seqout is a search engine for finding genomic datasets across NCBI, EMBL-EBI, CNCB-NGDC & DDBJ portals. To learn more about how search works, [read more](https://seqout.org/howsearchworks).
