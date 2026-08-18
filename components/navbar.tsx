@@ -48,6 +48,7 @@ export default function Navabar() {
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.label}
+            highContrast
             href={item.href}
             target={item.external ? "_blank" : undefined}
             rel={item.external ? "noreferrer noopener" : undefined}
