@@ -12,7 +12,14 @@ const MAX_HISTORY = 5;
 // Modifier-bar params carried over to a new search so it keeps the user's
 // sort / time / source selections. (Deep "more filters" facets are not carried
 // — a fresh query text resets them.)
-const CARRIED_PARAM_KEYS = ["db", "sort", "time", "year_from", "year_to"];
+const CARRIED_PARAM_KEYS = [
+  "db",
+  "sort",
+  "time",
+  "year_from",
+  "year_to",
+  "expand",
+];
 
 const buildSearchUrl = (query: string, carry?: URLSearchParams | null) => {
   const params = new URLSearchParams();

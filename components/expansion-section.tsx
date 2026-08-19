@@ -4,47 +4,34 @@
 // the synonym network for the current query: which synonyms the search actually
 // used, per term. Fetched only when the dialog is opened.
 
+import {
+  TermExpansionLearnMore,
+  WaypointsIcon,
+} from "@/components/term-expansion-control";
 import { getSearchExpansion } from "@/utils/api";
 import {
+  EXPANSION_PARAM,
+  expansionDisabled,
+  writeExpansionPreference,
+} from "@/utils/termExpansion";
+import {
+  Button,
   Card,
   Dialog,
   Flex,
   IconButton,
   Link,
   Select,
+  Separator,
   Spinner,
+  Switch,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-
-// lucide "waypoints"
-function WaypointsIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="4.5" r="2.5" />
-      <path d="m10.2 6.3-3.9 3.9" />
-      <circle cx="4.5" cy="12" r="2.5" />
-      <path d="M7 12h10" />
-      <circle cx="19.5" cy="12" r="2.5" />
-      <path d="m13.8 17.7 3.9-3.9" />
-      <circle cx="12" cy="19.5" r="2.5" />
-    </svg>
-  );
-}
 
 // client-only: React Flow touches the DOM and has no business rendering on the server
 const ExpansionGraph = dynamic(() => import("@/components/expansion-graph"), {
@@ -54,6 +41,33 @@ const ExpansionGraph = dynamic(() => import("@/components/expansion-graph"), {
 export default function ExpansionSection({ query }: { query: string }) {
   const [open, setOpen] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // What the results on screen actually ran with. The switch starts there and
+  // can drift from it; the apply button below is what closes the gap, so
+  // flicking the switch never silently re-runs a search behind the dialog.
+  const ranExpanded = !expansionDisabled(searchParams);
+  const [on, setOn] = useState(ranExpanded);
+  // Re-sync when the search itself changes (adjust during render, as elsewhere
+  // in the search UI) so applying the change doesn't leave the switch pending
+  // against the results it just produced.
+  const [prevRanExpanded, setPrevRanExpanded] = useState(ranExpanded);
+  if (prevRanExpanded !== ranExpanded) {
+    setPrevRanExpanded(ranExpanded);
+    setOn(ranExpanded);
+  }
+  const pendingChange = on !== ranExpanded;
+
+  const applyExpansion = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (on) next.delete(EXPANSION_PARAM);
+    else next.set(EXPANSION_PARAM, "0");
+    writeExpansionPreference(on);
+    setOpen(false);
+    router.push(`${pathname}?${next.toString()}`);
+  };
   const { data, isLoading, isError } = useQuery({
     queryKey: ["search-expansion", query],
     queryFn: ({ signal }) => getSearchExpansion(query, signal),
@@ -88,16 +102,20 @@ export default function ExpansionSection({ query }: { query: string }) {
         size="4"
         style={{ width: "56rem", maxWidth: "calc(100vw - 2rem)" }}
       >
-        <Dialog.Title size="4">
-          Term expansions used for this search
-        </Dialog.Title>
-        <Dialog.Description size="2" color="gray" mb="3">
-          Read{" "}
-          <Link href="/howsearchworks#expansion" target="_blank">
-            <em>How search works</em>
-          </Link>{" "}
-          to learn more about how term expansion works.
+        <Flex align="center" justify="between" gap="4">
+          <Dialog.Title size="4" mb="0">
+            Term expansion
+          </Dialog.Title>
+          <Switch
+            checked={on}
+            onCheckedChange={setOn}
+            aria-label="Term expansion"
+          />
+        </Flex>
+        <Dialog.Description mb="3">
+          <TermExpansionLearnMore />
         </Dialog.Description>
+        <Separator size="4" mb="3" />
         {isLoading ? (
           <Flex align="center" gap="2" py="4">
             <Spinner size="2" />
@@ -122,6 +140,12 @@ export default function ExpansionSection({ query }: { query: string }) {
           </Card>
         ) : active ? (
           <Flex direction="column" gap="2">
+            {!ranExpanded && (
+              <Text size="2" color="gray">
+                This search ran without term expansion. These are the synonyms
+                it would have used.
+              </Text>
+            )}
             <Flex align="center" gap="2" wrap="wrap">
               <Text size="2" weight="medium">
                 Expansions for
@@ -148,6 +172,15 @@ export default function ExpansionSection({ query }: { query: string }) {
             No term in this query has synonyms in the ontology graph, so the
             search ran your words as you typed them.
           </Text>
+        )}
+        {pendingChange && (
+          <Flex justify="end" mt="4">
+            <Button onClick={applyExpansion}>
+              {on
+                ? "Search with term expansion"
+                : "Search without term expansion"}
+            </Button>
+          </Flex>
         )}
       </Dialog.Content>
     </Dialog.Root>
