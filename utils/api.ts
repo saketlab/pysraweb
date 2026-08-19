@@ -114,7 +114,14 @@ export function getSearchHighlight(
   accession: string,
   signal?: AbortSignal,
 ) {
-  return getJson<{ accession: string; query: string; words: string[] }>(
+  return getJson<{
+    accession: string;
+    query: string;
+    words: string[];
+    // Word -> the expanded term that put it on the page. Words missing from it
+    // are ones the query itself explains.
+    derived?: Record<string, string>;
+  }>(
     `/search/highlight?q=${encodeURIComponent(q)}&accession=${encodeURIComponent(accession)}`,
     signal,
   );

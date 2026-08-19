@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { findRanges, wordsPattern } from "./query-highlight";
+import {
+  findRanges,
+  partitionWords,
+  termForMatch,
+  wordsPattern,
+} from "./query-highlight";
 
 const matches = (words: string[]) => {
   const pattern = wordsPattern(words);
@@ -41,5 +46,36 @@ describe("findRanges", () => {
   it("returns nothing when the page has not loaded its text yet", () => {
     document.body.innerHTML = "<p>   </p>";
     expect(matches(["cell"])).toEqual([]);
+  });
+});
+
+describe("partitionWords", () => {
+  const derived = { activates: "s methyltransferase activity" };
+
+  it("splits the words expansion brought in from the ones typed", () => {
+    expect(partitionWords(["spinal", "activates"], derived)).toEqual({
+      own: ["spinal"],
+      expanded: ["activates"],
+    });
+  });
+
+  it("treats everything as typed when nothing was expanded", () => {
+    expect(partitionWords(["spinal"], undefined)).toEqual({
+      own: ["spinal"],
+      expanded: [],
+    });
+  });
+});
+
+describe("termForMatch", () => {
+  // Words are matched case-insensitively, so the page hands back whatever case
+  // it uses while the server's keys are lowercase.
+  it("looks up the source term case-insensitively", () => {
+    const derived = { activates: "s methyltransferase activity" };
+    expect(termForMatch("Activates", derived)).toBe(
+      "s methyltransferase activity",
+    );
+    expect(termForMatch("spinal", derived)).toBeNull();
+    expect(termForMatch("activates", undefined)).toBeNull();
   });
 });
