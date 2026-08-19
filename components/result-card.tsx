@@ -32,6 +32,13 @@ type ResultCardProps = {
    * the search/author-page layout untouched.
    */
   centerOnOwnRow?: boolean;
+  /**
+   * The row scored far below the query's best match — it matched on something
+   * incidental (usually an expanded ontology synonym sharing a stem or two with
+   * the text) rather than on what was asked. Search decides this; the card just
+   * shows it.
+   */
+  lowRelevance?: boolean;
 };
 
 // An ENA study keeps its NCBI PRJNA id, which dbForAccession reads as SRA — trust
@@ -83,6 +90,7 @@ function ResultCard({
   source,
   titleSize = "3",
   centerOnOwnRow = false,
+  lowRelevance = false,
 }: ResultCardProps) {
   const db = dbFor(accession, source);
   const authorList = parseAuthors(authors ?? null);
@@ -294,10 +302,20 @@ function ResultCard({
             </Flex>
           );
         })()}
-      <Flex gap={"2"} align={"center"} wrap={"wrap"}>
+      <Flex gap={"2"} align={"center"} wrap={"wrap"} justify={"between"}>
         <DbBadge size={"2"} db={db} className="seqout-accession">
           {accession}
         </DbBadge>
+        {lowRelevance && (
+          <Badge
+            size="2"
+            variant="soft"
+            color="red"
+            title="This result scored far below the best match for your query — it probably matched a related term rather than what you asked for."
+          >
+            Low relevance
+          </Badge>
+        )}
       </Flex>
     </Flex>
   );

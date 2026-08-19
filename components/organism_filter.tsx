@@ -12,14 +12,31 @@ import {
 } from "@radix-ui/themes";
 import * as React from "react";
 
-export type ScientificFacet = { name: string; count: number };
+export type ScientificFacet = {
+  name: string;
+  count: number;
+  // Summed match rank of this organism's studies, from /search/facets. The
+  // sidebar orders on it so an organism that matched a lot of studies weakly
+  // (an ontology synonym colliding with unrelated wording) sits below one that
+  // matched fewer studies well. Absent for client-derived counts and 0 for a
+  // query-less search, where the count tiebreak carries the order.
+  score?: number;
+};
 
 type OrganismDisplayFacet = {
   key: string;
   label: string;
   commonName: string | null;
   count: number;
+  score?: number;
 };
+
+function byRelevance(
+  a: { count: number; score?: number },
+  b: { count: number; score?: number },
+): number {
+  return (b.score ?? 0) - (a.score ?? 0) || b.count - a.count;
+}
 
 export type OrganismNameMode = "scientific" | "common";
 
@@ -44,7 +61,7 @@ function buildScientificFacets(
 
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    .sort((a, b) => byRelevance(a, b) || a.name.localeCompare(b.name));
 }
 
 const commonNameCache = new Map<string, string | null>();
@@ -125,8 +142,9 @@ function buildCommonFacets(
           (commonNamesByScientific.get(facet.name) ?? facet.name).trim(),
         ) || facet.name,
       count: facet.count,
+      score: facet.score,
     }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    .sort((a, b) => byRelevance(a, b) || a.label.localeCompare(b.label));
 }
 
 function buildDisplayFacets(
@@ -140,6 +158,7 @@ function buildDisplayFacets(
       label: facet.name,
       commonName: commonNamesByScientific.get(facet.name) ?? null,
       count: facet.count,
+      score: facet.score,
     }));
   }
 
@@ -282,11 +301,11 @@ export function OrganismFilter({
   const scientificFacets = React.useMemo(() => {
     const base = buildScientificFacets(results);
     if (!serverFacets || serverFacets.length === 0) return base;
-    const counts = new Map(base.map((f) => [f.name, f.count]));
-    for (const f of serverFacets) counts.set(f.name, f.count);
-    return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const merged = new Map(base.map((f) => [f.name, f]));
+    for (const f of serverFacets) merged.set(f.name, f);
+    return Array.from(merged.values()).sort(
+      (a, b) => byRelevance(a, b) || a.name.localeCompare(b.name),
+    );
   }, [results, serverFacets]);
   const scientificNames = React.useMemo(
     () => scientificFacets.map((facet) => facet.name),

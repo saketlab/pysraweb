@@ -191,6 +191,13 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 // UI page always lands inside a single server page.
 const SERVER_PAGE_SIZE = 200;
 
+// Below this share of the query's best rank, a result is flagged "Low relevance".
+// Measured against prod: results that genuinely contain the query sit at 0.25-0.90
+// of the top rank (median, across several queries), while incidental
+// synonym-only matches sit near 0.005 — so 5% lands in the empty gap between them
+// rather than on either population.
+const LOW_RELEVANCE_FRACTION = 0.05;
+
 const FILTER_PARAM_KEYS = {
   sortBy: "sort",
   time: "time",
@@ -1225,6 +1232,7 @@ export default function SearchPageBody() {
       return res.json() as Promise<{
         facets: SearchFacets;
         total?: number | null;
+        max_rank?: number | null;
       }>;
     },
     enabled: !isGeoSearch && !!query,
@@ -1236,6 +1244,18 @@ export default function SearchPageBody() {
   // fall back to the loaded-row count and render an inexact "N+".
   const facetsTotal =
     typeof facetsResponse?.total === "number" ? facetsResponse.total : null;
+
+  // A result whose rank is a rounding error next to the query's best match got in
+  // on something incidental — an expanded ontology synonym that happens to share
+  // a couple of stems with the text. Flag those on the card rather than silently
+  // ranking them last, since a sidebar filter can make them the whole page.
+  // max_rank comes from the server over the UNFILTERED match set, so the
+  // threshold survives filtering; without it (geo search, facets still loading)
+  // nothing is flagged.
+  const lowRelevanceCutoff =
+    typeof facetsResponse?.max_rank === "number" && facetsResponse.max_rank > 0
+      ? facetsResponse.max_rank * LOW_RELEVANCE_FRACTION
+      : null;
   const tookMs = isGeoSearch
     ? (geoData?.pages?.[0]?.took_ms ?? 0)
     : (serverPageQueries[0]?.data?.took_ms ?? 0);
@@ -1598,6 +1618,11 @@ export default function SearchPageBody() {
       center_name={searchResult.center_name}
       country_code={searchResult.country_code}
       href={projectHref(searchResult.accession)}
+      lowRelevance={
+        lowRelevanceCutoff !== null &&
+        typeof searchResult.rank === "number" &&
+        searchResult.rank < lowRelevanceCutoff
+      }
     />
   );
   // Literal-typo matches shown only on page 1 (augmented mode), above the

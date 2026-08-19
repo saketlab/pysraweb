@@ -156,7 +156,10 @@ const PLATFORM_DISPLAY: Record<string, string> = {
 export type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 
 /** Exact facet counts from /search/facets, keyed by facet name. */
-export type SearchFacetList = { value: string; count: number }[];
+// score is the summed match rank of the studies behind a value — the server
+// orders on it so a value with many weak matches sits below one with fewer
+// strong ones. 0 on a query-less search.
+export type SearchFacetList = { value: string; count: number; score?: number }[];
 export type SearchFacets = {
   organism?: SearchFacetList;
   country?: SearchFacetList;
@@ -610,7 +613,11 @@ export function SearchOrganismRail({
 
   // Server organism facets use {value} → OrganismFilter wants {name}.
   const organismServerFacets: ScientificFacet[] | undefined =
-    serverFacets?.organism?.map((f) => ({ name: f.value, count: f.count }));
+    serverFacets?.organism?.map((f) => ({
+      name: f.value,
+      count: f.count,
+      score: f.score,
+    }));
 
   const instrumentModelOptions = Array.from(instrumentModelCounts.entries())
     .map(([name, count]) => ({ name, count }))
