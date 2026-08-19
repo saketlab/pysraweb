@@ -3,6 +3,7 @@
 // The toggle itself, shared by the two places that offer it: the navbar dialog
 // (during a search) and the home page popover (before one).
 
+import OntologySettingsButton from "@/components/ontology-settings-button";
 import { Flex, Link, Switch, Text } from "@radix-ui/themes";
 
 // lucide "waypoints"
@@ -34,20 +35,30 @@ export function WaypointsIcon() {
 export function TermExpansionRow({
   on,
   onChange,
+  disabledOntologies,
+  onChangeOntologies,
 }: {
   on: boolean;
   onChange: (on: boolean) => void;
+  disabledOntologies: string[];
+  onChangeOntologies: (next: string[]) => void;
 }) {
   return (
     <Flex align="center" justify="between" gap="4">
       <Text as="label" size="2" weight="medium" htmlFor="term-expansion-switch">
         Term expansion
       </Text>
-      <Switch
-        id="term-expansion-switch"
-        checked={on}
-        onCheckedChange={onChange}
-      />
+      <Flex align="center" gap="2">
+        <OntologySettingsButton
+          disabled={disabledOntologies}
+          onChange={onChangeOntologies}
+        />
+        <Switch
+          id="term-expansion-switch"
+          checked={on}
+          onCheckedChange={onChange}
+        />
+      </Flex>
     </Flex>
   );
 }

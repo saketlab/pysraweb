@@ -11,9 +11,15 @@ import {
 } from "@/components/search-filters";
 import { useSearchQuery } from "@/context/search_query";
 import { track } from "@/utils/analytics";
-import { withTimeout } from "@/utils/api";
+import { ontologyParams, withTimeout } from "@/utils/api";
 import { SERVER_URL } from "@/utils/constants";
-import { expansionDisabled } from "@/utils/termExpansion";
+import {
+  EXPANSION_PARAM,
+  ONTOLOGY_PARAM,
+  disabledOntologies,
+  expansionDisabled,
+  inheritedSettings,
+} from "@/utils/termExpansion";
 import { DB_LABELS, SEARCH_DBS, type SearchDb } from "@/utils/db-colors";
 import { downloadCsv } from "@/utils/exportCsv";
 import { getProjectShortUrl } from "@/utils/shortUrl";
@@ -307,11 +313,13 @@ function buildSearchUrl(
   offset: number,
   filters: SearchFilterParams,
   noExpansion: boolean,
+  excludeOntology: string[],
 ): string {
   let url = `${SERVER_URL}/search?q=${encodeURIComponent(query)}`;
   // Expansion off == the API's structured mode: the words as typed, no ontology
   // synonyms. /search/facets takes the same flag, so counts match the list.
   if (noExpansion) url += "&structured=true";
+  url += ontologyParams(excludeOntology);
   if (db && (SEARCH_DBS as readonly string[]).includes(db)) {
     url += `&db=${encodeURIComponent(db)}`;
   }
@@ -332,10 +340,19 @@ const getSearchResults = async (
   sortBy: SortBy,
   filters: SearchFilterParams,
   noExpansion: boolean,
+  excludeOntology: string[],
   signal?: AbortSignal,
 ): Promise<SearchResponse | null> => {
   if (!query) return null;
-  const url = buildSearchUrl(query, db, sortBy, offset, filters, noExpansion);
+  const url = buildSearchUrl(
+    query,
+    db,
+    sortBy,
+    offset,
+    filters,
+    noExpansion,
+    excludeOntology,
+  );
   const res = await fetch(url, { signal: withTimeout(signal) });
   if (!res.ok) {
     throw new Error("Network Error");
@@ -1027,6 +1044,30 @@ export default function SearchPageBody() {
   // expand=0 -> run the query as typed. Both /search and /search/facets take it,
   // so the list and the sidebar counts stay over the same match set.
   const noExpansion = expansionDisabled(searchParams);
+  // Ontologies switched off in the expansion dialog. Repeatable param, passed
+  // straight through to /search and /search/facets so list and counts agree.
+  const excludeOntology = useMemo(
+    () => disabledOntologies(searchParams),
+    [searchParams],
+  );
+  const excludeOntologyKey = excludeOntology.join();
+
+  // A search reached without these params — shared link, back button, a search
+  // bar that predates them — would run fully expanded while the home popover
+  // still shows the settings this browser stored. Fold the stored default into
+  // the URL once, so the search, the sidebar counts and the navbar dialog all
+  // read the same thing. A URL that names either param is explicit and wins.
+  const normalizedSettings = useRef(false);
+  useEffect(() => {
+    if (normalizedSettings.current) return;
+    normalizedSettings.current = true;
+    const inherited = inheritedSettings(searchParams);
+    if (!inherited) return;
+    updateSearchUrl({
+      [EXPANSION_PARAM]: inherited.off ? "0" : null,
+      [ONTOLOGY_PARAM]: inherited.disabled,
+    });
+  }, [searchParams, updateSearchUrl]);
 
   // Filters below are client-side only — not in the queryKey.
   const selectedJournalFilters = useMemo(
@@ -1184,7 +1225,16 @@ export default function SearchPageBody() {
   // and the look-ahead prefetch so both hit the exact same cache entry.
   const serverPageQuery = useCallback(
     (p: number) => ({
-      queryKey: ["search", query, db, sortBy, filtersKey, noExpansion, p],
+      queryKey: [
+        "search",
+        query,
+        db,
+        sortBy,
+        filtersKey,
+        noExpansion,
+        excludeOntologyKey,
+        p,
+      ],
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const start = performance.now();
         const res = await getSearchResults(
@@ -1194,6 +1244,7 @@ export default function SearchPageBody() {
           sortBy,
           searchFilters,
           noExpansion,
+          excludeOntology,
           signal,
         );
         if (res) res.took_ms = performance.now() - start;
@@ -1203,7 +1254,15 @@ export default function SearchPageBody() {
     }),
     // searchFilters is captured via its stable JSON key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, db, sortBy, filtersKey, noExpansion, isGeoSearch],
+    [
+      query,
+      db,
+      sortBy,
+      filtersKey,
+      noExpansion,
+      excludeOntologyKey,
+      isGeoSearch,
+    ],
   );
 
   const serverPageQueries = useQueries({
@@ -1230,11 +1289,20 @@ export default function SearchPageBody() {
   // result pages stream in. Best-effort: if it's absent (geo search, timeout,
   // error) the rail falls back to client-derived counts. Not used for geo search.
   const { data: facetsResponse, isLoading: facetsLoading } = useQuery({
-    queryKey: ["search-facets", query, db, filtersKey, noExpansion],
+    queryKey: [
+      "search-facets",
+      query,
+      db,
+      filtersKey,
+      noExpansion,
+      excludeOntologyKey,
+    ],
     queryFn: async ({ signal }) => {
       let url = `${SERVER_URL}/search/facets?q=${encodeURIComponent(
         query ?? "",
-      )}${db ? `&db=${db}` : ""}${noExpansion ? "&structured=true" : ""}`;
+      )}${db ? `&db=${db}` : ""}${noExpansion ? "&structured=true" : ""}${ontologyParams(
+        excludeOntology,
+      )}`;
       // Send active filters so each facet narrows by the others (exclude-self).
       url = appendFilterParams(url, searchFilters);
       const res = await fetch(url, { signal: withTimeout(signal) });
@@ -1609,6 +1677,13 @@ export default function SearchPageBody() {
     if (selectedOrganismKey) params.set("organism", selectedOrganismKey);
     const effectiveQuery = correction?.corrected_query ?? query;
     if (effectiveQuery) params.set("q", effectiveQuery);
+    // Carry the expansion settings so the project page highlights the words
+    // that actually matched. Without them it re-expands with everything on and
+    // lights up synonyms this search never used.
+    if (effectiveQuery) {
+      if (noExpansion) params.set(EXPANSION_PARAM, "0");
+      for (const id of excludeOntology) params.append(ONTOLOGY_PARAM, id);
+    }
     const qs = params.toString();
     return qs ? `${getProjectShortUrl(accession)}?${qs}` : undefined;
   };
@@ -1944,6 +2019,11 @@ export default function SearchPageBody() {
       if (db && (SEARCH_DBS as readonly string[]).includes(db)) {
         url += `&db=${encodeURIComponent(db)}`;
       }
+      // The expansion settings decide which rows matched at all, so the CSV has
+      // to run with them too — without these the download is a different search
+      // from the one on screen.
+      if (noExpansion) url += "&structured=true";
+      url += ontologyParams(excludeOntology);
       url = appendFilterParams(url, searchFilters);
 
       const res = await fetch(url);

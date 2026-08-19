@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   EXPANSION_PARAM,
+  ONTOLOGIES,
+  disabledOntologies,
   expansionDisabled,
+  inheritedSettings,
+  sameOntologies,
+  writeDisabledOntologies,
   readExpansionPreference,
   writeExpansionPreference,
 } from "./termExpansion";
@@ -42,5 +47,76 @@ describe("expansion preference", () => {
     } finally {
       delete g.window;
     }
+  });
+});
+
+describe("ontology exclusions", () => {
+  it("mirrors the eight ingested ontologies and drops unknown ids", () => {
+    expect(ONTOLOGIES).toHaveLength(8);
+    const params = new URLSearchParams(
+      "exclude_ontology=MeSH&exclude_ontology=nope&exclude_ontology=MeSH",
+    );
+    // Deduped and filtered: an unknown id would be sent to the API and quietly
+    // exclude nothing, which reads as "the toggle is broken".
+    expect(disabledOntologies(params)).toEqual(["MeSH"]);
+    expect(disabledOntologies(new URLSearchParams("q=liver"))).toEqual([]);
+  });
+
+  it("compares sets, not order", () => {
+    expect(sameOntologies(["MeSH", "CL"], ["CL", "MeSH"])).toBe(true);
+    expect(sameOntologies(["MeSH"], ["MeSH", "CL"])).toBe(false);
+    expect(sameOntologies([], [])).toBe(true);
+  });
+});
+
+// No window in this environment, so the stored default reads as the default.
+function withStorage(run: () => void) {
+  const store = new Map<string, string>();
+  const g = globalThis as { window?: unknown };
+  g.window = {
+    localStorage: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    },
+  };
+  try {
+    run();
+  } finally {
+    delete g.window;
+  }
+}
+
+describe("inheritedSettings", () => {
+  it("hands a param-less search URL this browser's stored default", () => {
+    withStorage(() => {
+      writeExpansionPreference(true);
+      writeDisabledOntologies(["MeSH"]);
+      expect(inheritedSettings(new URLSearchParams("q=liver"))).toEqual({
+        off: false,
+        disabled: ["MeSH"],
+      });
+    });
+  });
+
+  it("leaves a URL that names either param alone", () => {
+    withStorage(() => {
+      writeExpansionPreference(false);
+      writeDisabledOntologies(["MeSH"]);
+      // Explicit beats stored, so a shared link searches what its sender saw.
+      expect(inheritedSettings(new URLSearchParams("q=liver&expand=0"))).toBe(
+        null,
+      );
+      expect(
+        inheritedSettings(new URLSearchParams("q=liver&exclude_ontology=CL")),
+      ).toBe(null);
+    });
+  });
+
+  it("does nothing when the stored default is the default", () => {
+    withStorage(() => {
+      writeExpansionPreference(true);
+      writeDisabledOntologies([]);
+      expect(inheritedSettings(new URLSearchParams("q=liver"))).toBe(null);
+    });
   });
 });

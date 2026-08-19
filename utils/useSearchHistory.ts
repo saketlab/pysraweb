@@ -20,6 +20,8 @@ const CARRIED_PARAM_KEYS = [
   "year_to",
   "expand",
 ];
+// Repeatable, so it needs getAll/append rather than get/set.
+const CARRIED_MULTI_PARAM_KEYS = ["exclude_ontology"];
 
 const buildSearchUrl = (query: string, carry?: URLSearchParams | null) => {
   const params = new URLSearchParams();
@@ -28,6 +30,9 @@ const buildSearchUrl = (query: string, carry?: URLSearchParams | null) => {
     for (const key of CARRIED_PARAM_KEYS) {
       const value = carry.get(key);
       if (value) params.set(key, value);
+    }
+    for (const key of CARRIED_MULTI_PARAM_KEYS) {
+      for (const value of carry.getAll(key)) params.append(key, value);
     }
   }
   return `/search?${params.toString()}`;

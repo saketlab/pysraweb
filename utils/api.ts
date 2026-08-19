@@ -22,8 +22,13 @@ export class ApiError extends Error {
   }
 }
 
-export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${SERVER_URL}${path}`, { signal: withTimeout(signal) });
+export async function getJson<T>(
+  path: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  const res = await fetch(`${SERVER_URL}${path}`, {
+    signal: withTimeout(signal),
+  });
   if (!res.ok) throw new ApiError(res.status);
   return (await res.json()) as T;
 }
@@ -34,7 +39,9 @@ export async function getJsonWithTotal<T>(
   path: string,
   signal?: AbortSignal,
 ): Promise<{ items: T; total: number | null }> {
-  const res = await fetch(`${SERVER_URL}${path}`, { signal: withTimeout(signal) });
+  const res = await fetch(`${SERVER_URL}${path}`, {
+    signal: withTimeout(signal),
+  });
   if (!res.ok) throw new Error("Network error");
   const items = (await res.json()) as T;
   const header = res.headers.get("X-Total-Count");
@@ -45,7 +52,9 @@ export async function getJsonOrNull<T>(
   path: string,
   signal?: AbortSignal,
 ): Promise<T | null> {
-  const res = await fetch(`${SERVER_URL}${path}`, { signal: withTimeout(signal) });
+  const res = await fetch(`${SERVER_URL}${path}`, {
+    signal: withTimeout(signal),
+  });
   if (!res.ok) return null;
   return (await res.json()) as T;
 }
@@ -97,11 +106,22 @@ export interface SearchExpansion {
 }
 
 /** Per-term synonyms that survived the variant cap for this query. */
-export function getSearchExpansion(q: string, signal?: AbortSignal) {
+export function getSearchExpansion(
+  q: string,
+  excludeOntology: string[] = [],
+  signal?: AbortSignal,
+) {
   return getJson<SearchExpansion>(
-    `/search/expansion?q=${encodeURIComponent(q)}`,
+    `/search/expansion?q=${encodeURIComponent(q)}${ontologyParams(excludeOntology)}`,
     signal,
   );
+}
+
+/** Repeatable `exclude_ontology`, the shape /search and /search/facets take. */
+export function ontologyParams(ids: string[]): string {
+  return ids
+    .map((id) => `&exclude_ontology=${encodeURIComponent(id)}`)
+    .join("");
 }
 
 /**
@@ -112,6 +132,7 @@ export function getSearchExpansion(q: string, signal?: AbortSignal) {
 export function getSearchHighlight(
   q: string,
   accession: string,
+  opts: { structured?: boolean; excludeOntology?: string[] } = {},
   signal?: AbortSignal,
 ) {
   return getJson<{
@@ -122,7 +143,9 @@ export function getSearchHighlight(
     // are ones the query itself explains.
     derived?: Record<string, string>;
   }>(
-    `/search/highlight?q=${encodeURIComponent(q)}&accession=${encodeURIComponent(accession)}`,
+    `/search/highlight?q=${encodeURIComponent(q)}&accession=${encodeURIComponent(accession)}` +
+      (opts.structured ? "&structured=true" : "") +
+      ontologyParams(opts.excludeOntology ?? []),
     signal,
   );
 }

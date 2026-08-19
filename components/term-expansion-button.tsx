@@ -13,9 +13,13 @@ import { Flex, IconButton, Popover, Tooltip } from "@radix-ui/themes";
 export default function TermExpansionButton({
   on,
   onChange,
+  disabledOntologies,
+  onChangeOntologies,
 }: {
   on: boolean;
   onChange: (on: boolean) => void;
+  disabledOntologies: string[];
+  onChangeOntologies: (next: string[]) => void;
 }) {
   return (
     <Popover.Root>
@@ -33,7 +37,12 @@ export default function TermExpansionButton({
       </Tooltip>
       <Popover.Content size="1" style={{ width: "17rem" }}>
         <Flex direction="column" gap="2">
-          <TermExpansionRow on={on} onChange={onChange} />
+          <TermExpansionRow
+            on={on}
+            onChange={onChange}
+            disabledOntologies={disabledOntologies}
+            onChangeOntologies={onChangeOntologies}
+          />
           <TermExpansionLearnMore />
         </Flex>
       </Popover.Content>

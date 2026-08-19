@@ -9,9 +9,14 @@ import {
   WaypointsIcon,
 } from "@/components/term-expansion-control";
 import { getSearchExpansion } from "@/utils/api";
+import OntologySettingsButton from "@/components/ontology-settings-button";
 import {
   EXPANSION_PARAM,
+  ONTOLOGY_PARAM,
+  disabledOntologies,
   expansionDisabled,
+  sameOntologies,
+  writeDisabledOntologies,
   writeExpansionPreference,
 } from "@/utils/termExpansion";
 import {
@@ -49,28 +54,39 @@ export default function ExpansionSection({ query }: { query: string }) {
   // can drift from it; the apply button below is what closes the gap, so
   // flicking the switch never silently re-runs a search behind the dialog.
   const ranExpanded = !expansionDisabled(searchParams);
+  const ranWithout = disabledOntologies(searchParams);
   const [on, setOn] = useState(ranExpanded);
+  const [without, setWithout] = useState(ranWithout);
   // Re-sync when the search itself changes (adjust during render, as elsewhere
-  // in the search UI) so applying the change doesn't leave the switch pending
-  // against the results it just produced.
-  const [prevRanExpanded, setPrevRanExpanded] = useState(ranExpanded);
-  if (prevRanExpanded !== ranExpanded) {
-    setPrevRanExpanded(ranExpanded);
+  // in the search UI) so applying the change doesn't leave the controls pending
+  // against the results they just produced.
+  const [prevRan, setPrevRan] = useState<[boolean, string]>([
+    ranExpanded,
+    ranWithout.join(),
+  ]);
+  const ranKey: [boolean, string] = [ranExpanded, ranWithout.join()];
+  if (prevRan[0] !== ranKey[0] || prevRan[1] !== ranKey[1]) {
+    setPrevRan(ranKey);
     setOn(ranExpanded);
+    setWithout(ranWithout);
   }
-  const pendingChange = on !== ranExpanded;
+  const pendingChange =
+    on !== ranExpanded || !sameOntologies(without, ranWithout);
 
   const applyExpansion = () => {
     const next = new URLSearchParams(searchParams.toString());
     if (on) next.delete(EXPANSION_PARAM);
     else next.set(EXPANSION_PARAM, "0");
+    next.delete(ONTOLOGY_PARAM);
+    for (const id of without) next.append(ONTOLOGY_PARAM, id);
     writeExpansionPreference(on);
+    writeDisabledOntologies(without);
     setOpen(false);
     router.push(`${pathname}?${next.toString()}`);
   };
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["search-expansion", query],
-    queryFn: ({ signal }) => getSearchExpansion(query, signal),
+    queryKey: ["search-expansion", query, ranWithout.join()],
+    queryFn: ({ signal }) => getSearchExpansion(query, ranWithout, signal),
     enabled: open && query.trim().length > 0,
     staleTime: 5 * 60 * 1000,
   });
@@ -106,11 +122,14 @@ export default function ExpansionSection({ query }: { query: string }) {
           <Dialog.Title size="4" mb="0">
             Term expansion
           </Dialog.Title>
-          <Switch
-            checked={on}
-            onCheckedChange={setOn}
-            aria-label="Term expansion"
-          />
+          <Flex align="center" gap="2">
+            <OntologySettingsButton disabled={without} onChange={setWithout} />
+            <Switch
+              checked={on}
+              onCheckedChange={setOn}
+              aria-label="Term expansion"
+            />
+          </Flex>
         </Flex>
         <Dialog.Description mb="3">
           <TermExpansionLearnMore />

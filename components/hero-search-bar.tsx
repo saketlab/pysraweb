@@ -5,7 +5,10 @@ import { useSearchQuery } from "@/context/search_query";
 import { SEARCH_PLACEHOLDER } from "@/utils/constants";
 import {
   EXPANSION_PARAM,
+  ONTOLOGY_PARAM,
+  readDisabledOntologies,
   readExpansionPreference,
+  writeDisabledOntologies,
   writeExpansionPreference,
 } from "@/utils/termExpansion";
 import { useSearchHistory } from "@/utils/useSearchHistory";
@@ -27,12 +30,16 @@ export default function HeroSearchBar() {
   // the switch lives in a popover that mounts on open, so the server HTML and
   // the hydration pass render the same thing (just the button) either way.
   const [expansionOn, setExpansionOn] = useState(readExpansionPreference);
+  const [disabledOntologies, setDisabledOntologies] = useState(
+    readDisabledOntologies,
+  );
 
   // The toggle is a default, so it travels into the search URL rather than
   // staying a private setting — the resulting search is then shareable as-is.
   const expansionParams = () => {
     const carry = new URLSearchParams();
     if (!expansionOn) carry.set(EXPANSION_PARAM, "0");
+    for (const id of disabledOntologies) carry.append(ONTOLOGY_PARAM, id);
     return carry;
   };
 
@@ -156,6 +163,11 @@ export default function HeroSearchBar() {
             onChange={(next) => {
               setExpansionOn(next);
               writeExpansionPreference(next);
+            }}
+            disabledOntologies={disabledOntologies}
+            onChangeOntologies={(next) => {
+              setDisabledOntologies(next);
+              writeDisabledOntologies(next);
             }}
           />
         </Flex>

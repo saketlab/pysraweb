@@ -1,6 +1,7 @@
 "use client";
 
 import { getSearchHighlight } from "@/utils/api";
+import { disabledOntologies, expansionDisabled } from "@/utils/termExpansion";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
@@ -117,8 +118,14 @@ function caretAt(x: number, y: number): { node: Node; offset: number } | null {
  * text in <mark>, which means mutating DOM React owns.
  */
 export default function QueryHighlight() {
-  const q = useSearchParams().get("q") ?? "";
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") ?? "";
   const accession = (useParams().accession as string | undefined) ?? "";
+  // The search that linked here carries its expansion settings in the URL, so
+  // the words marked are the ones that actually matched — not what a fresh,
+  // fully-expanded query would have matched.
+  const noExpansion = expansionDisabled(searchParams);
+  const excludeOntology = disabledOntologies(searchParams).join();
 
   useEffect(() => {
     // CSS Custom Highlight API: no DOM mutation, so React never fights it.
@@ -146,7 +153,15 @@ export default function QueryHighlight() {
       hideTooltip();
     };
 
-    getSearchHighlight(q, accession, abort.signal)
+    getSearchHighlight(
+      q,
+      accession,
+      {
+        structured: noExpansion,
+        excludeOntology: excludeOntology ? excludeOntology.split(",") : [],
+      },
+      abort.signal,
+    )
       .then(({ words, derived }) => {
         const { own, expanded } = partitionWords(words, derived);
         const ownPattern = wordsPattern(own);
@@ -214,7 +229,7 @@ export default function QueryHighlight() {
       clearTimeout(hide);
       teardown();
     };
-  }, [q, accession]);
+  }, [q, accession, noExpansion, excludeOntology]);
 
   return (
     // Same weight as the query's own words, a different hue — an expanded match
