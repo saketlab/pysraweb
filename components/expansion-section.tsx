@@ -12,6 +12,7 @@ import { getSearchExpansion } from "@/utils/api";
 import OntologySettingsButton from "@/components/ontology-settings-button";
 import {
   EXPANSION_PARAM,
+  ONTOLOGIES,
   ONTOLOGY_PARAM,
   disabledOntologies,
   expansionDisabled,
@@ -70,24 +71,38 @@ export default function ExpansionSection({ query }: { query: string }) {
     setOn(ranExpanded);
     setWithout(ranWithout);
   }
-  const pendingChange =
-    on !== ranExpanded || !sameOntologies(without, ranWithout);
+  // Nothing left to draw, and nothing left to expand with: the search runs the
+  // words as typed. Asking the server would answer with the same emptiness.
+  const allOff = without.length >= ONTOLOGIES.length;
+  const expansionChanged = on !== ranExpanded;
+  const ontologiesChanged = !sameOntologies(without, ranWithout);
+  // The switch label described the switch, so changing only the ontologies
+  // offered "Search with term expansion" — the state the search was already in,
+  // which reads as a no-op rather than an offer to re-run.
+  const applyLabel = expansionChanged
+    ? on
+      ? "Search with term expansion"
+      : "Search without term expansion"
+    : "Search again with these ontologies";
 
   const applyExpansion = () => {
     const next = new URLSearchParams(searchParams.toString());
     if (on) next.delete(EXPANSION_PARAM);
     else next.set(EXPANSION_PARAM, "0");
     next.delete(ONTOLOGY_PARAM);
-    for (const id of without) next.append(ONTOLOGY_PARAM, id);
+    if (without.length) next.set(ONTOLOGY_PARAM, without.join(","));
     writeExpansionPreference(on);
     writeDisabledOntologies(without);
     setOpen(false);
     router.push(`${pathname}?${next.toString()}`);
   };
+  // Keyed on the gear's current selection, not the URL's: switching an ontology
+  // off redraws the graph straight away, so the picture is what the apply button
+  // is offering to search rather than what the last search used.
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["search-expansion", query, ranWithout.join()],
-    queryFn: ({ signal }) => getSearchExpansion(query, ranWithout, signal),
-    enabled: open && query.trim().length > 0,
+    queryKey: ["search-expansion", query, without.join()],
+    queryFn: ({ signal }) => getSearchExpansion(query, without, signal),
+    enabled: open && query.trim().length > 0 && !allOff,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -135,7 +150,14 @@ export default function ExpansionSection({ query }: { query: string }) {
           <TermExpansionLearnMore />
         </Dialog.Description>
         <Separator size="4" mb="3" />
-        {isLoading ? (
+        {allOff ? (
+          <Card>
+            <Text size="2" color="gray">
+              Every ontology is switched off, so there are no synonyms to show.
+              Turn at least one back on to see its effect.
+            </Text>
+          </Card>
+        ) : isLoading ? (
           <Flex align="center" gap="2" py="4">
             <Spinner size="2" />
             <Text size="2" color="gray">
@@ -192,13 +214,9 @@ export default function ExpansionSection({ query }: { query: string }) {
             search ran your words as you typed them.
           </Text>
         )}
-        {pendingChange && (
+        {(expansionChanged || ontologiesChanged) && (
           <Flex justify="end" mt="4">
-            <Button onClick={applyExpansion}>
-              {on
-                ? "Search with term expansion"
-                : "Search without term expansion"}
-            </Button>
+            <Button onClick={applyExpansion}>{applyLabel}</Button>
           </Flex>
         )}
       </Dialog.Content>

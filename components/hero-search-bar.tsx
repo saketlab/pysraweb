@@ -39,7 +39,8 @@ export default function HeroSearchBar() {
   const expansionParams = () => {
     const carry = new URLSearchParams();
     if (!expansionOn) carry.set(EXPANSION_PARAM, "0");
-    for (const id of disabledOntologies) carry.append(ONTOLOGY_PARAM, id);
+    if (disabledOntologies.length)
+      carry.set(ONTOLOGY_PARAM, disabledOntologies.join(","));
     return carry;
   };
 

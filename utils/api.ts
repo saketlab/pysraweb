@@ -117,11 +117,9 @@ export function getSearchExpansion(
   );
 }
 
-/** Repeatable `exclude_ontology`, the shape /search and /search/facets take. */
+/** One comma-joined `exclude_ontology`, the shape /search and /search/facets take. */
 export function ontologyParams(ids: string[]): string {
-  return ids
-    .map((id) => `&exclude_ontology=${encodeURIComponent(id)}`)
-    .join("");
+  return ids.length ? `&exclude_ontology=${encodeURIComponent(ids.join(","))}` : "";
 }
 
 /**

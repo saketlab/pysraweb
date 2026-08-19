@@ -1065,7 +1065,7 @@ export default function SearchPageBody() {
     if (!inherited) return;
     updateSearchUrl({
       [EXPANSION_PARAM]: inherited.off ? "0" : null,
-      [ONTOLOGY_PARAM]: inherited.disabled,
+      [ONTOLOGY_PARAM]: inherited.disabled.join(",") || null,
     });
   }, [searchParams, updateSearchUrl]);
 
@@ -1682,7 +1682,8 @@ export default function SearchPageBody() {
     // lights up synonyms this search never used.
     if (effectiveQuery) {
       if (noExpansion) params.set(EXPANSION_PARAM, "0");
-      for (const id of excludeOntology) params.append(ONTOLOGY_PARAM, id);
+      if (excludeOntology.length)
+        params.set(ONTOLOGY_PARAM, excludeOntology.join(","));
     }
     const qs = params.toString();
     return qs ? `${getProjectShortUrl(accession)}?${qs}` : undefined;

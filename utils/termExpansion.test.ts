@@ -86,6 +86,19 @@ function withStorage(run: () => void) {
   }
 }
 
+describe("disabledOntologies", () => {
+  it("reads the comma-joined param", () => {
+    const joined = new URLSearchParams("exclude_ontology=MeSH,MONDO");
+    expect(disabledOntologies(joined)).toEqual(["MeSH", "MONDO"]);
+    expect(disabledOntologies(new URLSearchParams("q=liver"))).toEqual([]);
+    // Unknown ids are dropped: the server ignores them, so keeping them would
+    // only make the URL claim a filter that never ran.
+    expect(disabledOntologies(new URLSearchParams("exclude_ontology=MeSH,x"))).toEqual([
+      "MeSH",
+    ]);
+  });
+});
+
 describe("inheritedSettings", () => {
   it("hands a param-less search URL this browser's stored default", () => {
     withStorage(() => {

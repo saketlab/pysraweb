@@ -98,11 +98,11 @@ function clean(ids: Iterable<string>): string[] {
   return [...new Set([...ids].filter((id) => KNOWN.has(id)))];
 }
 
-/** Ontologies this search had switched off. */
+/** Ontologies this search had switched off: one comma-joined param. */
 export function disabledOntologies(params: {
-  getAll(key: string): string[];
+  get(key: string): string | null;
 }): string[] {
-  return clean(params.getAll(ONTOLOGY_PARAM));
+  return clean(params.get(ONTOLOGY_PARAM)?.split(",") ?? []);
 }
 
 export function readDisabledOntologies(): string[] {
