@@ -27,8 +27,8 @@ describe("expansionDisabled", () => {
 });
 
 describe("expansion preference", () => {
-  it("defaults to on with no storage (SSR) and round-trips with it", () => {
-    expect(readExpansionPreference()).toBe(true);
+  it("defaults to off with no storage (SSR) and round-trips with it", () => {
+    expect(readExpansionPreference()).toBe(false);
 
     const store = new Map<string, string>();
     const g = globalThis as { window?: unknown };
@@ -39,11 +39,12 @@ describe("expansion preference", () => {
       },
     };
     try {
-      expect(readExpansionPreference()).toBe(true);
-      writeExpansionPreference(false);
+      // A browser that has never touched the switch searches the words as typed.
       expect(readExpansionPreference()).toBe(false);
       writeExpansionPreference(true);
       expect(readExpansionPreference()).toBe(true);
+      writeExpansionPreference(false);
+      expect(readExpansionPreference()).toBe(false);
     } finally {
       delete g.window;
     }
@@ -125,7 +126,7 @@ describe("inheritedSettings", () => {
     });
   });
 
-  it("does nothing when the stored default is the default", () => {
+  it("does nothing when the stored default is what the URL already means", () => {
     withStorage(() => {
       writeExpansionPreference(true);
       writeDisabledOntologies([]);

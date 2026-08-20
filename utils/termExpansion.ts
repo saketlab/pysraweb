@@ -1,4 +1,5 @@
-// Term expansion is on by default. Off means the search runs the words as
+// Term expansion is off until someone switches it on: it widens a search a lot,
+// and a first-time visitor should get back what they asked for. Off means the search runs the words as
 // typed, which is the API's `structured` mode (exact terms, no ontology
 // synonyms). Two things can say so, and they have different lifetimes: the
 // `expand=0` URL param is the current search's override, and localStorage is
@@ -15,13 +16,13 @@ export function expansionDisabled(params: {
   return params.get(EXPANSION_PARAM) === "0";
 }
 
-/** The stored default. On (true) unless it was explicitly turned off. */
+/** The stored default. Off (false) until it was explicitly turned on. */
 export function readExpansionPreference(): boolean {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) !== "0";
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
