@@ -21,6 +21,7 @@ import {
 import {
   Badge,
   Button,
+  Card,
   Checkbox,
   Dialog,
   Flex,
@@ -159,7 +160,11 @@ export type TimeFilter = "any" | "1" | "5" | "10" | "20" | "custom";
 // score is the summed match rank of the studies behind a value — the server
 // orders on it so a value with many weak matches sits below one with fewer
 // strong ones. 0 on a query-less search.
-export type SearchFacetList = { value: string; count: number; score?: number }[];
+export type SearchFacetList = {
+  value: string;
+  count: number;
+  score?: number;
+}[];
 export type SearchFacets = {
   organism?: SearchFacetList;
   country?: SearchFacetList;
@@ -1736,17 +1741,19 @@ export function SearchOrganismRail({
             </Dialog.Content>
           </Dialog.Root>
           <DeepDiveSection />
-          <Text size="1" color="gray">
-            Search didn&apos;t help?{" "}
-            <Link asChild underline="always">
-              <NextLink href="/mcp">Ask seqout with an LLM</NextLink>
-            </Link>{" "}
-            in plain English or check out{" "}
-            <Link asChild underline="always">
-              <NextLink href={"/howsearchworks"}>how search works</NextLink>
-            </Link>
-            .
-          </Text>
+          <Card variant="classic" size={"1"} asChild>
+            <Text color="gray" size={"1"}>
+              Search didn&apos;t help?{" "}
+              <Link asChild underline="always">
+                <NextLink href="/mcp">Ask seqout with an LLM</NextLink>
+              </Link>{" "}
+              in plain English or check out{" "}
+              <Link asChild underline="always">
+                <NextLink href={"/howsearchworks"}>how search works</NextLink>
+              </Link>
+              .
+            </Text>
+          </Card>
         </Flex>
       ) : null}
     </>
