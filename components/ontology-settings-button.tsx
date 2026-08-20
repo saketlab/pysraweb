@@ -6,6 +6,7 @@
 // MeSH being off.
 
 import { ONTOLOGIES } from "@/utils/termExpansion";
+import { useState } from "react";
 import { GearIcon } from "@radix-ui/react-icons";
 import {
   Dialog,
@@ -25,18 +26,28 @@ export default function OntologySettingsButton({
   disabled: string[];
   onChange: (next: string[]) => void;
 }) {
+  // Radix opens a tooltip on focus as well as hover, and every surface this gear
+  // sits in hands it focus unasked: the home popover on open, the navbar dialog
+  // on open, its own dialog on close. So the label kept appearing with the
+  // pointer nowhere near it. Hover only; the aria-label names the button for
+  // anyone not using a pointer.
+  const [hovering, setHovering] = useState(false);
+
   const toggle = (id: string, on: boolean) =>
     onChange(on ? disabled.filter((d) => d !== id) : [...disabled, id]);
 
   return (
     <Dialog.Root>
-      <Tooltip content="Ontology sources">
+      <Tooltip content="Ontology sources" open={hovering}>
         <Dialog.Trigger>
           <IconButton
             variant="ghost"
             color="gray"
             size="1"
             aria-label="Ontology sources"
+            onPointerEnter={() => setHovering(true)}
+            onPointerLeave={() => setHovering(false)}
+            onClick={() => setHovering(false)}
           >
             <GearIcon />
           </IconButton>
