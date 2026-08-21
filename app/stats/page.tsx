@@ -6,6 +6,7 @@ import StatsOrganismGrowthCard from "@/components/stats-organism-growth-card";
 import StatsProjectOverlapCard from "@/components/stats-project-overlap-card";
 import StatsPlatformComparisonCard from "@/components/stats-platform-comparison-card";
 import StatsSequencingTechnologyCard from "@/components/stats-sequencing-technology-card";
+import StatsSingleCellCard from "@/components/stats-single-cell-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
 import { Flex, Heading } from "@radix-ui/themes";
 import type { Metadata } from "next";
@@ -57,6 +58,9 @@ export default function StatsPage() {
           </div>
           <div id="enriched">
             <StatsEnrichedCard />
+          </div>
+          <div id="single-cell">
+            <StatsSingleCellCard />
           </div>
           <div id="map">
             <StatsGlobalContributionsCard />

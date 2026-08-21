@@ -69,7 +69,6 @@ export type StudyPublication = {
   submitter_provided?: boolean | null;
 };
 
-/** GET /stats/project-overlap - cross-archive project overlap. */
 export type ProjectOverlap = {
   identity: string;
   databases: string[];
@@ -77,4 +76,13 @@ export type ProjectOverlap = {
   intersections: { sets: string[]; count: number; degree: number }[];
   total_projects: number;
   built_at: string;
+};
+
+export type SingleCellOverview = {
+  n_studies: number;
+  n_samples: number;
+  n_cells: number;
+  by_kind: { kind: "fastq_only" | "matrix_only" | "fastq_and_matrix"; n_studies: number }[];
+  top_tissues: { tissue: string; n_studies: number }[];
+  top_organisms: { organism: string; n_studies: number }[];
 };

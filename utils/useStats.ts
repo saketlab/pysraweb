@@ -3,6 +3,7 @@ import type {
   EnrichedCrosstab,
   LastUpdated,
   ProjectOverlap,
+  SingleCellOverview,
   SourceTotals,
 } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,14 @@ export function useLastUpdated() {
   return useQuery({
     queryKey: ["last-updated"],
     queryFn: () => getJson<LastUpdated>("/stats/last-updated"),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useSingleCellOverview() {
+  return useQuery({
+    queryKey: ["single-cell-overview"],
+    queryFn: () => getJson<SingleCellOverview>("/stats/single-cell"),
     staleTime: ONE_DAY,
   });
 }
