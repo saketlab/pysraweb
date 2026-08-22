@@ -33,9 +33,6 @@ export default function OntologySettingsButton({
   // anyone not using a pointer.
   const [hovering, setHovering] = useState(false);
 
-  const toggle = (id: string, on: boolean) =>
-    onChange(on ? disabled.filter((d) => d !== id) : [...disabled, id]);
-
   return (
     <Dialog.Root>
       <Tooltip content="Ontology sources" open={hovering}>
@@ -60,26 +57,42 @@ export default function OntologySettingsButton({
           synonyms out of your searches.
         </Dialog.Description>
         <Separator size="4" mb="3" />
-        <Flex direction="column" gap="3">
-          {ONTOLOGIES.map((o) => (
-            <Flex key={o.id} align="center" justify="between" gap="4">
-              <Flex direction={"column"}>
-                <Text as="label" size="2" htmlFor={`ontology-${o.id}`}>
-                  {o.label}
-                </Text>
-                <Text size={"1"} color="gray">
-                  {o.description}
-                </Text>
-              </Flex>
-              <Switch
-                id={`ontology-${o.id}`}
-                checked={!disabled.includes(o.id)}
-                onCheckedChange={(on) => toggle(o.id, on)}
-              />
-            </Flex>
-          ))}
-        </Flex>
+        <OntologyList disabled={disabled} onChange={onChange} />
       </Dialog.Content>
     </Dialog.Root>
+  );
+}
+
+/** The per-ontology switches, shared by this dialog and the home-page one. */
+export function OntologyList({
+  disabled,
+  onChange,
+}: {
+  disabled: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (id: string, on: boolean) =>
+    onChange(on ? disabled.filter((d) => d !== id) : [...disabled, id]);
+
+  return (
+    <Flex direction="column" gap="3">
+      {ONTOLOGIES.map((o) => (
+        <Flex key={o.id} align="center" justify="between" gap="4">
+          <Flex direction={"column"}>
+            <Text as="label" size="2" htmlFor={`ontology-${o.id}`}>
+              {o.label}
+            </Text>
+            <Text size={"1"} color="gray">
+              {o.description}
+            </Text>
+          </Flex>
+          <Switch
+            id={`ontology-${o.id}`}
+            checked={!disabled.includes(o.id)}
+            onCheckedChange={(on) => toggle(o.id, on)}
+          />
+        </Flex>
+      ))}
+    </Flex>
   );
 }

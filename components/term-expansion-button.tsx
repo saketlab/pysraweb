@@ -1,14 +1,20 @@
 "use client";
 
 // Home-page twin of the navbar's expansion button. There's no search to explain
-// yet, so it's just the toggle: it sets the default the next search runs with.
+// yet, so the button goes straight to the ontology dialog: the master switch
+// rides on the title row, the per-ontology switches below it.
 
+import { OntologyList } from "@/components/ontology-settings-button";
+import { WaypointsIcon } from "@/components/term-expansion-control";
 import {
-  TermExpansionLearnMore,
-  TermExpansionRow,
-  WaypointsIcon,
-} from "@/components/term-expansion-control";
-import { Flex, IconButton, Popover, Tooltip } from "@radix-ui/themes";
+  Dialog,
+  Flex,
+  IconButton,
+  Link,
+  Separator,
+  Switch,
+  Tooltip,
+} from "@radix-ui/themes";
 
 export default function TermExpansionButton({
   on,
@@ -22,9 +28,9 @@ export default function TermExpansionButton({
   onChangeOntologies: (next: string[]) => void;
 }) {
   return (
-    <Popover.Root>
+    <Dialog.Root>
       <Tooltip content="Term expansion">
-        <Popover.Trigger>
+        <Dialog.Trigger>
           <IconButton
             variant="soft"
             color="gray"
@@ -33,19 +39,35 @@ export default function TermExpansionButton({
           >
             <WaypointsIcon />
           </IconButton>
-        </Popover.Trigger>
+        </Dialog.Trigger>
       </Tooltip>
-      <Popover.Content size="1" style={{ width: "17rem" }}>
-        <Flex direction="column" gap="2">
-          <TermExpansionRow
-            on={on}
-            onChange={onChange}
-            disabledOntologies={disabledOntologies}
-            onChangeOntologies={onChangeOntologies}
+      <Dialog.Content size="3">
+        <Flex align="center" justify="between" gap="4">
+          <Dialog.Title size="3" mb="0" as="h2">
+            Term expansion
+          </Dialog.Title>
+          <Switch
+            id="term-expansion-switch"
+            checked={on}
+            onCheckedChange={onChange}
+            aria-label="Term expansion"
           />
-          <TermExpansionLearnMore />
         </Flex>
-      </Popover.Content>
-    </Popover.Root>
+        <Dialog.Description size="1" color="gray" mb="3" mt="1">
+          Synonyms come from these eight ontologies. Switch one off to keep its
+          synonyms out of your searches. To learn more about term expansion,
+          read{" "}
+          <Link href="/howsearchworks#expansion" target="_blank">
+            <em>How search works</em>
+          </Link>
+          .
+        </Dialog.Description>
+        <Separator size="4" mb="3" />
+        <OntologyList
+          disabled={disabledOntologies}
+          onChange={onChangeOntologies}
+        />
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }
