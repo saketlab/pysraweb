@@ -86,6 +86,7 @@ export type PentimentoOverview = {
   top_microbes: { organism: string; class: string; n_samples: number }[];
   by_assay: { assay: string; n_samples: number }[];
   assay_groups: { group_name: string; n_samples: number }[];
+  assay_by_tissue: { assay: string; tissue: string; n_studies: number }[];
 };
 
 export type SingleCellOverview = {

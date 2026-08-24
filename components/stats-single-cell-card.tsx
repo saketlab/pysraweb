@@ -35,7 +35,7 @@ function organismLabel(name: string): string {
 export default function StatsSingleCellCard() {
   const { data, isLoading } = useSingleCellOverview();
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <Flex direction="column" gap="3" py={{ initial: "4", md: "5" }}>
         <Skeleton height="24px" width="280px" />
@@ -43,6 +43,9 @@ export default function StatsSingleCellCard() {
       </Flex>
     );
   }
+
+  // a failed fetch would skeleton forever
+  if (!data) return null;
 
   const stats = [
     { label: "Studies", value: data.n_studies },

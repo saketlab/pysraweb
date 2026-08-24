@@ -1,11 +1,20 @@
 "use client";
 
+import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import SectionAnchor from "@/components/section-anchor";
 import { BarList, ShareBar, StatTiles } from "@/components/stats-ui";
+import { CHART_SERIES_PALETTE, getApexChartTheme } from "@/utils/chart-theme";
+import { humanize } from "@/utils/format";
 import { usePentimentoOverview } from "@/utils/useStats";
+import { useReducedMotion } from "@/utils/useReducedMotion";
 import { Box, Flex, Heading, Skeleton, Text } from "@radix-ui/themes";
+import type { ApexOptions } from "apexcharts";
+import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
+import { useMemo } from "react";
 
-// fixed hue per class; a class dropping out never repaints the others
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+
 const CLASS_COLOR: Record<string, string> = {
   culture: "var(--teal-9)",
   virus: "var(--blue-9)",
@@ -36,8 +45,63 @@ const ASSAY_GROUPS = [
 
 export default function StatsPentimentoCard() {
   const { data, isLoading } = usePentimentoOverview();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const reduced = useReducedMotion();
 
-  if (isLoading || !data) {
+  const { categories, series } = useMemo(() => {
+    const rows = data?.assay_by_tissue ?? [];
+    if (rows.length === 0) return { categories: [], series: [] };
+
+    const totalBy = (key: "assay" | "tissue") => {
+      const t = new Map<string, number>();
+      for (const r of rows) t.set(r[key], (t.get(r[key]) ?? 0) + r.n_studies);
+      return [...t.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    };
+    const assays = totalBy("assay");
+    const tissues = totalBy("tissue");
+    const at = new Map(rows.map((r) => [`${r.assay}\u0000${r.tissue}`, r.n_studies]));
+
+    return {
+      categories: assays,
+      series: tissues.map((t) => ({
+        name: t,
+        data: assays.map((a) => at.get(`${a}\u0000${t}`) ?? 0),
+      })),
+    };
+  }, [data]);
+
+  const chartOptions = useMemo<ApexOptions>(() => {
+    const theme = getApexChartTheme(isDark);
+    return {
+      chart: {
+        id: "seqout-pentimento-tissue",
+        type: "bar",
+        stacked: true,
+        background: theme.background,
+        toolbar: { show: false },
+        foreColor: theme.foreColor,
+        animations: { enabled: !reduced },
+        events: chartFooterEvents,
+      },
+      plotOptions: { bar: { horizontal: true, borderRadius: 2 } },
+      dataLabels: { enabled: false },
+      xaxis: {
+        categories,
+        labels: { formatter: (v) => humanize(Number(v)) },
+        title: { text: "Studies" },
+      },
+      colors: [...CHART_SERIES_PALETTE],
+      legend: { position: "bottom", labels: { colors: theme.legendLabelColor } },
+      grid: { strokeDashArray: 4, borderColor: theme.gridBorderColor },
+      tooltip: {
+        theme: isDark ? "dark" : "light",
+        y: { formatter: (v) => `${v.toLocaleString()} studies` },
+      },
+    };
+  }, [categories, isDark, reduced]);
+
+  if (isLoading) {
     return (
       <Flex direction="column" gap="3" py={{ initial: "4", md: "5" }}>
         <Skeleton height="24px" width="280px" />
@@ -45,6 +109,8 @@ export default function StatsPentimentoCard() {
       </Flex>
     );
   }
+
+  if (!data) return null;
 
   const sexCounts = Object.fromEntries(
     data.sex.map((s) => [s.verdict, s.n_samples]),
@@ -68,8 +134,8 @@ export default function StatsPentimentoCard() {
       </Flex>
 
       <Text size="2" color="gray">
-        Signals read off the FASTQ itself, so they hold whatever the submitted
-        metadata says.
+        We compute these from the FASTQ files, so they hold even where the
+        submitted metadata is wrong.
       </Text>
 
       <StatTiles
@@ -109,9 +175,8 @@ export default function StatsPentimentoCard() {
           Assay read off the reads
         </Text>
         <Text size="1" color="gray" as="div" mb="2">
-          Every scanned sample falls in one of three groups. The named chemistries
-          below are the single-cell slice drawn on its own scale, so a large
-          no-call group cannot flatten them.
+          The three groups cover every scanned sample. The bars below name the
+          chemistry behind the single-cell group.
         </Text>
         <ShareBar
           segments={ASSAY_GROUPS.map((g) => ({
@@ -135,14 +200,33 @@ export default function StatsPentimentoCard() {
           Sex called from reads
         </Text>
         <Text size="1" color="gray" as="div" mb="2">
-          Share of every scanned sample. A verdict needs enough signal, so most
-          have none; read the called counts against this whole bar.
+          Share of every scanned sample. 
           {conflicting > 0
             ? ` ${conflicting.toLocaleString()} samples had runs that disagreed.`
             : ""}
         </Text>
         <ShareBar segments={segments} />
       </Box>
+
+      {series.length > 0 ? (
+        <Box>
+          <Text size="2" weight="bold" as="div" mb="1">
+            Tissues by chemistry
+          </Text>
+          <Text size="1" color="gray" as="div" mb="2">
+            Chemistry comes from the reads; tissue is what the submitter wrote.
+            Top eight tissues, counted in studies.
+          </Text>
+          <Chart
+            type="bar"
+            options={chartOptions}
+            series={series}
+            height={Math.max(320, categories.length * 34 + 140)}
+            width="100%"
+          />
+          <ChartFooter chartId="seqout-pentimento-tissue" />
+        </Box>
+      ) : null}
     </Flex>
   );
 }
