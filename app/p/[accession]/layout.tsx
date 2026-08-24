@@ -1,4 +1,4 @@
-import { fetchProjectSocialTitle } from "@/lib/project-og";
+import { fetchProjectTitleLookup } from "@/lib/project-og";
 import { escapeHtmlJson } from "@/utils/json";
 import {
   type Archive,
@@ -12,6 +12,7 @@ import {
   type DbSource,
 } from "@/utils/db-colors";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 export const revalidate = 86400;
@@ -40,9 +41,18 @@ function detectProjectType(accession: string): {
   return { type: `${database} ${PROJECT_NOUN[db]}`, database };
 }
 
+async function requireProjectTitle(accession: string): Promise<string> {
+  const lookup = await fetchProjectTitleLookup(accession);
+  if (lookup.status === "missing") notFound();
+  if (lookup.status === "error") {
+    throw new Error(`Project lookup failed for ${accession}`);
+  }
+  return lookup.title;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const accession = (await params).accession.toUpperCase();
-  const title = await fetchProjectSocialTitle(accession);
+  const title = await requireProjectTitle(accession);
   const { type: projectType, database } = detectProjectType(accession);
 
   const pageTitle = `${accession} - ${title}`;
@@ -79,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProjectLayout({ children, params }: Props) {
   const accession = (await params).accession.toUpperCase();
-  const title = await fetchProjectSocialTitle(accession);
+  const title = await requireProjectTitle(accession);
   const { type: projectType, database } = detectProjectType(accession);
   const description = `Explore ${projectType} ${accession}: ${title}. View unified metadata, samples, experiments, and similar projects on seqout.`;
 

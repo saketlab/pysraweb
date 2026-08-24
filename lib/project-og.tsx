@@ -48,29 +48,50 @@ function truncateOgTitle(title: string, maxChars = 88): string {
   return `${normalized.slice(0, maxChars).trimEnd()}...`;
 }
 
-async function fetchProjectTitle(accession: string): Promise<string> {
+export type TitleLookup =
+  | { status: "ok"; title: string }
+  | { status: "missing" }
+  | { status: "error" };
+
+export async function fetchProjectTitleLookup(
+  accession: string,
+): Promise<TitleLookup> {
+  let response: Response;
   try {
-    const response = await fetch(
+    response = await fetch(
       `${SERVER_API_BASE}/project/${encodeURIComponent(accession)}`,
       {
         next: { revalidate: 3600 },
       },
     );
-
-    if (!response.ok) {
-      return accession;
-    }
-
-    const payload = (await response.json()) as ProjectPayload;
-    const title = payload.title?.trim();
-    return title ? decodeHtmlEntities(title) : accession;
   } catch {
-    return accession;
+    return { status: "error" };
   }
+
+  if (response.status === 404 || response.status === 422) {
+    return { status: "missing" };
+  }
+  if (!response.ok) {
+    return { status: "error" };
+  }
+
+  let payload: ProjectPayload | null;
+  try {
+    payload = (await response.json()) as ProjectPayload | null;
+  } catch {
+    return { status: "error" };
+  }
+  if (!payload) {
+    return { status: "missing" };
+  }
+
+  const title = payload.title?.trim();
+  return { status: "ok", title: title ? decodeHtmlEntities(title) : accession };
 }
 
-export async function fetchProjectSocialTitle(accession: string) {
-  return fetchProjectTitle(accession);
+async function fetchProjectTitle(accession: string): Promise<string> {
+  const lookup = await fetchProjectTitleLookup(accession);
+  return lookup.status === "ok" ? lookup.title : accession;
 }
 
 export async function generateProjectOgImage(

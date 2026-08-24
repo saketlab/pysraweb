@@ -7,6 +7,7 @@ import {
 import { escapeHtmlJson } from "@/utils/json";
 import { ARCHIVE_BY_DB, dbForAccession } from "@/utils/db-colors";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 const API_BASE_URL = process.env.PYSRAWEB_API_BASE ?? "https://seqout.org/api";
@@ -32,24 +33,29 @@ function detectSampleType(accession: string): {
   return { type: "Sample", database };
 }
 
-async function fetchSampleTitle(accession: string): Promise<string> {
+async function requireSampleTitle(accession: string): Promise<string> {
+  let res: Response;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${API_BASE_URL}/sample-detail/${encodeURIComponent(accession)}`,
       { next: { revalidate: 3600 } },
     );
-    if (!res.ok) return accession;
-    const data = await res.json();
-    const sample = data?.sample;
-    return sample?.title?.trim() || accession;
   } catch {
-    return accession;
+    throw new Error(`Sample lookup failed for ${accession}`);
   }
+
+  if (res.status === 404 || res.status === 422) notFound();
+  if (!res.ok) throw new Error(`Sample lookup failed for ${accession}`);
+
+  const data = await res.json();
+  const sample = data?.sample;
+  if (!sample) notFound();
+  return sample.title?.trim() || accession;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const accession = (await params).accession.toUpperCase();
-  const title = await fetchSampleTitle(accession);
+  const title = await requireSampleTitle(accession);
   const { type: sampleType, database } = detectSampleType(accession);
 
   const pageTitle = `${accession} - ${title}`;
@@ -76,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SampleLayout({ children, params }: Props) {
   const accession = (await params).accession.toUpperCase();
-  const title = await fetchSampleTitle(accession);
+  const title = await requireSampleTitle(accession);
   const { type: sampleType, database } = detectSampleType(accession);
   const description = `Explore ${sampleType} ${accession}: ${title}. View metadata, experiment info, and download links on seqout.`;
 
