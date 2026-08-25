@@ -1,5 +1,6 @@
 import { getJson } from "@/utils/api";
 import type {
+  EnrichedCoverage,
   EnrichedCrosstab,
   LastUpdated,
   ProjectOverlap,
@@ -48,6 +49,15 @@ export function usePentimentoOverview() {
   return useQuery({
     queryKey: ["pentimento-overview"],
     queryFn: () => getJson<PentimentoOverview>("/stats/pentimento"),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useEnrichedCoverage(limit = 25) {
+  return useQuery({
+    queryKey: ["enriched-coverage", limit],
+    queryFn: () =>
+      getJson<EnrichedCoverage>(`/stats/enriched/coverage?limit=${limit}`),
     staleTime: ONE_DAY,
   });
 }

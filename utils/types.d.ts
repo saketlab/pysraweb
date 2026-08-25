@@ -9,6 +9,27 @@ export type LastUpdated = {
   by_source?: Record<DbSource, string | null>;
 };
 
+export type EnrichedCoverageCount = {
+  projects: number;
+  samples: number;
+};
+
+export type EnrichedCoverage = {
+  by_source: {
+    source: DbSource;
+    projects: number;
+    samples: number;
+    total_projects: number | null;
+    total_samples: number | null;
+    pct_projects: number | null;
+    pct_samples: number | null;
+  }[];
+  by_organism: ({ organism: string } & EnrichedCoverageCount)[];
+  by_assay: ({ assay: string } & EnrichedCoverageCount)[];
+  by_assay_category: ({ assay_category: string } & EnrichedCoverageCount)[];
+  distinct_values: Record<string, number>;
+};
+
 export type EnrichedCrosstab = {
   group: string;
   breakdown: string;
