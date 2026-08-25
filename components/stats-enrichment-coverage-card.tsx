@@ -154,14 +154,20 @@ export default function StatsEnrichmentCoverageCard() {
       },
       plotOptions: { bar: { horizontal, borderRadius: 3, columnWidth: "55%" } },
       dataLabels: { enabled: false },
+      // Apex merges options on update, so a `{}` never clears the formatter the
+      // other orientation set. Every axis field below stays explicit.
       xaxis: {
         categories,
-        labels: horizontal ? { formatter: (v) => humanize(Number(v)) } : {},
+        labels: {
+          formatter: (v) => (horizontal ? humanize(Number(v)) : String(v)),
+        },
         title: { text: horizontal ? metric : label },
       },
       yaxis: {
-        labels: horizontal ? {} : { formatter: (v) => humanize(Math.round(v)) },
-        title: { text: horizontal ? undefined : metric },
+        labels: {
+          formatter: (v) => (horizontal ? String(v) : humanize(Math.round(v))),
+        },
+        title: { text: horizontal ? "" : metric },
       },
       colors,
       legend: {
