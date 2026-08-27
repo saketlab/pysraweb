@@ -120,27 +120,13 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-const LIGHT_TILES = [
-  "https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
-  "https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
-  "https://c.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png",
-];
-const DARK_TILES = [
-  "https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-  "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-  "https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png",
-];
-
-const LIGHT_LABEL_TILES = [
-  "https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png",
-  "https://b.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png",
-  "https://c.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png",
-];
-const DARK_LABEL_TILES = [
-  "https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png",
-  "https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png",
-  "https://c.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png",
-];
+// ponytail: CARTO raster basemaps now watermark unkeyed tiles and are being retired.
+// Esri gray canvas needs no key; note {z}/{y}/{x} order and 256px tiles.
+const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
+const LIGHT_TILES = `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
+const DARK_TILES = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
+const LIGHT_LABEL_TILES = `${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
+const DARK_LABEL_TILES = `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
 
 const INDIA_GEOJSON_URL = "/india-states.geojson";
 
@@ -671,7 +657,7 @@ export default function StatsGlobalContributionsCard() {
         id: "basemap-tiles",
         data: isDark ? DARK_TILES : LIGHT_TILES,
         minZoom: 0,
-        maxZoom: 19,
+        maxZoom: 16,
         tileSize: 256,
         renderSubLayers: (props: Record<string, unknown>) => {
           const tile = props.tile as {
@@ -774,9 +760,8 @@ export default function StatsGlobalContributionsCard() {
         id: "label-tiles",
         data: isDark ? DARK_LABEL_TILES : LIGHT_LABEL_TILES,
         minZoom: 0,
-        maxZoom: 19,
-        tileSize: 512,
-        zoomOffset: 1,
+        maxZoom: 16,
+        tileSize: 256,
         renderSubLayers: (props: Record<string, unknown>) => {
           const tile = props.tile as {
             boundingBox: [[number, number], [number, number]];
@@ -1213,7 +1198,7 @@ export default function StatsGlobalContributionsCard() {
               pointerEvents: "none",
             }}
           >
-            &copy; OpenStreetMap &copy; CARTO
+            &copy; Esri &copy; OpenStreetMap contributors
           </div>
         </div>
       )}
