@@ -9,6 +9,27 @@ export type LastUpdated = {
   by_source?: Record<DbSource, string | null>;
 };
 
+export type EnrichedCoverageCount = {
+  projects: number;
+  samples: number;
+};
+
+export type EnrichedCoverage = {
+  by_source: {
+    source: DbSource;
+    projects: number;
+    samples: number;
+    total_projects: number | null;
+    total_samples: number | null;
+    pct_projects: number | null;
+    pct_samples: number | null;
+  }[];
+  by_organism: ({ organism: string } & EnrichedCoverageCount)[];
+  by_assay: ({ assay: string } & EnrichedCoverageCount)[];
+  by_assay_category: ({ assay_category: string } & EnrichedCoverageCount)[];
+  distinct_values: Record<string, number>;
+};
+
 export type EnrichedCrosstab = {
   group: string;
   breakdown: string;
@@ -62,9 +83,7 @@ export type StudyPublication = {
   journal_2yr_mean_citedness: number | null;
   journal_cited_by_count: number | null;
   journal_works_count: number | null;
-  // Submitter-provided <Citation> that never resolved to a PMID. When
-  // submitter_provided is true, `citation` holds the raw as-submitted text and
-  // the pmid/title/doi fields are null.
+  // when submitter_provided, citation is raw text and pmid/title/doi are null
   citation?: string | null;
   submitter_provided?: boolean | null;
 };
@@ -78,11 +97,29 @@ export type ProjectOverlap = {
   built_at: string;
 };
 
+export type PentimentoOverview = {
+  n_samples: number;
+  n_measurable: number;
+  n_studies: number;
+  n_samples_with_hit: number;
+  sex: { verdict: string; n_samples: number }[];
+  microbe_by_class: { class: string; n_samples: number; n_organisms: number }[];
+  top_microbes: { organism: string; class: string; n_samples: number }[];
+  by_assay: { assay: string; n_samples: number }[];
+  assay_groups: { group_name: string; n_samples: number }[];
+  assay_by_tissue: { assay: string; tissue: string; n_studies: number }[];
+};
+
 export type SingleCellOverview = {
   n_studies: number;
   n_samples: number;
   n_cells: number;
-  by_kind: { kind: "fastq_only" | "matrix_only" | "fastq_and_matrix"; n_studies: number }[];
+  by_kind: {
+    kind: "fastq_only" | "matrix_only" | "fastq_and_matrix";
+    n_studies: number;
+    n_studies_counted: number;
+    n_samples: number | null;
+  }[];
   top_tissues: { tissue: string; n_studies: number }[];
   top_organisms: { organism: string; n_studies: number }[];
 };

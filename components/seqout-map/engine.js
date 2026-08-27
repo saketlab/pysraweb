@@ -96,7 +96,7 @@ const colorValueFieldFor = (level) => `__seqout_color_${level}`;
 // a grey strokeText outline, and white fill text every frame. No option exposes
 // any of these, so wrap the label renderer's ctx: clamp shadowBlur to 0, drop
 // the stroke (its canvas is label-only, so a no-op strokeText is safe), and remap
-// the white fill to the themed color. ponytail: instance proxy beats forking.
+// the white fill to the themed color.
 function killLabelShadow(sp, name) {
   const lm = sp.secondary_renderers?.[name];
   if (!lm) return;

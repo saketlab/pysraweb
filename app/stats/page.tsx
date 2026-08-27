@@ -1,11 +1,13 @@
 import SearchBar from "@/components/search-bar";
 import StatsEnrichedCard from "@/components/stats-enriched-card";
+import StatsEnrichmentCoverageCard from "@/components/stats-enrichment-coverage-card";
 import StatsGlobalContributionsCard from "@/components/stats-global-contributions-card";
 import StatsGrowthChartCard from "@/components/stats-growth-chart-card";
 import StatsOrganismGrowthCard from "@/components/stats-organism-growth-card";
 import StatsProjectOverlapCard from "@/components/stats-project-overlap-card";
 import StatsPlatformComparisonCard from "@/components/stats-platform-comparison-card";
 import StatsSequencingTechnologyCard from "@/components/stats-sequencing-technology-card";
+import StatsPentimentoCard from "@/components/stats-pentimento-card";
 import StatsSingleCellCard from "@/components/stats-single-cell-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
 import { Flex, Heading } from "@radix-ui/themes";
@@ -35,8 +37,7 @@ export default function StatsPage() {
         <Heading as="h1" size={{ initial: "6", md: "8" }} weight={"bold"}>
           Key statistics
         </Heading>
-        {/* Chart list — hairline dividers replace the former Card wrappers.
-            Each chart component provides its own vertical padding + width. */}
+        {/* each chart supplies its own vertical padding and width */}
         <Flex direction="column" gap="0" className="seqout-divided-list">
           <div id="sources">
             <StatsSourceHistogramCard />
@@ -56,11 +57,15 @@ export default function StatsPage() {
           <div id="comparison">
             <StatsPlatformComparisonCard />
           </div>
+          <div id="enrichment-coverage">
+            <StatsEnrichmentCoverageCard />
+          </div>
           <div id="enriched">
             <StatsEnrichedCard />
           </div>
           <div id="single-cell">
             <StatsSingleCellCard />
+            <StatsPentimentoCard />
           </div>
           <div id="map">
             <StatsGlobalContributionsCard />
