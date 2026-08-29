@@ -7,6 +7,7 @@ import {
 } from "@/lib/ag-grid";
 import { useWrapText } from "@/components/wrap-text-toggle";
 import { getJsonOrNull } from "@/utils/api";
+import { formatOrganismName } from "@/utils/format";
 import {
   ExclamationTriangleIcon,
   InfoCircledIcon,
@@ -20,7 +21,51 @@ import { useMemo } from "react";
 
 ensureAgGridModules();
 
-// flags is tri-state: null = not measurable, [] = measured and clean
+export interface Detection {
+  organism: string;
+  class: string;
+  kingdom: "viral" | "bacterial" | string;
+  tier: "high_breadth" | "low_breadth";
+  n_runs: number | null;
+  breadth_frac: number | null;
+  ref_bp: number | null;
+  covered_bp: number | null;
+  reads: number | null;
+  kmer_mass: number | null;
+  n_unitigs: number | null;
+  is_background: boolean | null;
+}
+
+export interface ScStatsMatrix {
+  file: string;
+  n_cells: number | null;
+  n_barcodes: number | null;
+  is_raw_barcode_space: boolean | null;
+  matrix_species: string | null;
+  n_mito_genes: number | null;
+  min_counts: number | null;
+  n_cells_filtered: number | null;
+  ncount_median: number | null;
+  nfeature_median: number | null;
+  ncount_f_median: number | null;
+  nfeature_f_median: number | null;
+  ncount_f_mean: number | null;
+  nfeature_f_mean: number | null;
+  pct_mito_f_median: number | null;
+}
+
+export interface ScStatsStudy {
+  state: string | null;
+  n_matrices: number | null;
+  n_failures: number | null;
+  matrix_species: string | null;
+  any_raw_barcode_space: boolean | null;
+  n_matrices_measured: number | null;
+  median_ncount: number | null;
+  median_nfeature: number | null;
+  median_pct_mito: number | null;
+}
+
 export interface SingleCellSample {
   sample_accession: string;
   title: string | null;
@@ -46,7 +91,6 @@ export interface SingleCellSample {
   sex_mixed_suspected: boolean | null;
   species_mislabel: boolean | null;
   assay_is_single_cell: boolean | null;
-  // a run can be linked to a sample and never screened
   n_runs_measurable: number | null;
   deep_n_reads: number | null;
   assay: string | null;
@@ -54,62 +98,39 @@ export interface SingleCellSample {
   calls_ambiguous: boolean | null;
   flags: string[] | null;
   n_flags: number | null;
+  detections: Detection[];
+  screened: boolean;
   hpv_top_type: string | null;
   hpv_ambiguous: boolean | null;
-  // has_viral_reads is the strict 0.50 gate, has_viral_evidence the 0.20 one
   has_viral_reads: boolean | null;
   has_viral_evidence: boolean | null;
   has_bacterial_reads: boolean | null;
   viral_kmer_mass: number | null;
   bacterial_kmer_mass: number | null;
+  sc_stats: ScStatsMatrix[];
+  sc_stats_scanned: boolean;
 }
 
 export interface SingleCellResponse {
   study_accession: string;
   study_cells: number | null;
-  // all nullable in Postgres, so every read below needs a guard
   any_unfiltered: boolean | null;
   n_samples_detailed: number | null;
   unassigned_cells: number | null;
   sample_breakdown_complete: boolean | null;
-  // three separate coverages, differing by ~7x; never collapse into one number
   n_runs_linked: number | null;
   n_runs_preflightx: number | null;
   n_runs_measurable: number | null;
+  sc_stats_study: ScStatsStudy | null;
   samples: SingleCellSample[];
 }
 
-// host-genome and lentiviral-vector sequence; badged as provenance
-const ENDOGENOUS_FLAGS = new Set(["is_mlv", "is_mmtv", "is_hiv", "is_htlv"]);
-
-const CONTAMINANT_FLAGS = new Set(["is_mycoplasma"]);
-
-const FLAG_LABELS: Record<string, string> = {
-  is_hpv: "HPV",
-  is_ebv: "EBV",
-  is_cmv: "CMV",
-  is_hsv: "HSV",
-  is_hhv6: "HHV-6",
-  is_hhv7: "HHV-7",
-  is_kshv: "KSHV",
-  is_polyomavirus: "Polyomavirus",
-  is_hbv: "HBV",
-  is_hcv: "HCV",
-  is_hav: "HAV",
-  is_sars_cov_2: "SARS-CoV-2",
-  is_influenza_a: "Influenza A",
-  is_rsv: "RSV",
-  is_adenovirus: "Adenovirus",
-  is_flavivirus: "Flavivirus",
-  is_lcmv: "LCMV",
-  is_mlv: "MLV",
-  is_mmtv: "MMTV",
-  is_hiv: "HIV-1",
-  is_htlv: "HTLV-1",
-  is_mycoplasma: "Mycoplasma",
-  is_gardnerella: "Gardnerella",
-  is_fusobacterium: "Fusobacterium",
-};
+const ENDOGENOUS_ORGANISMS = new Set([
+  "Murine_leukemia_virus",
+  "MMTV",
+  "HIV1",
+  "HTLV1",
+]);
 
 function NotMeasured({ reason }: { reason: string }) {
   return (
@@ -124,34 +145,50 @@ function NotMeasured({ reason }: { reason: string }) {
 const FLAG_KIND = {
   endogenous: {
     color: "gray",
-    note: "sequence also present in the host genome or in lentiviral vectors. Read as contamination or provenance, not infection.",
+    note: "sequence also present in the host genome or in lentiviral vectors. Read it as contamination or provenance.",
   },
   contaminant: {
     color: "amber",
-    note: "cell-culture contaminant, not a donor infection.",
+    note: "contaminant the cell line picked up in culture.",
+  },
+  prevalent: {
+    color: "gray",
+    note: "seen across a large fraction of unrelated runs. No microbe is expected in scRNA-seq at all, so prevalence on its own is a weak signal. Read it alongside the breadth.",
   },
   panel: {
     color: "crimson",
-    note: "unitigs align across ≥20% of the reference (50% for host-endogenous). Sequence evidence, not a clinical positivity call.",
+    note: "unitigs align across ≥20% of the reference (50% for host-endogenous). Sequence evidence only; a clinical positivity call needs more than this.",
   },
 } as const;
 
-function FlagBadge({ flag }: { flag: string }) {
-  const kind = ENDOGENOUS_FLAGS.has(flag)
-    ? "endogenous"
-    : CONTAMINANT_FLAGS.has(flag)
-      ? "contaminant"
-      : "panel";
-  const label = FLAG_LABELS[flag] ?? flag;
+function detectionKind(d: Detection): keyof typeof FLAG_KIND {
+  if (d.class === "culture") return "contaminant";
+  if (d.class === "vector" || ENDOGENOUS_ORGANISMS.has(d.organism))
+    return "endogenous";
+  if (d.is_background) return "prevalent";
+  return "panel";
+}
+
+function DetectionBadge({ d }: { d: Detection }) {
+  const kind = detectionKind(d);
+  const pct = d.breadth_frac == null ? null : (100 * d.breadth_frac).toFixed(1);
+  const high = d.tier === "high_breadth";
   return (
-    <Tooltip content={`${label}: ${FLAG_KIND[kind].note}`}>
+    <Tooltip
+      content={`${formatOrganismName(d.organism)} — ${pct ?? "?"}% of the reference genome covered${
+        d.covered_bp && d.ref_bp
+          ? ` (${d.covered_bp.toLocaleString()} of ${d.ref_bp.toLocaleString()} bp)`
+          : ""
+      }. ${high ? "High-breadth" : "Low-breadth"} signal. ${FLAG_KIND[kind].note}`}
+    >
       <Badge
         size="1"
-        variant="soft"
+        variant={high ? "soft" : "outline"}
         color={FLAG_KIND[kind].color}
         style={{ cursor: "help" }}
       >
-        {label}
+        {formatOrganismName(d.organism)}
+        {pct ? ` ${pct}%` : ""}
       </Badge>
     </Tooltip>
   );
@@ -160,7 +197,7 @@ function FlagBadge({ flag }: { flag: string }) {
 function FlagsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
   const row = params.data;
   if (!row) return null;
-  if (row.flags == null) {
+  if (!row.screened) {
     return (
       <NotMeasured
         reason={
@@ -173,19 +210,19 @@ function FlagsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
       />
     );
   }
-  if (row.flags.length === 0) {
+  if (row.detections.length === 0) {
     return (
-      <Tooltip content="Measured; no panel taxon passed the detection gate">
+      <Tooltip content="Screened against the full panel; nothing reached the low-breadth reporting threshold. Weak signal below that threshold may still exist.">
         <Text size="2" color="gray" style={{ cursor: "help" }}>
-          none detected
+          none above threshold
         </Text>
       </Tooltip>
     );
   }
   return (
     <Flex align="center" gap="1" wrap="wrap">
-      {row.flags.map((f) => (
-        <FlagBadge key={f} flag={f} />
+      {row.detections.map((d) => (
+        <DetectionBadge key={d.organism} d={d} />
       ))}
       {row.hpv_top_type && (
         <Tooltip
@@ -228,16 +265,70 @@ function CellsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
   );
 }
 
+function QcCellRenderer(params: ICellRendererParams<SingleCellSample>) {
+  const row = params.data;
+  if (!row) return null;
+  const matrices = row.sc_stats ?? [];
+  if (!row.sc_stats_scanned)
+    return <NotMeasured reason="Matrix not scanned for QC statistics" />;
+
+  return (
+    <Flex direction="column" gap="1" py="1">
+      {matrices.map((m) => {
+        const counts = m.ncount_f_median;
+        const genes = m.nfeature_f_median;
+        const minCounts = m.min_counts ?? 500;
+        if (counts == null && genes == null)
+          return (
+            <Text key={m.file} size="1" color="gray">
+              no cell passed {minCounts} counts
+            </Text>
+          );
+        return (
+          <Flex key={m.file} align="center" gap="1">
+            <Tooltip
+              content={
+                `${m.file} - median per cell over the ` +
+                `${num(m.n_cells_filtered)} cells with at least ` +
+                `${minCounts} counts` +
+                (m.pct_mito_f_median != null
+                  ? `; median mito ${m.pct_mito_f_median.toFixed(1)}%`
+                  : "; median mito needs a features file, which this matrix lacks")
+              }
+            >
+              <Text size="2" style={{ cursor: "help" }}>
+                {qc(counts)}{" "}
+                <Text size="1" color="gray">
+                  counts
+                </Text>{" "}
+                / {qc(genes)}{" "}
+                <Text size="1" color="gray">
+                  genes
+                </Text>
+              </Text>
+            </Tooltip>
+            {m.is_raw_barcode_space && (
+              <Tooltip content="Raw droplet space: the unfiltered quantiles for this matrix describe ambient RNA from empty droplets. The figure shown is already the filtered one.">
+                <ExclamationTriangleIcon color="orange" />
+              </Tooltip>
+            )}
+          </Flex>
+        );
+      })}
+    </Flex>
+  );
+}
+
 const DERIVATION = {
   sex: "Derived from Y-unique and XIST read counts",
   assay: "Inferred from read structure",
 };
 
 const num = (n: number | null) => (n == null ? "?" : n.toLocaleString());
+const qc = (n: number | null) => num(n == null ? null : Math.round(n));
 
 const SEX_EVIDENCE = (row: SingleCellSample) => {
   const lines: string[] = [];
-  // caveats below sit outside the hit-count guard on purpose
   if (row.y_hits != null || row.xist_hits != null) {
     lines.push(
       `Y-unique reads: ${num(row.y_hits)}, XIST reads: ${num(row.xist_hits)}`,
@@ -250,10 +341,14 @@ const SEX_EVIDENCE = (row: SingleCellSample) => {
   if (row.deep_n_reads) lines.push(`deep pass: ${num(row.deep_n_reads)} reads`);
   if (row.sex_confidence) lines.push(`confidence: ${row.sex_confidence}`);
   if (row.sex_panel_status === "unsupported") {
-    lines.push("Panel UNSUPPORTED for this species — treat as indicative only");
+    lines.push(
+      "Sex panel is unsupported for this species, so treat the call as indicative only",
+    );
   }
   if (row.sex_mixed_suspected) {
-    lines.push("Mixed/pooled donors suspected — a single sex may not apply");
+    lines.push(
+      "Mixed or pooled donors suspected, so a single sex call may not apply",
+    );
   }
   return lines.length ? lines.join("\n") : null;
 };
@@ -263,13 +358,12 @@ const ASSAY_EVIDENCE = (row: SingleCellSample) =>
     ? `Chemistry: ${row.assay_display}`
     : null;
 
-// === because null means the comparison was never made
 const CONTRADICTION: Partial<
   Record<keyof SingleCellSample, (row: SingleCellSample) => string | null>
 > = {
   assay: (row) =>
     row.assay_is_single_cell === false
-      ? "The reads do not look single-cell, however this study is published."
+      ? "This study is published as single-cell, but the read structure suggests otherwise."
       : null,
 };
 
@@ -289,18 +383,16 @@ function CallCellRenderer(
     const conflict = contradiction?.(row) ?? null;
     const detail = evidence?.(row) ?? null;
     const label = (
-      <Text
-        truncate
-        size="2"
-        style={detail ? { cursor: "help" } : undefined}
-      >
-        {String(value).replace(/_/g, " ")}
+      <Text truncate size="2" style={detail ? { cursor: "help" } : undefined}>
+        {formatOrganismName(String(value))}
       </Text>
     );
     return (
       <Flex align="center" gap="1" style={{ overflow: "hidden" }}>
         {detail ? (
-          <Tooltip content={<span style={{ whiteSpace: "pre-line" }}>{detail}</span>}>
+          <Tooltip
+            content={<span style={{ whiteSpace: "pre-line" }}>{detail}</span>}
+          >
             {label}
           </Tooltip>
         ) : (
@@ -335,7 +427,6 @@ function CallCellRenderer(
   };
 }
 
-// module scope: built per render, these remount every cell in their column
 const SexCell = CallCellRenderer(
   "sex_verdict",
   "No read-derived sex call for this sample",
@@ -381,7 +472,6 @@ export default function SingleCellCard({ accession }: { accession: string }) {
     retry: false,
   });
 
-  // above the early returns; hooks cannot be called conditionally
   const rows = useMemo(
     () => data?.pages.flatMap((page) => page?.samples ?? []) ?? [],
     [data],
@@ -406,7 +496,6 @@ export default function SingleCellCard({ accession }: { accession: string }) {
     [rows.length, hasNextPage, isFetchingNextPage, fetchNextPage],
   );
 
-  // most studies have no Pentimento row, so render nothing
   if (isError || (!isLoading && !data?.pages[0])) return null;
   if (isLoading) return <Spinner />;
 
@@ -464,6 +553,16 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       cellRenderer: AssayCell,
     },
     {
+      field: "sc_stats",
+      headerName: "QC per cell (median)",
+      flex: 1,
+      minWidth: 210,
+      cellRenderer: QcCellRenderer,
+      autoHeight: true,
+      sortable: false,
+      filter: false,
+    },
+    {
       field: "flags",
       headerName: "Microbial evidence",
       flex: 1,
@@ -478,6 +577,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       c.field === "sample_accession" ||
       rows.some((r) => {
         const v = r[c.field as keyof SingleCellSample];
+        if (Array.isArray(v)) return v.length > 0;
         return v != null && v !== "";
       }),
   );
@@ -502,12 +602,43 @@ export default function SingleCellCard({ accession }: { accession: string }) {
             <>
               {" · "}
               {head.n_runs_linked.toLocaleString()} runs,{" "}
-              {(head.n_runs_preflightx ?? 0).toLocaleString()} with a read-derived
-              call, {(head.n_runs_measurable ?? 0).toLocaleString()} screened for
+              {(head.n_runs_preflightx ?? 0).toLocaleString()} with a
+              read-derived call,{" "}
+              {(head.n_runs_measurable ?? 0).toLocaleString()} screened for
               microbes
             </>
           )}
         </Text>
+        {head.sc_stats_study?.median_ncount != null && (
+          <Tooltip content="Median of the per-matrix medians, over cells passing the count threshold. Each matrix is summarised first, so this is a study-level figure.">
+            <Badge
+              color="gray"
+              size="1"
+              variant="soft"
+              style={{ cursor: "help" }}
+            >
+              QC median {qc(head.sc_stats_study.median_ncount)} counts
+              {head.sc_stats_study.median_nfeature != null && (
+                <>
+                  {" / "}
+                  {qc(head.sc_stats_study.median_nfeature)} genes
+                </>
+              )}
+            </Badge>
+          </Tooltip>
+        )}
+        {head.sc_stats_study?.any_raw_barcode_space && (
+          <Tooltip content="A matrix in this study is raw droplet space, so its unfiltered quantiles describe ambient RNA. QC figures shown are the filtered ones.">
+            <Badge
+              color="orange"
+              size="1"
+              variant="soft"
+              style={{ cursor: "help" }}
+            >
+              <ExclamationTriangleIcon /> droplet space
+            </Badge>
+          </Tooltip>
+        )}
         {head.any_unfiltered && (
           <Tooltip content="Study has an unfiltered matrix, so the total counts 10x barcodes.">
             <Badge
@@ -521,7 +652,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
           </Tooltip>
         )}
         {head.unassigned_cells ? (
-          <Tooltip content="Per-sample breakdown was not deposited. The rows below do not sum to study total.">
+          <Tooltip content="The submitter deposited no per-sample breakdown, so the rows below fall short of the study total.">
             <Badge
               color="gray"
               size="1"
@@ -533,9 +664,8 @@ export default function SingleCellCard({ accession }: { accession: string }) {
             </Badge>
           </Tooltip>
         ) : null}
-        {/* === 0 only; a null coverage is unknown */}
         {head.n_runs_measurable === 0 && (
-          <Tooltip content="No run in this study was sequenced deeply enough to screen for microbial sequence. Absence of flags here means unknown, not clean.">
+          <Tooltip content="No run in this study was sequenced deeply enough to screen for microbial sequence, so an empty flags column here means the check never ran.">
             <Badge
               color="gray"
               size="1"

@@ -8,6 +8,8 @@ import StatsProjectOverlapCard from "@/components/stats-project-overlap-card";
 import StatsPlatformComparisonCard from "@/components/stats-platform-comparison-card";
 import StatsSequencingTechnologyCard from "@/components/stats-sequencing-technology-card";
 import StatsPentimentoCard from "@/components/stats-pentimento-card";
+import StatsScQualityCard from "@/components/stats-sc-quality-card";
+import StatsTissueMicrobeCard from "@/components/stats-tissue-microbe-card";
 import StatsSingleCellCard from "@/components/stats-single-cell-card";
 import StatsSourceHistogramCard from "@/components/stats-source-histogram-card";
 import { Flex, Heading } from "@radix-ui/themes";
@@ -37,7 +39,6 @@ export default function StatsPage() {
         <Heading as="h1" size={{ initial: "6", md: "8" }} weight={"bold"}>
           Key statistics
         </Heading>
-        {/* each chart supplies its own vertical padding and width */}
         <Flex direction="column" gap="0" className="seqout-divided-list">
           <div id="sources">
             <StatsSourceHistogramCard />
@@ -66,6 +67,8 @@ export default function StatsPage() {
           <div id="single-cell">
             <StatsSingleCellCard />
             <StatsPentimentoCard />
+            <StatsScQualityCard />
+            <StatsTissueMicrobeCard />
           </div>
           <div id="map">
             <StatsGlobalContributionsCard />

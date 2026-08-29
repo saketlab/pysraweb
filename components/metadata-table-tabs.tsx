@@ -12,6 +12,7 @@ import { useToast } from "@/components/toast-provider";
 import { WrapTextToggle } from "@/components/wrap-text-toggle";
 import { buildCombinedRows, combinedHeaders } from "@/utils/combinedCsv";
 import { downloadCsv } from "@/utils/exportCsv";
+import { SERVER_URL } from "@/utils/constants";
 import { buildSectionHash, parseSectionHash } from "@/utils/sectionHash";
 import { copySectionLink } from "@/utils/shareSectionLink";
 import {
@@ -34,11 +35,6 @@ import { useEffect, useState, type ReactNode } from "react";
 
 type TabValue = "original" | "enriched" | "pentimento";
 
-/**
- * Small link icon rendered inside a tab trigger. Clicking it selects that tab
- * and copies a sharable URL whose hash encodes the section and the tab (e.g.
- * `#samples=enriched`), mirroring the SectionAnchor next to the section title.
- */
 function TabShareIcon({
   sectionId,
   sectionTitle,
@@ -71,8 +67,6 @@ function TabShareIcon({
       aria-label={`Copy link to ${sectionTitle} ${label} table`}
       title={copied ? "Copied table link" : `Copy link to ${label} table`}
       onClick={(e) => {
-        // Don't let Radix also handle this click; we drive the tab change
-        // ourselves so selecting + copying happen together.
         e.stopPropagation();
         void share();
       }}
@@ -100,17 +94,6 @@ function TabShareIcon({
   );
 }
 
-/**
- * Merges the "Original" (Experiments/Samples) table and the AI "Enriched"
- * metadata table into a single section. A Radix tab control sits just left of
- * the CSV download button; the active tab drives both which grid is shown and
- * which CSV the button exports. When enriched metadata is unavailable, only the
- * original table is shown (no tabs).
- *
- * Each tab carries its own link icon so the active table selection can be
- * shared via a URL hash (e.g. `#samples=enriched`); opening such a link
- * restores the corresponding tab.
- */
 export default function MetadataTableTabs({
   accession,
   sectionId,
@@ -126,29 +109,17 @@ export default function MetadataTableTabs({
   sectionId: string;
   sectionTitle: string;
   titleBadge?: ReactNode;
-  // Whether the study has enriched metadata, from the cheap `has_enriched` flag
-  // on the project response — lets us show the tab without fetching the payload.
   hasEnriched?: boolean;
   hasPentimento?: boolean;
   originalContent: ReactNode;
   onExportOriginalCsv: () => void;
-  /**
-   * Sources to fold into the combined export. Omitted (or with nothing to join
-   * to) the CSV button downloads this table alone, with no dialog.
-   */
   combinedExport?: {
-    /** "sample" or "experiment" — names the table in the dialog's opt-out. */
     noun: string;
     sraAccessions: string[];
     geoAccession: string | null;
-    /** Whether either level of supplementary file exists for this project. */
     hasSupplementary: boolean;
   };
 }) {
-  // Restore the tab from the URL hash (e.g. a shared `#samples=enriched` link).
-  // Safe to read at init without a hydration mismatch: `activeTab` below is
-  // pinned to "original" until the enriched data loads client-side, so the
-  // first render is identical regardless of this value.
   const [seenEnriched, markEnrichedSeen] = useFirstVisit(
     "seqout-enriched-tab-clicked",
   );
@@ -160,10 +131,6 @@ export default function MetadataTableTabs({
       ? hashTab
       : "original";
   });
-  // Lazy: only fetch enriched metadata once its tab is active (clicked or
-  // deep-linked via `#samples=enriched`), so the heavy per-sample payload isn't
-  // loaded on every project page / crawler hit. react-query keeps the result
-  // cached, so switching back and forth doesn't refetch.
   const showEnriched = !!hasEnriched && tab === "enriched";
   const {
     data: enriched,
@@ -173,8 +140,6 @@ export default function MetadataTableTabs({
     isFetchingNextPage,
   } = useEnrichedMetadata(accession, showEnriched);
 
-  // Native anchor scrolling doesn't fire for tab-suffixed hashes
-  // (`#samples=enriched`), so bring the section into view ourselves.
   useEffect(() => {
     const { id } = parseSectionHash(window.location.hash);
     if (id === sectionId) {
@@ -182,7 +147,6 @@ export default function MetadataTableTabs({
     }
   }, [sectionId]);
 
-  // a stale shared link can select a tab this study doesn't have
   const tabExists: Record<TabValue, boolean> = {
     original: true,
     enriched: !!hasEnriched,
@@ -194,8 +158,6 @@ export default function MetadataTableTabs({
   const [combining, setCombining] = useState(false);
   const { showToast } = useToast();
 
-  // Nothing to join to (no FASTQ side, no supplementary) — the dialog would
-  // offer a combined export identical to the plain one, so skip it.
   const canCombine =
     !!combinedExport &&
     (combinedExport.sraAccessions.length > 0 ||
@@ -215,7 +177,6 @@ export default function MetadataTableTabs({
         return;
       }
       downloadCsv(rows, combinedHeaders(rows), `${accession}_combined.csv`);
-      // Silence here would present a partial export as complete.
       if (truncated) {
         showToast("Export hit the server row limit — some rows are missing");
       }
@@ -280,8 +241,6 @@ export default function MetadataTableTabs({
                         onSelect={setTab}
                       />
                     </Flex>
-                    {/* Inside the box, not hanging off it: Tabs.List is
-                      `overflow-x: auto` and would clip an outset dot. */}
                     {!seenEnriched && activeTab === "original" && (
                       <FirstVisitPing
                         style={{ top: "4px", right: "4px", left: "auto" }}
@@ -308,12 +267,12 @@ export default function MetadataTableTabs({
             </Tabs.Root>
           )}
           <WrapTextToggle size="2" />
-          {/* only the original table exports; widen this guard to bring the
-              enriched branch below back */}
-          {activeTab === "original" && (
+          {(activeTab === "original" || activeTab === "pentimento") && (
             <Button
               onClick={() => {
-                if (showEnriched && enriched) {
+                if (activeTab === "pentimento") {
+                  window.location.href = `${SERVER_URL}/project/${accession}/pentimento.csv`;
+                } else if (showEnriched && enriched) {
                   void exportEnrichedCsv(accession);
                 } else if (canCombine) {
                   setAskCombined(true);
@@ -349,8 +308,6 @@ export default function MetadataTableTabs({
             </AlertDialog.Cancel>
             <Button
               onClick={(e) => {
-                // Keep the dialog up while the sources are fetched — the join
-                // can take a few seconds on a large study.
                 e.preventDefault();
                 void downloadCombined();
               }}

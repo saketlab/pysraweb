@@ -5,8 +5,10 @@ import type {
   LastUpdated,
   ProjectOverlap,
   PentimentoOverview,
+  ScQuality,
   SingleCellOverview,
   SourceTotals,
+  TissueMicrobes,
 } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -49,6 +51,22 @@ export function usePentimentoOverview() {
   return useQuery({
     queryKey: ["pentimento-overview"],
     queryFn: () => getJson<PentimentoOverview>("/stats/pentimento"),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useTissueMicrobes() {
+  return useQuery({
+    queryKey: ["tissue-microbes"],
+    queryFn: () => getJson<TissueMicrobes>("/stats/tissue-microbes"),
+    staleTime: ONE_DAY,
+  });
+}
+
+export function useScQuality() {
+  return useQuery({
+    queryKey: ["sc-quality"],
+    queryFn: () => getJson<ScQuality>("/stats/sc-quality"),
     staleTime: ONE_DAY,
   });
 }
