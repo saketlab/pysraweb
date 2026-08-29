@@ -80,6 +80,16 @@ export default function StatsScQualityCard() {
     }));
   }, [techs, at, years, metric]);
 
+  const decades = useMemo(() => {
+    const vs = series
+      .flatMap((s) => s.data)
+      .filter((v): v is number => v != null && v > 0);
+    if (vs.length === 0) return null;
+    const lo = 10 ** Math.floor(Math.log10(Math.min(...vs)));
+    const hi = 10 ** Math.ceil(Math.log10(Math.max(...vs)));
+    return { lo, hi, ticks: Math.round(Math.log10(hi / lo)) };
+  }, [series]);
+
   const chartOptions = useMemo<ApexOptions>(() => {
     const theme = getApexChartTheme(isDark);
     return {
@@ -103,8 +113,11 @@ export default function StatsScQualityCard() {
       },
       yaxis: {
         logarithmic: true,
+        min: decades?.lo,
+        max: decades?.hi,
+        tickAmount: decades ? Math.max(decades.ticks, 4) : undefined,
         title: { text: METRIC[metric].axis },
-        labels: { formatter: (v) => humanize(Number(v)) },
+        labels: { formatter: (v) => humanize(Math.round(Number(v))) },
       },
       legend: {
         position: "bottom",
@@ -116,7 +129,7 @@ export default function StatsScQualityCard() {
         y: { formatter: (v) => (v == null ? "?" : v.toLocaleString()) },
       },
     };
-  }, [years, metric, isDark, reduced]);
+  }, [years, metric, isDark, reduced, decades]);
 
   if (isLoading) {
     return (
@@ -176,10 +189,11 @@ export default function StatsScQualityCard() {
         that clear the matrix&apos;s own count threshold. A year needs{" "}
         {data.min_matrices} or more matrices from {data.min_studies} or more
         studies to appear, so a chemistry enters the chart the year it reaches
-        that footing. The y-axis is logarithmic: plate-based and droplet
-        chemistries sit an order of magnitude apart, and a linear axis would
-        press the droplet series flat. Release year comes from the archive,
-        which runs ahead of the paper by a few months.
+        that footing, and the plate-based and combinatorial chemistries stay off
+        it entirely for want of deposited matrices. The y-axis is logarithmic so
+        that chemistries an order of magnitude apart share it without the lower
+        series pressing flat. Release year comes from the archive, which runs
+        ahead of the paper by a few months.
         {declared.length > 0 && (
           <>
             {" "}

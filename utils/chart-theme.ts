@@ -115,10 +115,8 @@ export const TECHNOLOGY_COLOR: Record<string, string> = {
   "CEL-seq": "#f97316",
   "MARS-seq": "#f59e0b",
   "Quartz-seq": "#fbbf24",
-  "Parse/Evercode": "#9333ea",
-  "SPLiT-seq": "#c084fc",
+  "SPLiT-seq/Parse": "#9333ea",
   "sci-RNA-seq": "#db2777",
   "BD Rhapsody": "#f472b6",
-  ATAC: "#78716c",
 };
 export const TECHNOLOGY_FALLBACK_COLOR = "#94a3b8" as const;
