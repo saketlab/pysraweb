@@ -27,7 +27,7 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const METRIC = {
   counts: {
-    label: "UMI counts",
+    label: "Counts",
     median: "median_ncount",
     axis: "Median UMIs per cell",
   },
@@ -109,7 +109,13 @@ export default function StatsScQualityCard() {
         zoom: { enabled: false },
       },
       stroke: { width: 2, curve: "straight" },
-      markers: { size: 3 },
+      markers: {
+        size: series.map((s) =>
+          s.data.filter((v) => v != null).length < 3 ? 7 : 3,
+        ),
+        strokeWidth: 0,
+        hover: { sizeOffset: 3 },
+      },
       dataLabels: { enabled: false },
       xaxis: {
         categories: years,
@@ -134,7 +140,7 @@ export default function StatsScQualityCard() {
         y: { formatter: (v) => (v == null ? "?" : v.toLocaleString()) },
       },
     };
-  }, [years, metric, isDark, reduced, decades?.lo, decades?.hi, decades?.ticks]);
+  }, [years, metric, isDark, reduced, series, decades?.lo, decades?.hi, decades?.ticks]);
 
   if (isLoading) {
     return (
@@ -193,7 +199,7 @@ export default function StatsScQualityCard() {
         Each point is the median across that year&apos;s matrices, over cells
         that clear the matrix&apos;s own count threshold. A year needs{" "}
         {data.min_matrices} or more matrices from {data.min_studies} or more
-        studies to appear.
+        studies to appear. 
         {declared.length > 0 && (
           <>
             {" "}
