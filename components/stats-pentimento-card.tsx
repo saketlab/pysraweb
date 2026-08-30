@@ -2,9 +2,14 @@
 
 import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import SectionAnchor from "@/components/section-anchor";
-import { BarList, ShareBar, StatTiles } from "@/components/stats-ui";
+import {
+  BarList,
+  ShareBar,
+  StatTiles,
+  toSegments,
+} from "@/components/stats-ui";
 import { CHART_SERIES_PALETTE, getApexChartTheme } from "@/utils/chart-theme";
-import { humanize } from "@/utils/format";
+import { formatOrganismName, humanize } from "@/utils/format";
 import { usePentimentoOverview } from "@/utils/useStats";
 import { useReducedMotion } from "@/utils/useReducedMotion";
 import { Box, Flex, Heading, Skeleton, Text } from "@radix-ui/themes";
@@ -26,7 +31,11 @@ const CLASS_LABEL: Record<string, string> = {
   pathogen: "Pathogen",
 };
 
-// runs that disagree are folded into no_verdict
+const KINGDOMS = [
+  { key: "viral", label: "Viruses" },
+  { key: "bacterial", label: "Bacteria" },
+] as const;
+
 const SEX_SEGMENTS = [
   { keys: ["male"], label: "Male", color: "var(--blue-9)" },
   { keys: ["female"], label: "Female", color: "var(--purple-9)" },
@@ -35,6 +44,13 @@ const SEX_SEGMENTS = [
     label: "No verdict",
     color: "var(--gray-6)",
   },
+] as const;
+
+const READ_END_SEGMENTS = [
+  { key: "3'", label: "3'", color: "var(--blue-9)" },
+  { key: "5'", label: "5'", color: "var(--purple-9)" },
+  { key: "full-length", label: "Full-length", color: "var(--teal-9)" },
+  { key: "no_call", label: "No call", color: "var(--gray-6)" },
 ] as const;
 
 const ASSAY_GROUPS = [
@@ -60,7 +76,9 @@ export default function StatsPentimentoCard() {
     };
     const assays = totalBy("assay");
     const tissues = totalBy("tissue");
-    const at = new Map(rows.map((r) => [`${r.assay}\u0000${r.tissue}`, r.n_studies]));
+    const at = new Map(
+      rows.map((r) => [`${r.assay}\u0000${r.tissue}`, r.n_studies]),
+    );
 
     return {
       categories: assays,
@@ -92,7 +110,10 @@ export default function StatsPentimentoCard() {
         title: { text: "Studies" },
       },
       colors: [...CHART_SERIES_PALETTE],
-      legend: { position: "bottom", labels: { colors: theme.legendLabelColor } },
+      legend: {
+        position: "bottom",
+        labels: { colors: theme.legendLabelColor },
+      },
       grid: { strokeDashArray: 4, borderColor: theme.gridBorderColor },
       tooltip: {
         theme: isDark ? "dark" : "light",
@@ -119,13 +140,39 @@ export default function StatsPentimentoCard() {
     data.assay_groups.map((g) => [g.group_name, g.n_samples]),
   );
   const conflicting = sexCounts.conflicting ?? 0;
-  const segments = SEX_SEGMENTS.map((seg) => ({
-    ...seg,
-    n: seg.keys.reduce((s, k) => s + (sexCounts[k] ?? 0), 0),
+  const segments = toSegments(SEX_SEGMENTS, sexCounts);
+  const byKingdom = KINGDOMS.map((k) => ({
+    ...k,
+    rows: data.top_microbes.filter((m) => m.kingdom === k.key),
+    rates: READ_END_SEGMENTS.map((seg) => {
+      const r = data.microbe_by_read_end.find(
+        (x) => x.kingdom === k.key && x.read_end === seg.key,
+      );
+      return {
+        label: seg.label,
+        color: seg.color,
+        hits: r?.n_samples ?? 0,
+        screened: r?.n_screened ?? 0,
+        pct: r && r.n_screened ? (100 * r.n_samples) / r.n_screened : 0,
+      };
+    }),
   }));
+  const cal = data.low_breadth_calibration;
+  const bgPct = cal.background_rows
+    ? (100 * cal.background_pass) / cal.background_rows
+    : 0;
+  const tgPct = cal.target_rows ? (100 * cal.target_pass) / cal.target_rows : 0;
+  const artifactPct = cal.target_pass
+    ? (100 * cal.target_pass_artifact_prone) / cal.target_pass
+    : 0;
 
   return (
-    <Flex direction="column" gap="4" width="100%" py={{ initial: "4", md: "5" }}>
+    <Flex
+      direction="column"
+      gap="4"
+      width="100%"
+      py={{ initial: "4", md: "5" }}
+    >
       <Flex align="center" gap="2">
         <Heading as="h2" size="5" weight="bold" ml="1">
           Read-level checks
@@ -143,7 +190,11 @@ export default function StatsPentimentoCard() {
           { label: "Samples scanned", value: data.n_samples },
           { label: "Studies", value: data.n_studies },
           {
-            label: "Samples with a validated detection",
+            label: "Samples with low-breadth signal",
+            value: data.n_samples_with_evidence,
+          },
+          {
+            label: "...of those, high-breadth",
             value: data.n_samples_with_hit,
           },
         ]}
@@ -151,23 +202,74 @@ export default function StatsPentimentoCard() {
 
       <Box>
         <Text size="2" weight="bold" as="div" mb="1">
-          What was found in the reads
+          Reference signal found in the reads
         </Text>
-        <Text size="1" color="gray" as="div" mb="2">
+        <Text size="1" color="gray" as="div" mb="1">
           {data.microbe_by_class
             .map(
               (c) =>
-                `${CLASS_LABEL[c.class] ?? c.class}: ${c.n_samples.toLocaleString()} samples, ${c.n_organisms} organism${c.n_organisms === 1 ? "" : "s"}`,
+                `${CLASS_LABEL[c.class] ?? c.class}: ${c.n_samples.toLocaleString()} samples (${c.n_samples_confirmed.toLocaleString()} high-breadth), ${c.n_organisms} organism${c.n_organisms === 1 ? "" : "s"}`,
             )
             .join(" · ")}
         </Text>
-        <BarList
-          rows={data.top_microbes.map((m) => ({
-            label: m.organism.replace(/_/g, " "),
-            value: m.n_samples,
-            color: CLASS_COLOR[m.class] ?? "var(--gray-8)",
-          }))}
-        />
+        <Text size="1" color="gray" as="div" mb="2">
+          These thresholds measure breadth of coverage, which is a step short of
+          a presence call. At the low-breadth cut, reagent and skin-flora taxa
+          clear the same bar {bgPct.toFixed(2)}% of the time against{" "}
+          {tgPct.toFixed(2)}% for pathogen- and culture-labelled taxa, so the
+          low-breadth tier discriminates weakly from background. Skin flora can
+          genuinely be present, which makes those background taxa an imperfect
+          null, so read the comparison as a floor on the error rate.{" "}
+          {artifactPct.toFixed(0)}% of the low-breadth bacterial rows are E.
+          coli or M. hyorhinis alone (vector- and plasmid-associated signal,
+          plus a cell-culture contaminant), so the bacterial headline mostly
+          reflects those two organisms.
+        </Text>
+        <Flex gap="5" wrap="wrap">
+          {byKingdom.map((k) =>
+            k.rows.length ? (
+              <BarList
+                key={k.key}
+                title={k.label}
+                rows={k.rows.map((m) => ({
+                  label:
+                    m.kingdom === "bacterial"
+                      ? `${formatOrganismName(m.organism)} · ${CLASS_LABEL[m.class] ?? m.class}`
+                      : formatOrganismName(m.organism),
+                  value: m.n_samples,
+                  color: CLASS_COLOR[m.class] ?? "var(--gray-8)",
+                }))}
+              />
+            ) : null,
+          )}
+        </Flex>
+      </Box>
+
+      <Box>
+        <Text size="2" weight="bold" as="div" mb="1">
+          Unadjusted signal rate by read-end call
+        </Text>
+        <Text size="1" color="gray" as="div" mb="2">
+          Share of screened samples with a hit. The denominator removes the
+          gross imbalance between 3&apos; and 5&apos; library counts, but
+          controls nothing else: study, tissue, depth, organism mix, host and
+          batch all still confound this. Treat it as exploratory: a gap here is
+          worth a closer look.
+        </Text>
+        <Flex gap="5" wrap="wrap">
+          {byKingdom.map((k) => (
+            <BarList
+              key={k.key}
+              title={k.label}
+              rows={k.rates.map((r) => ({
+                label: `${r.label} · ${humanize(r.screened)} screened`,
+                value: Number(r.pct.toFixed(3)),
+                display: `${r.hits.toLocaleString()} · ${r.pct.toFixed(2)}%`,
+                color: r.color,
+              }))}
+            />
+          ))}
+        </Flex>
       </Box>
 
       <Box>
@@ -200,7 +302,7 @@ export default function StatsPentimentoCard() {
           Sex called from reads
         </Text>
         <Text size="1" color="gray" as="div" mb="2">
-          Share of every scanned sample. 
+          Share of every scanned sample.
           {conflicting > 0
             ? ` ${conflicting.toLocaleString()} samples had runs that disagreed.`
             : ""}
@@ -214,8 +316,8 @@ export default function StatsPentimentoCard() {
             Tissues by chemistry
           </Text>
           <Text size="1" color="gray" as="div" mb="2">
-            Chemistry comes from the reads; tissue is what the submitter wrote.
-            Top eight tissues, counted in studies.
+            Chemistry comes from the reads; tissue comes from the submitter. Top
+            eight tissues, counted in studies.
           </Text>
           <Chart
             type="bar"

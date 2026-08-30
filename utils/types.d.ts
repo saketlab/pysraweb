@@ -83,7 +83,6 @@ export type StudyPublication = {
   journal_2yr_mean_citedness: number | null;
   journal_cited_by_count: number | null;
   journal_works_count: number | null;
-  // when submitter_provided, citation is raw text and pmid/title/doi are null
   citation?: string | null;
   submitter_provided?: boolean | null;
 };
@@ -97,14 +96,86 @@ export type ProjectOverlap = {
   built_at: string;
 };
 
+export type ScQualityPoint = {
+  year: number;
+  technology: string;
+  evidence: "read" | "declared";
+  n_matrices: number;
+  n_studies: number;
+  p25_ncount: number | null;
+  median_ncount: number | null;
+  p75_ncount: number | null;
+  p25_nfeature: number | null;
+  median_nfeature: number | null;
+  p75_nfeature: number | null;
+};
+
+export type ScQuality = {
+  points: ScQualityPoint[];
+  technologies: {
+    technology: string;
+    n_matrices: number;
+    evidence: ("read" | "declared")[];
+  }[];
+  min_matrices: number;
+  min_studies: number;
+};
+
+export type TissueMicrobeCell = {
+  tissue: string;
+  uberon: string;
+  organism: string;
+  class: string;
+  is_background: boolean;
+  is_endogenous: boolean;
+  screened: number;
+  positives: number;
+  positives_confirmed: number;
+  studies: number;
+  rate_pct: number;
+};
+
+export type TissueMicrobes = {
+  cells: TissueMicrobeCell[];
+  tissues: { tissue: string; uberon: string; screened: number }[];
+  min_studies: number;
+  min_screened: number;
+};
+
 export type PentimentoOverview = {
   n_samples: number;
   n_measurable: number;
   n_studies: number;
   n_samples_with_hit: number;
+  n_samples_with_evidence: number;
   sex: { verdict: string; n_samples: number }[];
-  microbe_by_class: { class: string; n_samples: number; n_organisms: number }[];
-  top_microbes: { organism: string; class: string; n_samples: number }[];
+  microbe_by_class: {
+    class: string;
+    n_samples: number;
+    n_samples_confirmed: number;
+    n_organisms: number;
+  }[];
+  top_microbes: {
+    organism: string;
+    class: string;
+    kingdom: "viral" | "bacterial";
+    n_samples: number;
+    n_samples_confirmed: number;
+  }[];
+  microbe_by_read_end: {
+    kingdom: "viral" | "bacterial";
+    read_end: "3'" | "5'" | "full-length" | "no_call";
+    n_screened: number;
+    n_samples: number;
+    n_samples_confirmed: number;
+  }[];
+  low_breadth_calibration: {
+    background_rows: number;
+    background_pass: number;
+    target_rows: number;
+    target_pass: number;
+    target_pass_artifact_prone: number;
+  };
   by_assay: { assay: string; n_samples: number }[];
   assay_groups: { group_name: string; n_samples: number }[];
   assay_by_tissue: { assay: string; tissue: string; n_studies: number }[];

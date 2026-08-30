@@ -1,10 +1,3 @@
-/**
- * Theme constants for chart/map libraries (ApexCharts, deck.gl, Leaflet,
- * 3d-force-graph) that consume plain JS strings instead of CSS variables.
- */
-
-// ApexCharts — growth, source distribution, organism growth
-
 export type ApexChartTheme = {
   background: string;
   foreColor: string;
@@ -37,20 +30,16 @@ export function getApexChartTheme(isDark: boolean): ApexChartTheme {
       };
 }
 
-// 8-colour palette for organism/platform series. Sources use DB_COLOR_MAP instead.
-// Chosen by docs/cvd_score.py; worst pair 17.0.
 export const CHART_SERIES_PALETTE: readonly string[] = [
-  "#e20000", // red
-  "#c8b712", // olive
-  "#348557", // green
-  "#22c9b4", // teal
-  "#aea0ff", // periwinkle
-  "#8144ff", // violet
-  "#9d5581", // mauve
-  "#ff698e", // pink
+  "#e20000",
+  "#c8b712",
+  "#348557",
+  "#22c9b4",
+  "#aea0ff",
+  "#8144ff",
+  "#9d5581",
+  "#ff698e",
 ] as const;
-
-// Global contributions map — canvas compositing + panel + overlay text
 
 export type MapCanvasTheme = {
   background: string;
@@ -82,8 +71,6 @@ export function getMapMutedTextColor(isDark: boolean): string {
   return isDark ? "#6b7280" : "#9ca3af";
 }
 
-// Leaflet popup — submitting-org-map.tsx
-
 export type LeafletPopupTheme = {
   link: string;
   markerFill: string;
@@ -104,8 +91,6 @@ export function getLeafletPopupTheme(isDark: boolean): LeafletPopupTheme {
       };
 }
 
-// 3d-force-graph — similar-projects-graph.tsx
-// Not theme-gated; the graph runs on its own dark canvas.
 export const SIMILARITY_GRAPH_COLORS = {
   link: "#9ca3af",
   center: "#d97706",
@@ -114,3 +99,40 @@ export const SIMILARITY_GRAPH_COLORS = {
   arrayexpress: "#eab308",
   gsa: "#e54d2e",
 } as const;
+
+export const TECHNOLOGY_COLOR: Record<string, string> = {
+  "10x 3'": "#2563eb",
+  "10x 3' v1": "#bfdbfe",
+  "10x 3' v2": "#93c5fd",
+  "10x 3' v3": "#3b82f6",
+  "10x 3' v4": "#1d4ed8",
+  "10x 5'": "#0ea5e9",
+  "10x (unspecified)": "#7dd3fc",
+  "10x Flex": "#6366f1",
+  "Drop-seq": "#059669",
+  inDrop: "#34d399",
+  PIPseq: "#14b8a6",
+  "Seq-Well": "#84cc16",
+  "Microwell-seq": "#a3e635",
+  "Smart-seq3": "#dc2626",
+  "CEL-seq2": "#f97316",
+  "MARS-seq": "#f59e0b",
+  "Quartz-seq2": "#fbbf24",
+  "SPLiT-seq/Parse": "#9333ea",
+  "sci-RNA-seq": "#db2777",
+  "BD Rhapsody": "#f472b6",
+};
+const TECHNOLOGY_FALLBACK_PALETTE = [
+  "#94a3b8",
+  "#64748b",
+  "#a8a29e",
+  "#78716c",
+  "#cbd5e1",
+] as const;
+
+export function technologyColor(technology: string, index: number): string {
+  return (
+    TECHNOLOGY_COLOR[technology] ??
+    TECHNOLOGY_FALLBACK_PALETTE[index % TECHNOLOGY_FALLBACK_PALETTE.length]
+  );
+}

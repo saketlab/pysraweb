@@ -14,9 +14,6 @@ export function cleanJournalName(name: string): string {
 }
 
 /**
- * Publication date -> "2 Aug 2017", formatting only shapes we recognise and
- * passing anything else through untouched.
- *
  * Never hand an unrecognised string to `new Date`: V8 scavenges digits out of
  * junk rather than rejecting it, so "Spring 2017" becomes 1 Jan 2017 and
  * "2017 Jun" becomes 1 Jun 2017 — both invent a day PubMed never stated, and
@@ -29,10 +26,8 @@ export function formatPubDate(value: string | number | null): string | null {
   const raw = String(value).trim();
   if (!raw) return null;
 
-  // "2017"
   if (/^\d{4}$/.test(raw)) return raw;
 
-  // "2017-08" — month precision only; don't imply a day
   if (/^\d{4}-\d{2}$/.test(raw)) {
     return new Date(`${raw}-01T00:00:00Z`).toLocaleDateString("en-GB", {
       month: "short",
@@ -41,7 +36,6 @@ export function formatPubDate(value: string | number | null): string | null {
     });
   }
 
-  // "2017-08-02"
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     return new Date(`${raw}T00:00:00Z`).toLocaleDateString("en-GB", {
       day: "numeric",
@@ -54,7 +48,10 @@ export function formatPubDate(value: string | number | null): string | null {
   return raw;
 }
 
-/** Format a large number into a human-readable abbreviated string. */
+export function formatOrganismName(name: string): string {
+  return name.replace(/_/g, " ");
+}
+
 export function humanize(value: number): string {
   if (value >= 1_000_000_000)
     return `${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
@@ -71,7 +68,6 @@ const TB = 1e12;
 const GB = 1e9;
 const MB = 1e6;
 
-/** Format a byte count into a human-readable string using binary (1024) units. */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
@@ -80,7 +76,6 @@ export function formatBytes(bytes: number): string {
   return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-/** Format an author list showing only the first and last author. */
 export function formatFirstLastAuthor(authors: string | null): string | null {
   if (!authors) return null;
   const list = authors
@@ -93,7 +88,6 @@ export function formatFirstLastAuthor(authors: string | null): string | null {
   return `${list[0]} ... ${list[list.length - 1]}`;
 }
 
-/** Convert an ISO-2 country code to a flag emoji. */
 export function countryFlag(code: string | null | undefined): string {
   if (!code || code.length !== 2) return "";
   const upper = code.toUpperCase();
@@ -102,7 +96,6 @@ export function countryFlag(code: string | null | undefined): string {
   );
 }
 
-/** Title-case an institute/center name, preserving fully-uppercase words (acronyms). */
 export function titleCaseCenter(name: string): string {
   return name
     .split(" ")
@@ -114,7 +107,6 @@ export function titleCaseCenter(name: string): string {
     .join(" ");
 }
 
-/** Format a byte count into a human-readable abbreviated string. */
 export function humanizeBytes(value: number): string {
   if (value >= EB) return `${(value / EB).toFixed(1).replace(/\.0$/, "")} EB`;
   if (value >= PB) return `${(value / PB).toFixed(1).replace(/\.0$/, "")} PB`;

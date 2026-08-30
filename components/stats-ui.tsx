@@ -4,9 +4,31 @@ import { humanize } from "@/utils/format";
 import { Box, Flex, Text } from "@radix-ui/themes";
 
 export type Segment = { label: string; color: string; n: number };
-export type BarRow = { label: string; value: number; color?: string };
+export type BarRow = {
+  label: string;
+  value: number;
+  color?: string;
+  display?: string;
+};
 
-export function StatTiles({ stats }: { stats: { label: string; value: number }[] }) {
+export function toSegments(
+  defs: readonly { keys: readonly string[]; label: string; color: string }[],
+  counts: Record<string, number> | Map<string, number>,
+): Segment[] {
+  const get = (k: string) =>
+    (counts instanceof Map ? counts.get(k) : counts[k]) ?? 0;
+  return defs.map((d) => ({
+    label: d.label,
+    color: d.color,
+    n: d.keys.reduce((n, k) => n + get(k), 0),
+  }));
+}
+
+export function StatTiles({
+  stats,
+}: {
+  stats: { label: string; value: number }[];
+}) {
   return (
     <Flex gap="5" wrap="wrap">
       {stats.map((s) => (
@@ -23,14 +45,15 @@ export function StatTiles({ stats }: { stats: { label: string; value: number }[]
   );
 }
 
-/** segments must be exclusive and cover the whole population */
 export function ShareBar({ segments }: { segments: Segment[] }) {
   const total = segments.reduce((s, x) => s + x.n, 0);
   if (!total) return null;
   return (
     <Flex direction="column" gap="2">
-      {/* 2px of surface between segments so adjacent fills stay separable */}
-      <Flex style={{ height: 14, borderRadius: 4, overflow: "hidden" }} gap="2px">
+      <Flex
+        style={{ height: 14, borderRadius: 4, overflow: "hidden" }}
+        gap="2px"
+      >
         {segments.map((seg) =>
           seg.n ? (
             <Box
@@ -45,7 +68,6 @@ export function ShareBar({ segments }: { segments: Segment[] }) {
           ) : null,
         )}
       </Flex>
-      {/* the legend doubles as the direct labels, so identity is never colour alone */}
       <Flex gap="4" wrap="wrap">
         {segments.map((seg) => (
           <Flex key={seg.label} align="center" gap="2">
@@ -86,10 +108,13 @@ export function BarList({
       <Flex direction="column" gap="1" mt={title ? "2" : "0"}>
         {rows.map((r) => (
           <Flex key={r.label} align="center" gap="2">
-            <Text size="1" style={{ ...CLIP, width: labelWidth }} title={r.label}>
+            <Text
+              size="1"
+              style={{ ...CLIP, width: labelWidth }}
+              title={r.label}
+            >
               {r.label}
             </Text>
-            {/* the fill is a share of this track, never of the whole row */}
             <Box style={{ flex: 1, minWidth: 0, height: 10 }}>
               <Box
                 style={{
@@ -102,7 +127,7 @@ export function BarList({
               />
             </Box>
             <Text size="1" color="gray" style={{ ...NUM, ...COUNT_COL }}>
-              {humanize(r.value)}
+              {r.display ?? humanize(r.value)}
             </Text>
           </Flex>
         ))}
@@ -114,14 +139,19 @@ export function BarList({
 function Swatch({ color }: { color: string }) {
   return (
     <Box
-      style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }}
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: 2,
+        background: color,
+        flexShrink: 0,
+      }}
     />
   );
 }
 
 const NUM = { fontVariantNumeric: "tabular-nums" } as const;
-// fixed width so every row's bar track is identical
-const COUNT_COL = { flexShrink: 0, width: 52, textAlign: "right" } as const;
+const COUNT_COL = { flexShrink: 0, width: 96, textAlign: "right" } as const;
 const CLIP = {
   flexShrink: 0,
   overflow: "hidden",
