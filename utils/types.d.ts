@@ -99,7 +99,7 @@ export type ProjectOverlap = {
 export type ScQualityPoint = {
   year: number;
   technology: string;
-  evidence: "read" | "declared";
+  evidence: "read" | "declared" | "all";
   n_matrices: number;
   n_studies: number;
   p25_ncount: number | null;
@@ -112,6 +112,7 @@ export type ScQualityPoint = {
 
 export type ScQuality = {
   points: ScQualityPoint[];
+  overall: ScQualityPoint[];
   technologies: {
     technology: string;
     n_matrices: number;

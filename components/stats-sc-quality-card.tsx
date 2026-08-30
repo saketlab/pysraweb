@@ -29,14 +29,21 @@ const METRIC = {
   counts: {
     label: "Counts",
     median: "median_ncount",
+    p25: "p25_ncount",
+    p75: "p75_ncount",
     axis: "Median UMIs per cell",
   },
   genes: {
     label: "Genes",
     median: "median_nfeature",
+    p25: "p25_nfeature",
+    p75: "p75_nfeature",
     axis: "Median genes per cell",
   },
 } as const;
+
+const BAND_FILL = "#94a3b8";
+const BAND_LINE = "#64748b";
 
 type MetricKey = keyof typeof METRIC;
 
@@ -49,7 +56,7 @@ export default function StatsScQualityCard() {
   const reduced = useReducedMotion();
   const [metric, setMetric] = useState<MetricKey>("counts");
 
-  const { years, techs, at, declared } = useMemo(() => {
+  const { years, techs, at, overall, declared } = useMemo(() => {
     const points = data?.points ?? [];
     const techs = (data?.technologies ?? []).map((t) => t.technology);
     const at = new Map<string, ScQualityPoint>();
@@ -60,6 +67,7 @@ export default function StatsScQualityCard() {
     return {
       techs,
       at,
+      overall: new Map((data?.overall ?? []).map((p) => [p.year, p])),
       years: [...new Set(points.map((p) => p.year))].sort((a, b) => a - b),
       declared: (data?.technologies ?? [])
         .filter((t) => !t.evidence.includes("read"))
@@ -68,21 +76,49 @@ export default function StatsScQualityCard() {
   }, [data]);
 
   const series = useMemo(() => {
-    const field = METRIC[metric].median;
-    return techs.map((technology, i) => ({
-      name: technology,
-      color: technologyColor(technology, i),
-      data: years.map((y) => {
-        const v = at.get(key(technology, y))?.[field];
-        return v == null ? null : Math.round(v);
-      }),
-    }));
-  }, [techs, at, years, metric]);
+    const { median, p25, p75 } = METRIC[metric];
+    const round = (v: number | null | undefined) =>
+      v == null ? null : Math.round(v);
+    const band = years.map((y) => {
+      const o = overall.get(y);
+      const lo = round(o?.[p25]);
+      const hi = round(o?.[p75]);
+      return { x: y, y: lo == null || hi == null ? [] : [lo, hi] };
+    });
+    return [
+      {
+        name: "All chemistries (IQR)",
+        type: "rangeArea",
+        color: BAND_FILL,
+        data: band,
+      },
+      {
+        name: "All chemistries (median)",
+        type: "rangeArea",
+        color: BAND_LINE,
+        data: years.map((y) => round(overall.get(y)?.[median])),
+      },
+      ...techs.map((technology, i) => ({
+        name: technology,
+        type: "line",
+        color: technologyColor(technology, i),
+        data: years.map((y) => round(at.get(key(technology, y))?.[median])),
+      })),
+    ];
+  }, [techs, at, overall, years, metric]);
+
+  const flatValues = useMemo(
+    () =>
+      series.flatMap((s) =>
+        s.data.flatMap((d) =>
+          d == null ? [] : typeof d === "number" ? [d] : d.y,
+        ),
+      ),
+    [series],
+  );
 
   const decades = useMemo(() => {
-    const vs = series
-      .flatMap((s) => s.data)
-      .filter((v): v is number => v != null && v > 0);
+    const vs = flatValues.filter((v): v is number => v != null && v > 0);
     if (vs.length === 0) return null;
     let min = Infinity;
     let max = 0;
@@ -93,7 +129,7 @@ export default function StatsScQualityCard() {
     const lo = Math.floor(Math.log10(min));
     const hi = Math.ceil(Math.log10(max));
     return { lo: 10 ** lo, hi: 10 ** hi, ticks: hi - lo };
-  }, [series]);
+  }, [flatValues]);
 
   const chartOptions = useMemo<ApexOptions>(() => {
     const theme = getApexChartTheme(isDark);
@@ -108,10 +144,21 @@ export default function StatsScQualityCard() {
         events: chartFooterEvents,
         zoom: { enabled: false },
       },
-      stroke: { width: 2, curve: "straight" },
+      stroke: {
+        width: series.map((s, i) => (i === 0 ? 0 : i === 1 ? 3 : 2)),
+        curve: "straight",
+      },
+      fill: {
+        type: "solid",
+        opacity: series.map((_, i) => (i === 0 ? 0.18 : 1)),
+      },
       markers: {
-        size: series.map((s) =>
-          s.data.filter((v) => v != null).length < 3 ? 7 : 3,
+        size: series.map((s, i) =>
+          i < 2
+            ? 0
+            : s.data.filter((v) => v != null).length < 3
+              ? 7
+              : 3,
         ),
         strokeWidth: 0,
         hover: { sizeOffset: 3 },
@@ -126,7 +173,7 @@ export default function StatsScQualityCard() {
         logarithmic: true,
         min: decades?.lo,
         max: decades?.hi,
-        tickAmount: decades ? Math.max(decades.ticks, 4) : undefined,
+        tickAmount: decades?.ticks,
         title: { text: METRIC[metric].axis },
         labels: { formatter: (v) => humanize(Math.round(Number(v))) },
       },
@@ -189,7 +236,7 @@ export default function StatsScQualityCard() {
         <Chart
           options={chartOptions}
           series={series}
-          type="line"
+          type="rangeArea"
           height={340}
         />
         <ChartFooter chartId="seqout-sc-quality" />
@@ -199,7 +246,8 @@ export default function StatsScQualityCard() {
         Each point is the median across that year&apos;s matrices, over cells
         that clear the matrix&apos;s own count threshold. A year needs{" "}
         {data.min_matrices} or more matrices from {data.min_studies} or more
-        studies to appear. 
+        studies to appear. The grey band is the interquartile range across all
+        chemistries pooled and the grey line its median. 
         {declared.length > 0 && (
           <>
             {" "}
