@@ -13,16 +13,17 @@ import { useSearchQuery } from "@/context/search_query";
 import { track } from "@/utils/analytics";
 import { ontologyParams, withTimeout } from "@/utils/api";
 import { SERVER_URL } from "@/utils/constants";
-import {
-  EXPANSION_PARAM,
-  ONTOLOGY_PARAM,
-  disabledOntologies,
-  expansionDisabled,
-  inheritedSettings,
-} from "@/utils/termExpansion";
 import { DB_LABELS, SEARCH_DBS, type SearchDb } from "@/utils/db-colors";
 import { downloadCsv } from "@/utils/exportCsv";
 import { getProjectShortUrl } from "@/utils/shortUrl";
+import {
+  disabledOntologies,
+  EXPANSION_PARAM,
+  expansionDisabled,
+  inheritedSettings,
+  ONTOLOGIES,
+  ONTOLOGY_PARAM,
+} from "@/utils/termExpansion";
 import { SearchResult } from "@/utils/types";
 import {
   ArrowUpIcon,
@@ -2439,6 +2440,22 @@ export default function SearchPageBody() {
                   <span className="seqout-accession">GSE196830</span>).
                 </Text>
               )}
+              {/* This search ran narrower than the default, and that may be why
+                  it found nothing — say so, and point at the control that
+                  widens it (navbar, next to the search box). */}
+              {noExpansion || excludeOntology.length ? (
+                <Text
+                  size="2"
+                  align="center"
+                  style={{ color: "var(--gray-11)", maxWidth: "32rem" }}
+                >
+                  {noExpansion
+                    ? "Term expansion is off, so only your exact words were searched."
+                    : `${excludeOntology.length} of ${ONTOLOGIES.length} ontologies are switched off, so some synonyms might have been left out.`}{" "}
+                  Adjust this with the term expansion button next to the search
+                  box above.
+                </Text>
+              ) : null}
               {/* Shown alongside a "did you mean" too: a misspelling and a query
                   keyword search can't express are both cases where describing
                   the data in plain English gets further. */}
