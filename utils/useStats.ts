@@ -6,6 +6,7 @@ import type {
   ProjectOverlap,
   PentimentoOverview,
   ScQuality,
+  ScQualitySamples,
   SingleCellOverview,
   SourceTotals,
   TissueMicrobes,
@@ -68,6 +69,15 @@ export function useScQuality() {
     queryKey: ["sc-quality"],
     queryFn: () => getJson<ScQuality>("/stats/sc-quality"),
     staleTime: ONE_DAY,
+  });
+}
+
+export function useScQualitySamples(enabled: boolean) {
+  return useQuery({
+    queryKey: ["sc-quality-samples"],
+    queryFn: () => getJson<ScQualitySamples>("/stats/sc-quality/samples"),
+    staleTime: ONE_DAY,
+    enabled,
   });
 }
 

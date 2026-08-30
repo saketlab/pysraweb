@@ -145,19 +145,19 @@ function NotMeasured({ reason }: { reason: string }) {
 const FLAG_KIND = {
   endogenous: {
     color: "gray",
-    note: "sequence also present in the host genome or in lentiviral vectors. Read it as contamination or provenance.",
+    note: "also in the host genome or lentiviral vectors.",
   },
   contaminant: {
     color: "amber",
-    note: "contaminant the cell line picked up in culture.",
+    note: "picked up in culture.",
   },
   prevalent: {
     color: "gray",
-    note: "seen across a large fraction of unrelated runs. No microbe is expected in scRNA-seq at all, so prevalence on its own is a weak signal. Read it alongside the breadth.",
+    note: "common across unrelated runs; weak on its own.",
   },
   panel: {
     color: "crimson",
-    note: "unitigs align across ≥20% of the reference (50% for host-endogenous). Sequence evidence only; a clinical positivity call needs more than this.",
+    note: "unitigs cover ≥20% of the reference (50% if host-endogenous).",
   },
 } as const;
 
@@ -175,11 +175,11 @@ function DetectionBadge({ d }: { d: Detection }) {
   const high = d.tier === "high_breadth";
   return (
     <Tooltip
-      content={`${formatOrganismName(d.organism)} — ${pct ?? "?"}% of the reference genome covered${
+      content={`${formatOrganismName(d.organism)} — ${pct ?? "?"}% of the reference covered${
         d.covered_bp && d.ref_bp
           ? ` (${d.covered_bp.toLocaleString()} of ${d.ref_bp.toLocaleString()} bp)`
           : ""
-      }. ${high ? "High-breadth" : "Low-breadth"} signal. ${FLAG_KIND[kind].note}`}
+      }, ${high ? "high" : "low"} breadth. ${FLAG_KIND[kind].note}`}
     >
       <Badge
         size="1"
@@ -202,17 +202,17 @@ function FlagsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
       <NotMeasured
         reason={
           row.n_runs_measurable
-            ? "Screened, but no run was deep enough to call absence"
+            ? "No run deep enough to call absence"
             : row.n_runs
-              ? "Runs exist, but none were screened against the microbial panel"
-              : "No sequencing runs were quantified for this sample"
+              ? "No run screened against the microbial panel"
+              : "No runs quantified for this sample"
         }
       />
     );
   }
   if (row.detections.length === 0) {
     return (
-      <Tooltip content="Screened against the full panel; nothing reached the low-breadth reporting threshold. Weak signal below that threshold may still exist.">
+      <Tooltip content="Nothing reached the reporting threshold.">
         <Text size="2" color="gray" style={{ cursor: "help" }}>
           none above threshold
         </Text>
@@ -228,7 +228,7 @@ function FlagsCellRenderer(params: ICellRendererParams<SingleCellSample>) {
         <Tooltip
           content={
             row.hpv_ambiguous
-              ? "Several HPV types pass the gate. Papillomavirus genomes share conserved regions, so this is more likely cross-mapping than co-infection — the type shown is only the best-supported one."
+              ? "Several types pass the gate; conserved regions make cross-mapping likely. Best-supported shown."
               : "Best-supported HPV type"
           }
         >
@@ -288,12 +288,11 @@ function QcCellRenderer(params: ICellRendererParams<SingleCellSample>) {
           <Flex key={m.file} align="center" gap="1">
             <Tooltip
               content={
-                `${m.file} - median per cell over the ` +
-                `${num(m.n_cells_filtered)} cells with at least ` +
-                `${minCounts} counts` +
+                `${m.file} — median over ${num(m.n_cells_filtered)} cells ` +
+                `with ≥${minCounts} counts` +
                 (m.pct_mito_f_median != null
-                  ? `; median mito ${m.pct_mito_f_median.toFixed(1)}%`
-                  : "; median mito needs a features file, which this matrix lacks")
+                  ? `, mito ${m.pct_mito_f_median.toFixed(1)}%`
+                  : "; mito needs a features file")
               }
             >
               <Text size="2" style={{ cursor: "help" }}>
@@ -308,7 +307,7 @@ function QcCellRenderer(params: ICellRendererParams<SingleCellSample>) {
               </Text>
             </Tooltip>
             {m.is_raw_barcode_space && (
-              <Tooltip content="Raw droplet space: the unfiltered quantiles for this matrix describe ambient RNA from empty droplets. The figure shown is already the filtered one.">
+              <Tooltip content="Raw droplet space: unfiltered quantiles are ambient RNA. Figure shown is filtered.">
                 <ExclamationTriangleIcon color="orange" />
               </Tooltip>
             )}
@@ -411,7 +410,7 @@ function CallCellRenderer(
           </Tooltip>
         )}
         {row.calls_ambiguous && (
-          <Tooltip content="This sample's runs disagreed; the value shown is the best-supported one.">
+          <Tooltip content="Runs disagreed; best-supported value shown.">
             <Badge
               color="amber"
               size="1"
@@ -602,15 +601,13 @@ export default function SingleCellCard({ accession }: { accession: string }) {
             <>
               {" · "}
               {head.n_runs_linked.toLocaleString()} runs,{" "}
-              {(head.n_runs_preflightx ?? 0).toLocaleString()} with a
-              read-derived call,{" "}
-              {(head.n_runs_measurable ?? 0).toLocaleString()} screened for
-              microbes
+              {(head.n_runs_preflightx ?? 0).toLocaleString()} called,{" "}
+              {(head.n_runs_measurable ?? 0).toLocaleString()} screened
             </>
           )}
         </Text>
         {head.sc_stats_study?.median_ncount != null && (
-          <Tooltip content="Median of the per-matrix medians, over cells passing the count threshold. Each matrix is summarised first, so this is a study-level figure.">
+          <Tooltip content="Median of per-matrix medians, over cells passing the count threshold.">
             <Badge
               color="gray"
               size="1"
@@ -628,7 +625,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
           </Tooltip>
         )}
         {head.sc_stats_study?.any_raw_barcode_space && (
-          <Tooltip content="A matrix in this study is raw droplet space, so its unfiltered quantiles describe ambient RNA. QC figures shown are the filtered ones.">
+          <Tooltip content="A matrix here is raw droplet space; QC figures shown are filtered.">
             <Badge
               color="orange"
               size="1"
@@ -652,7 +649,7 @@ export default function SingleCellCard({ accession }: { accession: string }) {
           </Tooltip>
         )}
         {head.unassigned_cells ? (
-          <Tooltip content="The submitter deposited no per-sample breakdown, so the rows below fall short of the study total.">
+          <Tooltip content="No per-sample breakdown deposited; rows fall short of the study total.">
             <Badge
               color="gray"
               size="1"

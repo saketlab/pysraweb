@@ -8,7 +8,7 @@ import {
 } from "@/utils/chart-theme";
 import { humanize } from "@/utils/format";
 import type { ScQualityPoint } from "@/utils/types";
-import { useScQuality } from "@/utils/useStats";
+import { useScQuality, useScQualitySamples } from "@/utils/useStats";
 import { useReducedMotion } from "@/utils/useReducedMotion";
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   Heading,
   SegmentedControl,
   Skeleton,
+  Switch,
   Text,
 } from "@radix-ui/themes";
 import type { ApexOptions } from "apexcharts";
@@ -31,6 +32,7 @@ const METRIC = {
     median: "median_ncount",
     p25: "p25_ncount",
     p75: "p75_ncount",
+    dot: "ncount",
     axis: "Median UMIs per cell",
   },
   genes: {
@@ -38,6 +40,7 @@ const METRIC = {
     median: "median_nfeature",
     p25: "p25_nfeature",
     p75: "p75_nfeature",
+    dot: "nfeature",
     axis: "Median genes per cell",
   },
 } as const;
@@ -55,6 +58,9 @@ export default function StatsScQualityCard() {
   const isDark = resolvedTheme === "dark";
   const reduced = useReducedMotion();
   const [metric, setMetric] = useState<MetricKey>("counts");
+  const [showDots, setShowDots] = useState(false);
+  const { data: samples, isLoading: samplesLoading } =
+    useScQualitySamples(showDots);
 
   const { years, techs, at, overall, declared } = useMemo(() => {
     const points = data?.points ?? [];
@@ -76,7 +82,7 @@ export default function StatsScQualityCard() {
   }, [data]);
 
   const series = useMemo(() => {
-    const { median, p25, p75 } = METRIC[metric];
+    const { median, p25, p75, dot } = METRIC[metric];
     const round = (v: number | null | undefined) =>
       v == null ? null : Math.round(v);
     const band = years.map((y) => {
@@ -107,8 +113,20 @@ export default function StatsScQualityCard() {
           y: round(at.get(key(technology, y))?.[median]),
         })),
       })),
+      ...(showDots && samples
+        ? [
+            {
+              name: "Individual matrices",
+              type: "scatter",
+              color: BAND_LINE,
+              data: samples.points
+                .map((p) => ({ x: p.year, y: round(p[dot]) }))
+                .filter((d) => d.y != null && d.y > 0),
+            },
+          ]
+        : []),
     ];
-  }, [techs, at, overall, years, metric]);
+  }, [techs, at, overall, years, metric, showDots, samples]);
 
   const flatValues = useMemo(
     () =>
@@ -148,20 +166,26 @@ export default function StatsScQualityCard() {
         zoom: { enabled: false },
       },
       stroke: {
-        width: series.map((s, i) => (i === 0 ? 0 : i === 1 ? 3 : 2)),
+        width: series.map((s, i) =>
+          s.type === "scatter" ? 0 : i === 0 ? 0 : i === 1 ? 3 : 2,
+        ),
         curve: "straight",
       },
       fill: {
         type: "solid",
-        opacity: series.map((_, i) => (i === 0 ? 0.18 : 1)),
+        opacity: series.map((s, i) =>
+          s.type === "scatter" ? 0.22 : i === 0 ? 0.18 : 1,
+        ),
       },
       markers: {
         size: series.map((s, i) =>
-          i < 2
-            ? 0
-            : s.data.filter((d) => d.y != null).length < 3
-              ? 7
-              : 3,
+          s.type === "scatter"
+            ? 2
+            : i < 2
+              ? 0
+              : s.data.filter((d) => d.y != null).length < 3
+                ? 7
+                : 3,
         ),
         strokeWidth: 0,
         hover: { sizeOffset: 3 },
@@ -218,8 +242,7 @@ export default function StatsScQualityCard() {
       </Flex>
 
       <Text size="2" color="gray">
-        Median UMIs and genes per cell, taken from the matrices themselves and
-        grouped by sequencing chemistry.
+        Median UMIs and genes per cell, read from the matrices.
       </Text>
 
       <SegmentedControl.Root
@@ -235,6 +258,19 @@ export default function StatsScQualityCard() {
         </SegmentedControl.Item>
       </SegmentedControl.Root>
 
+      <Flex align="center" gap="2" asChild>
+        <label>
+          <Switch size="1" checked={showDots} onCheckedChange={setShowDots} />
+          <Text size="2" color="gray">
+            Show individual matrices
+            {showDots && samplesLoading && " (loading...)"}
+            {showDots && samples
+              ? ` (${samples.n_shown.toLocaleString()} of ${samples.n_total.toLocaleString()})`
+              : ""}
+          </Text>
+        </label>
+      </Flex>
+
       <Box>
         <Chart
           options={chartOptions}
@@ -246,18 +282,16 @@ export default function StatsScQualityCard() {
       </Box>
 
       <Text size="1" color="gray">
-        Each point is the median across that year&apos;s matrices, over cells
-        that clear the matrix&apos;s own count threshold. A year needs{" "}
-        {data.min_matrices} or more matrices from {data.min_studies} or more
-        studies to appear. The grey band is the interquartile range across all
-        chemistries pooled and the grey line its median. 
+        Median per year over cells clearing each matrix&apos;s count
+        threshold; grey is the pooled IQR and its median. Needs{" "}
+        {data.min_matrices}+ matrices from {data.min_studies}+ studies. Dots are
+        one matrix each, not one study, subsampled per chemistry and year.
         {declared.length > 0 && (
           <>
             {" "}
-            We read the chemistry off the FASTQs where we can. That caller
-            reaches 10x and Drop-seq, so {declared.slice(0, 4).join(", ")}
-            {declared.length > 4 ? " and others" : ""} are grouped by the assay
-            the submitter declared instead.
+            Chemistry read from FASTQs for 10x and Drop-seq;{" "}
+            {declared.slice(0, 4).join(", ")}
+            {declared.length > 4 ? " and others" : ""} use the declared assay.
           </>
         )}
       </Text>

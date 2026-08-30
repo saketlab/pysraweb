@@ -122,6 +122,20 @@ export type ScQuality = {
   min_studies: number;
 };
 
+export type ScQualitySample = {
+  year: number;
+  technology: string;
+  ncount: number | null;
+  nfeature: number | null;
+};
+
+export type ScQualitySamples = {
+  points: ScQualitySample[];
+  n_shown: number;
+  n_total: number;
+  per_technology_year: number;
+};
+
 export type TissueMicrobeCell = {
   tissue: string;
   uberon: string;
