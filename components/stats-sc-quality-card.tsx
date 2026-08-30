@@ -83,7 +83,7 @@ export default function StatsScQualityCard() {
       const o = overall.get(y);
       const lo = round(o?.[p25]);
       const hi = round(o?.[p75]);
-      return { x: y, y: lo == null || hi == null ? [] : [lo, hi] };
+      return { x: y, y: lo == null || hi == null ? null : [lo, hi] };
     });
     return [
       {
@@ -94,15 +94,18 @@ export default function StatsScQualityCard() {
       },
       {
         name: "All chemistries (median)",
-        type: "rangeArea",
+        type: "line",
         color: BAND_LINE,
-        data: years.map((y) => round(overall.get(y)?.[median])),
+        data: years.map((y) => ({ x: y, y: round(overall.get(y)?.[median]) })),
       },
       ...techs.map((technology, i) => ({
         name: technology,
         type: "line",
         color: technologyColor(technology, i),
-        data: years.map((y) => round(at.get(key(technology, y))?.[median])),
+        data: years.map((y) => ({
+          x: y,
+          y: round(at.get(key(technology, y))?.[median]),
+        })),
       })),
     ];
   }, [techs, at, overall, years, metric]);
@@ -111,7 +114,7 @@ export default function StatsScQualityCard() {
     () =>
       series.flatMap((s) =>
         s.data.flatMap((d) =>
-          d == null ? [] : typeof d === "number" ? [d] : d.y,
+          d.y == null ? [] : typeof d.y === "number" ? [d.y] : d.y,
         ),
       ),
     [series],
@@ -136,7 +139,7 @@ export default function StatsScQualityCard() {
     return {
       chart: {
         id: "seqout-sc-quality",
-        type: "line",
+        type: "rangeArea",
         background: theme.background,
         toolbar: { show: false },
         foreColor: theme.foreColor,
@@ -156,7 +159,7 @@ export default function StatsScQualityCard() {
         size: series.map((s, i) =>
           i < 2
             ? 0
-            : s.data.filter((v) => v != null).length < 3
+            : s.data.filter((d) => d.y != null).length < 3
               ? 7
               : 3,
         ),
@@ -165,7 +168,7 @@ export default function StatsScQualityCard() {
       },
       dataLabels: { enabled: false },
       xaxis: {
-        categories: years,
+        type: "category",
         title: { text: "Archive release year" },
         tickPlacement: "on",
       },
@@ -187,7 +190,7 @@ export default function StatsScQualityCard() {
         y: { formatter: (v) => (v == null ? "?" : v.toLocaleString()) },
       },
     };
-  }, [years, metric, isDark, reduced, series, decades]);
+  }, [metric, isDark, reduced, series, decades]);
 
   if (isLoading) {
     return (
