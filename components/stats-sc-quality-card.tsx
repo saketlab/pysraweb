@@ -4,8 +4,7 @@ import ChartFooter, { chartFooterEvents } from "@/components/chart-footer";
 import SectionAnchor from "@/components/section-anchor";
 import {
   getApexChartTheme,
-  TECHNOLOGY_COLOR,
-  TECHNOLOGY_FALLBACK_COLOR,
+  technologyColor,
 } from "@/utils/chart-theme";
 import { humanize } from "@/utils/format";
 import type { ScQualityPoint } from "@/utils/types";
@@ -70,9 +69,9 @@ export default function StatsScQualityCard() {
 
   const series = useMemo(() => {
     const field = METRIC[metric].median;
-    return techs.map((technology) => ({
+    return techs.map((technology, i) => ({
       name: technology,
-      color: TECHNOLOGY_COLOR[technology] ?? TECHNOLOGY_FALLBACK_COLOR,
+      color: technologyColor(technology, i),
       data: years.map((y) => {
         const v = at.get(key(technology, y))?.[field];
         return v == null ? null : Math.round(v);
@@ -85,9 +84,15 @@ export default function StatsScQualityCard() {
       .flatMap((s) => s.data)
       .filter((v): v is number => v != null && v > 0);
     if (vs.length === 0) return null;
-    const lo = 10 ** Math.floor(Math.log10(Math.min(...vs)));
-    const hi = 10 ** Math.ceil(Math.log10(Math.max(...vs)));
-    return { lo, hi, ticks: Math.round(Math.log10(hi / lo)) };
+    let min = Infinity;
+    let max = 0;
+    for (const v of vs) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    const lo = Math.floor(Math.log10(min));
+    const hi = Math.ceil(Math.log10(max));
+    return { lo: 10 ** lo, hi: 10 ** hi, ticks: hi - lo };
   }, [series]);
 
   const chartOptions = useMemo<ApexOptions>(() => {
@@ -129,7 +134,7 @@ export default function StatsScQualityCard() {
         y: { formatter: (v) => (v == null ? "?" : v.toLocaleString()) },
       },
     };
-  }, [years, metric, isDark, reduced, decades]);
+  }, [years, metric, isDark, reduced, decades?.lo, decades?.hi, decades?.ticks]);
 
   if (isLoading) {
     return (
@@ -188,17 +193,12 @@ export default function StatsScQualityCard() {
         Each point is the median across that year&apos;s matrices, over cells
         that clear the matrix&apos;s own count threshold. A year needs{" "}
         {data.min_matrices} or more matrices from {data.min_studies} or more
-        studies to appear, so a chemistry enters the chart the year it reaches
-        that footing, and the plate-based and combinatorial chemistries stay off
-        it entirely for want of deposited matrices. The y-axis is logarithmic so
-        that chemistries an order of magnitude apart share it without the lower
-        series pressing flat. Release year comes from the archive, which runs
-        ahead of the paper by a few months.
+        studies to appear.
         {declared.length > 0 && (
           <>
             {" "}
             We read the chemistry off the FASTQs where we can. That caller
-            reaches 10x, Drop-seq and ATAC, so {declared.slice(0, 4).join(", ")}
+            reaches 10x and Drop-seq, so {declared.slice(0, 4).join(", ")}
             {declared.length > 4 ? " and others" : ""} are grouped by the assay
             the submitter declared instead.
           </>

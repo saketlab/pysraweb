@@ -100,12 +100,15 @@ export const SIMILARITY_GRAPH_COLORS = {
   gsa: "#e54d2e",
 } as const;
 
-// stats-sc-quality-card.tsx; keys must match the technology CASE in
-// seqout-ingestion/sql/tables/sc_quality_by_year_pg.sql
 export const TECHNOLOGY_COLOR: Record<string, string> = {
   "10x 3'": "#2563eb",
+  "10x 3' v1": "#bfdbfe",
+  "10x 3' v2": "#93c5fd",
+  "10x 3' v3": "#3b82f6",
+  "10x 3' v4": "#1d4ed8",
   "10x 5'": "#0ea5e9",
   "10x (unspecified)": "#7dd3fc",
+  "10x Flex": "#6366f1",
   "Drop-seq": "#059669",
   inDrop: "#34d399",
   PIPseq: "#14b8a6",
@@ -119,4 +122,17 @@ export const TECHNOLOGY_COLOR: Record<string, string> = {
   "sci-RNA-seq": "#db2777",
   "BD Rhapsody": "#f472b6",
 };
-export const TECHNOLOGY_FALLBACK_COLOR = "#94a3b8" as const;
+const TECHNOLOGY_FALLBACK_PALETTE = [
+  "#94a3b8",
+  "#64748b",
+  "#a8a29e",
+  "#78716c",
+  "#cbd5e1",
+] as const;
+
+export function technologyColor(technology: string, index: number): string {
+  return (
+    TECHNOLOGY_COLOR[technology] ??
+    TECHNOLOGY_FALLBACK_PALETTE[index % TECHNOLOGY_FALLBACK_PALETTE.length]
+  );
+}
