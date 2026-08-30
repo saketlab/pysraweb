@@ -22,7 +22,7 @@ describe("extractHowSearchWorks", () => {
   it("keeps operators, examples and formulae", () => {
     expect(guide).toContain("`liver NOT tumor`");
     expect(guide).toContain("Good: `crispr screen liver`");
-    expect(guide).toContain("N_{\\max} = 100");
+    expect(guide).toContain("N_{\\max} = 200");
   });
 
   it("leaves no JSX behind", () => {
