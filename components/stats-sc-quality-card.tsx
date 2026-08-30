@@ -167,7 +167,7 @@ export default function StatsScQualityCard() {
       },
       stroke: {
         width: series.map((s, i) =>
-          s.type === "scatter" ? 0 : i === 0 ? 0 : i === 1 ? 3 : 2,
+          s.type === "scatter" ? 0 : i === 0 ? 0 : i === 1 ? 5 : 2,
         ),
         curve: "straight",
       },
@@ -206,6 +206,8 @@ export default function StatsScQualityCard() {
       },
       legend: {
         position: "bottom",
+        height: 64,
+        itemMargin: { horizontal: 8, vertical: 2 },
         labels: { colors: theme.legendLabelColor },
       },
       grid: { strokeDashArray: 4, borderColor: theme.gridBorderColor },
@@ -276,7 +278,7 @@ export default function StatsScQualityCard() {
           options={chartOptions}
           series={series}
           type="rangeArea"
-          height={340}
+          height={400}
         />
         <ChartFooter chartId="seqout-sc-quality" />
       </Box>
