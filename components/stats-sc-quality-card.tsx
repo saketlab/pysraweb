@@ -85,11 +85,11 @@ export default function StatsScQualityCard() {
     const { median, p25, p75, dot } = METRIC[metric];
     const round = (v: number | null | undefined) =>
       v == null ? null : Math.round(v);
-    const band = years.map((y) => {
+    const band = years.flatMap((y) => {
       const o = overall.get(y);
       const lo = round(o?.[p25]);
       const hi = round(o?.[p75]);
-      return { x: y, y: lo == null || hi == null ? null : [lo, hi] };
+      return lo == null || hi == null ? [] : [{ x: y, y: [lo, hi] }];
     });
     return [
       {
