@@ -4,12 +4,12 @@
 // the synonym network for the current query: which synonyms the search actually
 // used, per term. Fetched only when the dialog is opened.
 
+import OntologySettingsButton from "@/components/ontology-settings-button";
 import {
   TermExpansionLearnMore,
   WaypointsIcon,
 } from "@/components/term-expansion-control";
 import { getSearchExpansion } from "@/utils/api";
-import OntologySettingsButton from "@/components/ontology-settings-button";
 import {
   EXPANSION_PARAM,
   ONTOLOGIES,
@@ -120,8 +120,7 @@ export default function ExpansionSection({ query }: { query: string }) {
       <Tooltip content="Term expansions used for this search">
         <Dialog.Trigger>
           <IconButton
-            variant="outline"
-            color="gray"
+            variant="surface"
             size="3"
             aria-label="Term expansions used for this search"
           >
