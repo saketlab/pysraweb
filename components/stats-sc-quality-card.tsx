@@ -140,7 +140,7 @@ export default function StatsScQualityCard() {
         y: { formatter: (v) => (v == null ? "?" : v.toLocaleString()) },
       },
     };
-  }, [years, metric, isDark, reduced, series, decades?.lo, decades?.hi, decades?.ticks]);
+  }, [years, metric, isDark, reduced, series, decades]);
 
   if (isLoading) {
     return (
