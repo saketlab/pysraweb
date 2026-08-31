@@ -7,10 +7,13 @@ import { Fragment, type ReactNode } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 import type { CenterInfo } from "./submitting-org-panel";
 
-const LIGHT_TILES =
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-const DARK_TILES =
-  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+// const LIGHT_TILES =
+//   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+// const DARK_TILES =
+//   "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
+const LIGHT_TILES = `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
+const DARK_TILES = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
 
 type Props = {
   markers: CenterInfo[];
@@ -40,8 +43,10 @@ export default function SubmittingOrgMap({ markers }: Props) {
       scrollWheelZoom={false}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        // attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>'
         url={tileUrl}
+        maxZoom={16}
       />
       {markers.map((m, i) => {
         // archive text is submitter-authored; keep it out of innerHTML
