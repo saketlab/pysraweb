@@ -299,12 +299,14 @@ function buildGeoSearchParams(
 
 async function fetchContributions(filters: {
   organism?: string;
+  assayL1?: string;
   assayL2?: string;
   placeType?: string;
   addressType?: string;
 }): Promise<ContributionsResponse> {
   const params = new URLSearchParams();
   if (filters.organism) params.set("organism", filters.organism);
+  if (filters.assayL1) params.set("assay_l1", filters.assayL1);
   if (filters.assayL2) params.set("assay_l2", filters.assayL2);
   if (filters.placeType) params.set("place_type", filters.placeType);
   if (filters.addressType) params.set("address_type", filters.addressType);
@@ -385,6 +387,7 @@ export default function StatsGlobalContributionsCard() {
   const [scaleBy, setScaleBy] = useState<ScaleBy>("projects");
   const [pointSize, setPointSize] = useState(1);
   const [organism, setOrganism] = useState("Homo sapiens");
+  const [assayL1, setAssayL1] = useState(ALL);
   const [assayL2, setAssayL2] = useState(ALL);
   const [placeType, setPlaceType] = useState(ALL);
   const [addressType, setAddressType] = useState(ALL);
@@ -399,6 +402,7 @@ export default function StatsGlobalContributionsCard() {
 
   const activeFilters = {
     organism: organism !== ALL ? organism : undefined,
+    assayL1: assayL1 !== ALL ? assayL1 : undefined,
     assayL2: assayL2 !== ALL ? assayL2 : undefined,
     placeType: placeType !== ALL ? placeType : undefined,
     addressType: addressType !== ALL ? addressType : undefined,
@@ -443,6 +447,7 @@ export default function StatsGlobalContributionsCard() {
     queryKey: [
       "global-contributions",
       activeFilters.organism,
+      activeFilters.assayL1,
       activeFilters.assayL2,
       activeFilters.placeType,
       activeFilters.addressType,
@@ -571,6 +576,18 @@ export default function StatsGlobalContributionsCard() {
           value: o.value,
           label: `${o.value} (${humanize(o.count)})`,
           searchLabel: `${o.value} ${humanize(o.count)}`,
+        })),
+    [activeFilterSource],
+  );
+
+  const assayL1SelectOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      (activeFilterSource?.assay_l1 ?? [])
+        .filter((a) => a.value)
+        .map((a) => ({
+          value: a.value,
+          label: `${a.value} (${humanize(a.count)})`,
+          searchLabel: `${a.value} ${humanize(a.count)}`,
         })),
     [activeFilterSource],
   );
@@ -881,7 +898,11 @@ export default function StatsGlobalContributionsCard() {
   }, [compositeMapImage]);
 
   const hasActiveFilter =
-    organism !== ALL || assayL2 !== ALL || placeType !== ALL || addressType !== ALL;
+    organism !== ALL ||
+    assayL1 !== ALL ||
+    assayL2 !== ALL ||
+    placeType !== ALL ||
+    addressType !== ALL;
 
   return (
     <Flex
@@ -955,6 +976,27 @@ export default function StatsGlobalContributionsCard() {
               {filtersData?.organisms.filter((o) => o.value).map((o) => (
                 <Select.Item key={o.value} value={o.value}>
                   {o.value} ({humanize(o.count)})
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </Flex>
+
+        <Flex gap="2" align="center">
+          <Text size="1" style={{ color: "var(--gray-11)" }}>
+            Category
+          </Text>
+          <Select.Root value={assayL1} onValueChange={setAssayL1} size="1">
+            <Select.Trigger
+              style={{ minWidth: 120, maxWidth: 200 }}
+              placeholder="All"
+            />
+            <Select.Content position="popper" sideOffset={4}>
+              <Select.Item value={ALL}>All</Select.Item>
+              <Select.Separator />
+              {filtersData?.assay_l1.filter((a) => a.value).map((a) => (
+                <Select.Item key={a.value} value={a.value}>
+                  {a.value} ({humanize(a.count)})
                 </Select.Item>
               ))}
             </Select.Content>
@@ -1236,6 +1278,16 @@ export default function StatsGlobalContributionsCard() {
                   : "All organisms"
               }
               minWidth={140}
+            />
+          </Flex>
+          <Flex gap="2" align="center">
+            <Text size="1" style={{ color: "var(--gray-11)" }}>Category</Text>
+            <SearchableSelect
+              value={assayL1}
+              onValueChange={setAssayL1}
+              options={assayL1SelectOptions}
+              placeholder="All categories"
+              minWidth={120}
             />
           </Flex>
           <Flex gap="2" align="center">
