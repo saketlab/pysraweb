@@ -367,6 +367,7 @@ const getGeoSearchResults = async (
   radiusKm: string | null,
   cursor: Cursor,
   organism: string | null,
+  assayL1: string | null,
   assayL2: string | null,
   source: string | null,
   signal?: AbortSignal,
@@ -377,6 +378,9 @@ const getGeoSearchResults = async (
   }
   if (organism) {
     url += `&organism=${encodeURIComponent(organism)}`;
+  }
+  if (assayL1) {
+    url += `&assay_l1=${encodeURIComponent(assayL1)}`;
   }
   if (assayL2) {
     url += `&assay_l2=${encodeURIComponent(assayL2)}`;
@@ -980,6 +984,7 @@ export default function SearchPageBody() {
   const geoLng = searchParams.get("geo_lng");
   const geoRadiusKm = searchParams.get("geo_radius_km");
   const geoOrganism = searchParams.get("organism");
+  const geoAssayL1 = searchParams.get("assay_l1");
   const geoAssayL2 = searchParams.get("assay_l2");
   const geoSource = searchParams.get("source") ?? searchParams.get("db");
   const isGeoSearch = geoLat !== null && geoLng !== null;
@@ -1182,6 +1187,7 @@ export default function SearchPageBody() {
       geoLng,
       geoRadiusKm,
       geoOrganism,
+      geoAssayL1,
       geoAssayL2,
       geoSource,
     ],
@@ -1195,6 +1201,7 @@ export default function SearchPageBody() {
         geoRadiusKm,
         pageParam as Cursor,
         geoOrganism,
+        geoAssayL1,
         geoAssayL2,
         geoSource,
         signal,

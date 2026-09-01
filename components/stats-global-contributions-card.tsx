@@ -287,12 +287,14 @@ const SOURCE_LABELS: { label: string; key: keyof Pick<LocationPoint, "n_geo" | "
 function buildGeoSearchParams(
   point: LocationPoint,
   organism: string,
+  assayL1: string,
   assayL2: string,
 ): string {
   const params = new URLSearchParams();
   params.set("geo_lat", String(point.lat));
   params.set("geo_lng", String(point.lng));
   if (organism !== ALL) params.set("organism", organism);
+  if (assayL1 !== ALL) params.set("assay_l1", assayL1);
   if (assayL2 !== ALL) params.set("assay_l2", assayL2);
   return params.toString();
 }
@@ -502,7 +504,7 @@ export default function StatsGlobalContributionsCard() {
         width: 100,
         cellRenderer: (p: { data: LocationPoint; value: number }) => {
           if (!p.data || !p.value) return p.value;
-          const qs = buildGeoSearchParams(p.data, organism, assayL2);
+          const qs = buildGeoSearchParams(p.data, organism, assayL1, assayL2);
           return (
             <Link href={`/search?${qs}`} target="_blank" underline="hover">
               {p.value.toLocaleString()}
@@ -547,7 +549,7 @@ export default function StatsGlobalContributionsCard() {
         valueFormatter: (p) => p.value?.toLocaleString(),
       },
     ],
-    [organism, assayL2],
+    [organism, assayL1, assayL2],
   );
 
   const activeFilterSource =
@@ -1186,7 +1188,7 @@ export default function StatsGlobalContributionsCard() {
                   <Flex direction="column" gap="0" pt="1" style={{ borderTop: "1px solid var(--gray-a5)" }}>
                     <Text size="1" style={{ color: "var(--gray-12)" }}>
                       <Link
-                        href={`/search?${buildGeoSearchParams(selectedLocation.point, organism, assayL2)}`}
+                        href={`/search?${buildGeoSearchParams(selectedLocation.point, organism, assayL1, assayL2)}`}
                         target="_blank"
                         underline="always"
                       >
@@ -1198,7 +1200,7 @@ export default function StatsGlobalContributionsCard() {
                       .map((s) => (
                         <Text key={s.db} size="1" style={{ color: "var(--gray-11)", paddingLeft: 8 }}>
                           <Link
-                            href={`/search?source=${s.db}&${buildGeoSearchParams(selectedLocation.point, organism, assayL2)}`}
+                            href={`/search?source=${s.db}&${buildGeoSearchParams(selectedLocation.point, organism, assayL1, assayL2)}`}
                             target="_blank"
                             underline="hover"
                           >
@@ -1371,8 +1373,9 @@ export default function StatsGlobalContributionsCard() {
                 theme="legacy"
                 rowStyle={{ cursor: "pointer" }}
                 onRowClicked={(e) => {
+                  if ((e.event?.target as HTMLElement | null)?.closest("a")) return;
                   if (e.data) {
-                    const qs = buildGeoSearchParams(e.data, organism, assayL2);
+                    const qs = buildGeoSearchParams(e.data, organism, assayL1, assayL2);
                     window.open(`/search?${qs}`, "_blank");
                   }
                 }}
