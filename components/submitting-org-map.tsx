@@ -1,19 +1,16 @@
 "use client";
 
-import { getLeafletPopupTheme } from "@/utils/chart-theme";
+import {
+  BASEMAP_MAX_ZOOM,
+  getBasemapTileUrl,
+  getLeafletPopupTheme,
+  MAP_ATTRIBUTION_HTML,
+} from "@/utils/chart-theme";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "next-themes";
 import { Fragment, type ReactNode } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 import type { CenterInfo } from "./submitting-org-panel";
-
-// const LIGHT_TILES =
-//   "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-// const DARK_TILES =
-//   "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
-const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
-const LIGHT_TILES = `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
-const DARK_TILES = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
 
 type Props = {
   markers: CenterInfo[];
@@ -22,7 +19,7 @@ type Props = {
 export default function SubmittingOrgMap({ markers }: Props) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const tileUrl = isDark ? DARK_TILES : LIGHT_TILES;
+  const tileUrl = getBasemapTileUrl(isDark, true);
   const popupTheme = getLeafletPopupTheme(isDark);
 
   const center: [number, number] = [
@@ -43,10 +40,10 @@ export default function SubmittingOrgMap({ markers }: Props) {
       scrollWheelZoom={false}
     >
       <TileLayer
-        // attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-        attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>'
+        attribution={MAP_ATTRIBUTION_HTML}
         url={tileUrl}
-        maxZoom={16}
+        maxZoom={BASEMAP_MAX_ZOOM}
+        detectRetina
       />
       {markers.map((m, i) => {
         // archive text is submitter-authored; keep it out of innerHTML

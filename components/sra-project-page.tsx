@@ -2288,12 +2288,8 @@ export default function ProjectPage() {
   const projectOrganisms = React.useMemo<
     { name: string; taxonId: string | null }[]
   >(() => {
-    // Union of the study-level organisms column and what the loaded samples
-    // say. Neither is complete on its own: measured over 40k SRA studies, the
-    // column misses an organism the samples have 4.7% of the time, and has one
-    // the samples lack 7.9% of the time. The column also shows immediately,
-    // whereas samples are fetched per experiment page — on its own the list
-    // would grow as you scroll. Taxids only exist on the sample side.
+    // Each side misses organisms the other has, and the column is there before
+    // the samples page in. Taxids only exist on the sample side.
     const byName = new Map<string, string | null>();
     // organisms_with_taxa carries the taxid; organisms is the older names-only
     // shape, kept as a fallback until the lookup table is populated.

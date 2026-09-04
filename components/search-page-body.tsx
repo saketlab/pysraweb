@@ -200,10 +200,7 @@ type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 const SERVER_PAGE_SIZE = 200;
 
 // Below this share of the query's best rank, a result is flagged "Low relevance".
-// Measured against prod: results that genuinely contain the query sit at 0.25-0.90
-// of the top rank (median, across several queries), while incidental
-// synonym-only matches sit near 0.005 — so 5% lands in the empty gap between them
-// rather than on either population.
+// Real matches rank far above synonym-only ones; this cutoff falls in the gap.
 const LOW_RELEVANCE_FRACTION = 0.05;
 
 const FILTER_PARAM_KEYS = {

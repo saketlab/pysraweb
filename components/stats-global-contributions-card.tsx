@@ -12,9 +12,13 @@ import { ExportFooter, FOOTER_TEXT, copyBlobToClipboard } from "@/components/cha
 import SectionAnchor from "@/components/section-anchor";
 import { useToast } from "@/components/toast-provider";
 import {
+  BASEMAP_MAX_ZOOM,
+  getBasemapTileUrl,
   getMapCanvasTheme,
   getMapMutedTextColor,
   getMapPanelBackground,
+  MAP_ATTRIBUTION_SOURCES,
+  MAP_ATTRIBUTION_TEXT,
 } from "@/utils/chart-theme";
 import { copyToClipboard } from "@/utils/clipboard";
 import { authorHref } from "@/utils/project";
@@ -40,7 +44,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColDef } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 ensureAgGridModules();
@@ -120,15 +124,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-// ponytail: CARTO raster basemaps now watermark unkeyed tiles and are being retired.
-// Esri gray canvas needs no key; note {z}/{y}/{x} order and 256px tiles.
-const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
-const LIGHT_TILES = `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
-const DARK_TILES = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
-const LIGHT_LABEL_TILES = `${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
-const DARK_LABEL_TILES = `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
-
-const INDIA_GEOJSON_URL = "/india-states.geojson";
+const INDIA_GEOJSON_URL = "/india-outline.geojson";
 
 const ALL = "__all__";
 
@@ -674,9 +670,9 @@ export default function StatsGlobalContributionsCard() {
     () =>
       new TileLayer({
         id: "basemap-tiles",
-        data: isDark ? DARK_TILES : LIGHT_TILES,
+        data: getBasemapTileUrl(isDark),
         minZoom: 0,
-        maxZoom: 16,
+        maxZoom: BASEMAP_MAX_ZOOM,
         tileSize: 256,
         renderSubLayers: (props: Record<string, unknown>) => {
           const tile = props.tile as {
@@ -764,53 +760,17 @@ export default function StatsGlobalContributionsCard() {
         data: INDIA_GEOJSON_URL,
         filled: false,
         stroked: true,
-        getLineColor: isDark ? [60, 60, 60] : [190, 196, 198],
+        // heavy enough to out-read the basemap's own boundary lines
+        getLineColor: isDark ? [120, 120, 120] : [140, 146, 149],
         getLineWidth: 1,
-        lineWidthMinPixels: 0.5,
-        lineWidthMaxPixels: 1.5,
+        lineWidthMinPixels: 1,
+        lineWidthMaxPixels: 2,
         parameters: { depthTest: false },
       }),
     [isDark],
   );
 
-  const labelLayer = useMemo(
-    () =>
-      new TileLayer({
-        id: "label-tiles",
-        data: isDark ? DARK_LABEL_TILES : LIGHT_LABEL_TILES,
-        minZoom: 0,
-        maxZoom: 16,
-        tileSize: 256,
-        renderSubLayers: (props: Record<string, unknown>) => {
-          const tile = props.tile as {
-            boundingBox: [[number, number], [number, number]];
-          };
-          const { boundingBox } = tile;
-          return new BitmapLayer({
-            ...props,
-            id: props.id as string,
-            data: undefined,
-            image: props.data as string,
-            bounds: [
-              boundingBox[0][0],
-              boundingBox[0][1],
-              boundingBox[1][0],
-              boundingBox[1][1],
-            ],
-            parameters: { depthTest: false },
-            opacity: 0.6,
-          });
-        },
-      }),
-    [isDark],
-  );
-
-  const layers = [
-    tileLayer,
-    indiaBorderLayer,
-    scatterLayer,
-    labelLayer,
-  ].filter(Boolean);
+  const layers = [tileLayer, indiaBorderLayer, scatterLayer];
 
   const deckContainerRef = useRef<HTMLDivElement>(null);
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -851,7 +811,7 @@ export default function StatsGlobalContributionsCard() {
       const w = srcCanvas.width;
       const h = srcCanvas.height;
       const titleH = 40 * scale;
-      const footerH = 30 * scale;
+      const footerH = 44 * scale;
       const out = document.createElement("canvas");
       out.width = w;
       out.height = h + titleH + footerH;
@@ -870,9 +830,22 @@ export default function StatsGlobalContributionsCard() {
       ctx.drawImage(srcCanvas, 0, titleH, w, h);
 
       ctx.fillStyle = canvasTheme.attribution;
-      ctx.font = `${10 * scale}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = "center";
-      ctx.fillText(FOOTER_TEXT, out.width / 2, h + titleH + footerH * 0.65);
+      const centreFitted = (text: string, sizePx: number, y: number) => {
+        const maxWidth = out.width - 16 * scale;
+        let size = sizePx;
+        const setFont = () => {
+          ctx.font = `${size}px system-ui, -apple-system, sans-serif`;
+        };
+        setFont();
+        while (size > 6 * scale && ctx.measureText(text).width > maxWidth) {
+          size -= scale;
+          setFont();
+        }
+        ctx.fillText(text, out.width / 2, y);
+      };
+      centreFitted(FOOTER_TEXT, 10 * scale, h + titleH + 16 * scale);
+      centreFitted(MAP_ATTRIBUTION_TEXT, 9 * scale, h + titleH + 31 * scale);
 
       return out;
     },
@@ -1239,10 +1212,21 @@ export default function StatsGlobalContributionsCard() {
               right: 8,
               fontSize: "10px",
               color: getMapMutedTextColor(isDark),
-              pointerEvents: "none",
             }}
           >
-            &copy; Esri &copy; OpenStreetMap contributors
+            {MAP_ATTRIBUTION_SOURCES.map((src, i) => (
+              <Fragment key={src.href}>
+                {i > 0 && " "}&copy;{" "}
+                <a
+                  href={src.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "inherit" }}
+                >
+                  {src.label}
+                </a>
+              </Fragment>
+            ))}
           </div>
         </div>
       )}

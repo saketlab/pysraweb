@@ -96,8 +96,6 @@ export interface SingleCellSample {
   assay: string | null;
   assay_display: string | null;
   calls_ambiguous: boolean | null;
-  flags: string[] | null;
-  n_flags: number | null;
   detections: Detection[];
   screened: boolean;
   hpv_top_type: string | null;
@@ -449,6 +447,8 @@ async function fetchPage(
   );
 }
 
+type SingleCellCol = ColDef<SingleCellSample> & { hasData?: () => boolean };
+
 export default function SingleCellCard({ accession }: { accession: string }) {
   const { resolvedTheme } = useTheme();
   const wrapText = useWrapText();
@@ -475,6 +475,18 @@ export default function SingleCellCard({ accession }: { accession: string }) {
     () => data?.pages.flatMap((page) => page?.samples ?? []) ?? [],
     [data],
   );
+  const { nonEmptyFields, hasScreened } = useMemo(() => {
+    const nonEmptyFields = new Set<string>();
+    let hasScreened = false;
+    for (const r of rows) {
+      if (r.screened) hasScreened = true;
+      for (const [k, v] of Object.entries(r)) {
+        const filled = Array.isArray(v) ? v.length > 0 : v != null && v !== "";
+        if (filled) nonEmptyFields.add(k);
+      }
+    }
+    return { nonEmptyFields, hasScreened };
+  }, [rows]);
   const defaultColDef = useMemo(
     () => ({
       filter: true,
@@ -500,10 +512,11 @@ export default function SingleCellCard({ accession }: { accession: string }) {
 
   const head = data!.pages[0]!;
 
-  const allColumns: ColDef<SingleCellSample>[] = [
+  const allColumns: SingleCellCol[] = [
     {
       field: "sample_accession",
       headerName: "Sample",
+      hasData: () => true,
       pinned: "left",
       minWidth: 150,
       flex: 1,
@@ -562,23 +575,21 @@ export default function SingleCellCard({ accession }: { accession: string }) {
       filter: false,
     },
     {
-      field: "flags",
+      field: "detections",
       headerName: "Microbial evidence",
+      // a screened sample with no detections still gets the column
+      hasData: () => hasScreened,
       flex: 1,
       minWidth: 240,
       cellRenderer: FlagsCellRenderer,
       sortable: false,
+      // detections holds objects; the text filter would match "[object Object]"
+      filter: false,
     },
   ];
 
-  const columnDefs = allColumns.filter(
-    (c) =>
-      c.field === "sample_accession" ||
-      rows.some((r) => {
-        const v = r[c.field as keyof SingleCellSample];
-        if (Array.isArray(v)) return v.length > 0;
-        return v != null && v !== "";
-      }),
+  const columnDefs = allColumns.filter((c) =>
+    c.hasData ? c.hasData() : nonEmptyFields.has(c.field!),
   );
 
   const gridHeight = Math.min(400, 42 + rows.length * 42);
