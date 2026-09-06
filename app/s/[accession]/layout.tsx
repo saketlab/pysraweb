@@ -60,17 +60,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const pageTitle = `${accession} - ${title}`;
   const description = `Explore ${sampleType} ${accession}: ${title}. View metadata, experiment info, and download links on seqout.`;
+  const canonicalUrl = `${SITE_URL}/s/${encodeURIComponent(accession)}`;
 
   return {
     title: pageTitle,
     description,
     alternates: {
-      canonical: `/s/${encodeURIComponent(accession)}`,
+      canonical: canonicalUrl,
     },
     openGraph: {
       title: `${title} • ${accession}`,
       description: `${sampleType} on ${database} • ${title}`,
       type: "article",
+      url: canonicalUrl,
     },
     twitter: {
       card: "summary",

@@ -1,4 +1,4 @@
-import { ARCHIVE_LIST_TEXT } from "@/utils/constants";
+import { ARCHIVE_LIST_TEXT, SITE_URL } from "@/utils/constants";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -9,11 +9,18 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { acc } = await params;
+  const canonicalUrl = `${SITE_URL}/submission/${encodeURIComponent(acc)}`;
+  const description = `Sequencing studies filed under submission ${acc} across ${ARCHIVE_LIST_TEXT}.`;
   return {
     title: `Submission ${acc} - Studies`,
-    description: `Sequencing studies filed under submission ${acc} across ${ARCHIVE_LIST_TEXT}.`,
+    description,
     alternates: {
-      canonical: `/submission/${encodeURIComponent(acc)}`,
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `Submission ${acc} - Studies`,
+      description,
+      url: canonicalUrl,
     },
     robots: { index: false, follow: true },
   };

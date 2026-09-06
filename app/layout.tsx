@@ -148,7 +148,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://seqout.org",
     siteName: "seqout",
     title: "seqout - Search GEO, SRA, ENA, DRA, GEA, GSA & ArrayExpress",
     description:
